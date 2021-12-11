@@ -28,9 +28,9 @@ setup(
     license='Apache License',
     description='python Online SpreadSheet Editing tool with configurable enhancer/importer and check phase',
     install_requires=[
-          'pyLodStorage',
-          'pyFlaskBootstrap4>=0.2.19',
-          'pandas'
+          'pyLodStorage~=0.0.81',
+          'pyFlaskBootstrap4~=0.2.19',
+          'pandas~=1.3.4'
     ],
     classifiers=[
             'Programming Language :: Python',
