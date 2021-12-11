@@ -1,0 +1,15 @@
+#!/bin/bash
+# WF 2021-06-12
+# install and test
+# install apache jena and load example data
+scripts/jena -l sampledata/example.ttl
+# command to run tests
+# kill running jena
+scripts/jena -k
+# run apache jena fuseki server
+scripts/jena -f example
+# command to install dependencies
+scripts/install
+# command to run tests
+scripts/test
+
