@@ -29,6 +29,8 @@ setup(
     description='python Online SpreadSheet Editing tool with configurable enhancer/importer and check phase',
     install_requires=[
           'pyLodStorage',
+          'pyFlaskBootstrap4>=0.2.19',
+          'pandas'
     ],
     classifiers=[
             'Programming Language :: Python',
