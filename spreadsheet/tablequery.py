@@ -16,14 +16,14 @@ class SmwWikiAccess:
     '''
     # TODO move to general project
     
-    def __init__(self,wikiId:str,showProgress=False,queryDivision=1,debug=False):
+    def __init__(self,wikiId:str,showProgress=False,queryDivision=1,debug=False,lenient=True):
         '''
         constructor
         
         
         '''
         self.debug=debug
-        self.wikiUser = WikiUser.ofWikiId(wikiId)
+        self.wikiUser = WikiUser.ofWikiId(wikiId,lenient=lenient)
         self.wikiClient = WikiClient.ofWikiUser(self.wikiUser)
         self.smwClient=SMWClient(self.wikiClient.getSite(),showProgress=showProgress, queryDivision=queryDivision,debug=self.debug)
         # self.wikiPush = WikiPush(fromWikiId=self.wikiUser.wikiId)
