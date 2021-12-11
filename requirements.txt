@@ -2,7 +2,7 @@
 #pyFlaskBootstrap4>=0.2.23
 #flask-dropzone
 # https://pypi.org/project/pylodstorage/
-pylodstorage=0.0.81
+pylodstorage~=0.0.81
 #https://pypi.org/project/odfpy/
 odfpy
 XlsxWriter
