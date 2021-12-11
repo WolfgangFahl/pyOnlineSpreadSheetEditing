@@ -8,7 +8,7 @@ import time
 import getpass
 import os
 
-class Basetest(TestCase):
+class BaseTest(TestCase):
     '''
     base test case
     '''
@@ -27,9 +27,9 @@ class Basetest(TestCase):
         TestCase.tearDown(self)
         self.profiler.time()    
         
-    def inCI(self):
+    def inPublicCI(self):
         '''
-        are we running in a Continuous Integration Environment?
+        are we running in a public Continuous Integration Environment?
         '''
         publicCI=getpass.getuser() in ["travis", "runner"] 
         jenkins= "JENKINS_HOME" in os.environ;

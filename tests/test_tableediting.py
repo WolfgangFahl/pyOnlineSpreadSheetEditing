@@ -4,18 +4,18 @@ Created on 2021-12-08
 @author: wf
 '''
 import unittest
-from tests.basetest import Basetest
+from tests.basetest import BaseTest
 from spreadsheet.tableediting import TableEditing
 from spreadsheet.spreadsheet import SpreadSheet
 
-class TestTableEditing(Basetest):
+class TestTableEditing(BaseTest):
     '''
     test TableEditing
     '''
 
 
     def setUp(self):
-        Basetest.setUp(self)
+        BaseTest.setUp(self)
         pass
 
 
