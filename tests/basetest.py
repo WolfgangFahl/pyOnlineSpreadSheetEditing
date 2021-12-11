@@ -28,7 +28,7 @@ class BaseTest(TestCase):
         self.profiler.time()    
         
     @staticmethod    
-    def inPublicCI(self):
+    def inPublicCI():
         '''
         are we running in a public Continuous Integration Environment?
         '''
