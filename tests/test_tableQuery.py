@@ -9,6 +9,7 @@ from spreadsheet.tablequery import TableQuery
 from spreadsheet.tableediting import SpreadSheetType
 from wikibot.wikiuser import WikiUser
 import os
+import getpass
 
 class TestTableQuery(BaseTest):
     '''
@@ -18,6 +19,7 @@ class TestTableQuery(BaseTest):
 
     def setUp(self):
         BaseTest.setUp(self)
+        self.user=getpass.getuser()
         pass
     
     @staticmethod
@@ -32,11 +34,12 @@ class TestTableQuery(BaseTest):
             if wikiId=="smwcopy":
                 wikiDict={"wikiId": wikiId,"email":"webmaster@bitplan.com","url":"http://smw.bitplan.com","scriptPath":"/","version":"MediaWiki 1.35.0"}
             if wikiId=="smw":
-                wikiDict={"wikiId": wikiId,"email":"webmaster@semantic-mediawiki.org","url":"https://www.semantic-mediawiki.org","scriptPath":"/w","version":"MediaWiki 1.31.7"}
+                wikiDict={"wikiId": wikiId,"email":"webmaster@semantic-mediawiki.org","url":"https://www.semantic-mediawiki.org","scriptPath":"/w","version":"MediaWiki 1.31.16"}
             if wikiId=="or":
                 wikiDict={"wikiId": wikiId,"email":"webmaster@openresearch.org","url":"https://www.openresearch.org","scriptPath":"/mediawiki/","version":"MediaWiki 1.31.1"}   
+            wikiDict["user"]=f"{self.user}"
             if wikiDict is None:
-                raise Exception("%s missing for wikiId %s" % (iniFile,wikiId))
+                raise Exception(f"{iniFile} missing for wikiId {wikiId}")
             else:
                 wikiUser=WikiUser.ofDict(wikiDict, lenient=True)
                 if BaseTest.inPublicCI():

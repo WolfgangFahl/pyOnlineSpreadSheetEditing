@@ -13,7 +13,6 @@ class TestTableEditing(BaseTest):
     test TableEditing
     '''
 
-
     def setUp(self):
         BaseTest.setUp(self)
         pass
