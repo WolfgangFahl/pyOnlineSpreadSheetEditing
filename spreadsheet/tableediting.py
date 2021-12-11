@@ -25,15 +25,27 @@ class TableEditing(object):
         self.enhanceCallbacks=[] # functions to call for enhancing
          
     def toSpreadSheet(self,spreadSheetType:SpreadSheetType)->SpreadSheet:
+        '''
+        convert me to the given spreadSheetType
+        '''
         return NONE
     
     def fromSpreadSheet(self,spreadSheet:SpreadSheet):
         pass
     
     def addEnhancer(self,callback):
+        '''
+        add the given enhancer callback to my callbacks
+        
+        Args:
+            callback(func): the callback function to add
+        '''
         self.enhanceCallbacks.append(callback)
     
     def enhance(self):
+        '''
+        enhance/enrich my list of dicts with the set callbacks
+        '''
         for callback in self.enhanceCallbacks:
             callback(self)
         
