@@ -36,6 +36,51 @@ class SpreadSheet:
         self.tables={} # dict of lods
         pass
     
+    @classmethod
+    def create(cls,spreadSheetType:SpreadSheetType,name:str):
+        '''
+        create a SpreadSheet of the given types
+        
+        Args:
+            spreadSheetType(SpreadSheetType): the type of spreadsheet to create
+            name(str): the name of the spreadsheet
+        
+        '''
+        spreadSheet=None
+        if spreadSheetType==SpreadSheetType.EXCEL:
+            spreadSheet=ExcelDocument(name=name)
+        elif spreadSheetType==SpreadSheetType.ODS:
+            spreadSheet=OdsDocument(name=name)
+        elif spreadSheetType==SpreadSheetType.CSV:
+            spreadSheet=CSVSpreadSheet(name=name)
+        return spreadSheet
+    
+    def getTable(self, name:str):
+        """
+        returns the data corresponding to the given table name
+        Args:
+            name: name of the table
+
+        Returns:
+            LoD
+        """
+        if name in self.tables:
+            return self.tables[name]
+        
+    def addTable(self, name:str, lod:list, headers:dict=None):
+        """
+        add the given data as table to the document
+
+        Args:
+            name(str): name of the table
+            lod: data that should be added to the document as table
+            headers(dict): Mapping from dict key to the new headers. Also functions as restriction. If not defined dict key are used as headers
+        """
+        if headers:
+            lod=[{newHeader:record.get(oldHeader, None) for oldHeader, newHeader in headers.items()} for record in lod]
+        self.tables[name]=lod
+
+    
 class CSVSpreadSheet(SpreadSheet):
     '''
     CSV Spreadsheet packaging as ZIP file of CSV files
@@ -62,31 +107,6 @@ class ExcelDocument(SpreadSheet):
     @property
     def filename(self):
         return self.name + ".xlsx"
-
-    def getTable(self, name:str):
-        """
-        returns the data corresponding to the given table name
-        Args:
-            name: name of the table
-
-        Returns:
-            LoD
-        """
-        if name in self.tables:
-            return self.tables[name]
-
-    def addTable(self, name:str, lod:list, headers:dict=None):
-        """
-        add the given data as table to the document
-
-        Args:
-            name(str): name of the table
-            lod: data that should be added to the document as table
-            headers(dict): Mapping from dict key to the new headers. Also functions as restriction. If not defined dict key are used as headers
-        """
-        if headers:
-            lod=[{newHeader:record.get(oldHeader, None) for oldHeader, newHeader in headers.items()} for record in lod]
-        self.tables[name]=lod
 
     def saveToFile(self, name: str = None):
         """

@@ -4,7 +4,7 @@ Created on 2021-12-08
 @author: wf
 '''
 from spreadsheet.spreadsheet import SpreadSheet, SpreadSheetType
-from pickle import NONE
+
 
 class TableEditing(object):
     '''
@@ -24,11 +24,16 @@ class TableEditing(object):
         self.lods=lods
         self.enhanceCallbacks=[] # functions to call for enhancing
          
-    def toSpreadSheet(self,spreadSheetType:SpreadSheetType)->SpreadSheet:
+    def toSpreadSheet(self,spreadSheetType:SpreadSheetType,name:str)->SpreadSheet:
         '''
         convert me to the given spreadSheetType
+        
+        Args:
+            spreadSheetType(SpreadSheetType): the type of spreadsheet to create
+            name(str): the name of the spreadsheet
         '''
-        return NONE
+        spreadSheet=SpreadSheet.create(spreadSheetType,name=name)
+        return spreadSheet
     
     def fromSpreadSheet(self,spreadSheet:SpreadSheet):
         pass

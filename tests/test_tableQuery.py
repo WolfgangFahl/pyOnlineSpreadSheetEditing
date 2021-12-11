@@ -23,7 +23,7 @@ class TestTableQuery(BaseTest):
 
     def setUp(self):
         BaseTest.setUp(self)
-        
+        self.tq=None
         pass
     
     @classmethod
@@ -54,39 +54,60 @@ class TestTableQuery(BaseTest):
         else: 
             wikiUser=WikiUser.ofWikiId(wikiId,lenient=True)
         return wikiUser
-
-    def testTableQuery(self):
-        '''
-        test table query handling
-        '''
+    
+    def getTableQuery(self):
+        if self.tq is not None:
+            return self.tq
         wikiId="smw"
         # make sure wiki user is available
         TestTableQuery.getSMW_WikiUser(wikiId)
-        askQueries=[{
+        self.askQueries=[{
                 "name":"eventseries",
-                "ask":"[[SMWCon]]"
+                "ask":"[[SMWCon]]|mainlabel='pageTitle'"
             }, {
                 "name":"events",
-                "ask":"""{{#ask: [[isA::Conference]] 
+                "ask":"""{{#ask: [[isA::Conference]][[Has Wikidata item ID::+]]|mainlabel='pageTitle'
 |?Has Wikidata item ID=wikidataid
 |?Has planned finish=endDate
 |?Has planned start=startDate
 |format=table
 }}"""
             }]
-        tq=TableQuery()
-        tq.fromAskQueries(wikiId=wikiId,askQueries=askQueries)
+        self.tq=TableQuery()
+        self.tq.fromAskQueries(wikiId=wikiId,askQueries=self.askQueries)
+        return self.tq
+
+    def testTableQuery(self):
+        '''
+        test table query handling
+        '''
+        tq=self.getTableQuery()
         self.assertEqual(2,len(tq.queries))
         self.assertFalse(tq.tableEditing is None)
         lods=tq.tableEditing.lods
         self.assertEqual(2,len(lods))
-        # TODO check tables/LoDs
+        debug=self.debug
+        for askQuery in self.askQueries:
+            name=askQuery["name"]
+            self.assertTrue(name in lods)
+            lod=lods[name]
+            if debug:
+                print(len(lod))
+                print(lod)
+            if name=="events":
+                self.assertTrue(len(lod)>=18)
         
     def testSpreadSheetFromTableQuery(self):
         '''
+        test creating a spreadSheet from a table Query
         '''
-       
-        #te.toSpreadSheet(spreadSheetType=SpreadSheetType.EXCEL)
+        tq=self.getTableQuery()
+        name="testSMWCon"
+        s=tq.tableEditing.toSpreadSheet(spreadSheetType=SpreadSheetType.EXCEL,name=name)
+        self.assertTrue(s is not None)
+        debug=self.debug
+        if debug:
+            print(type(s))
         # TODO add test
         pass
 
