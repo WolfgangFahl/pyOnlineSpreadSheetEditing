@@ -14,14 +14,17 @@ class TableEditing(object):
     spreadsheet editing call
     validation
     '''
-    def __init__(self,lods:dict={}):
+    def __init__(self,lods:dict=None):
         '''
         Constructor
         
         Args:
             lods(dict): a dict of list of dicts that represents the content of a Spreadsheet
         '''
-        self.lods=lods
+        if lods is None:
+            self.lods={}
+        else:
+            self.lods=lods
         self.enhanceCallbacks=[] # functions to call for enhancing
          
     def toSpreadSheet(self,spreadSheetType:SpreadSheetType,name:str)->SpreadSheet:

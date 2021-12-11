@@ -26,7 +26,6 @@ class TestTableQuery(BaseTest):
 
     def setUp(self):
         BaseTest.setUp(self)
-        self.tq = None
         pass
     
     @classmethod
@@ -59,8 +58,6 @@ class TestTableQuery(BaseTest):
         return wikiUser
     
     def getTableQuery(self):
-        if self.tq is not None:
-            return self.tq
         wikiId = "smw"
         # make sure wiki user is available
         TestTableQuery.getSMW_WikiUser(wikiId)
@@ -76,9 +73,9 @@ class TestTableQuery(BaseTest):
 |format=table
 }}"""
             }]
-        self.tq = TableQuery()
-        self.tq.fromAskQueries(wikiId=wikiId, askQueries=self.askQueries)
-        return self.tq
+        tq = TableQuery()
+        tq.fromAskQueries(wikiId=wikiId, askQueries=self.askQueries)
+        return tq
 
     def testTableQuery(self):
         '''
@@ -88,6 +85,8 @@ class TestTableQuery(BaseTest):
         self.assertEqual(2, len(tq.queries))
         self.assertFalse(tq.tableEditing is None)
         lods = tq.tableEditing.lods
+        if (len(lods)!=2):
+            print(lods)
         self.assertEqual(2, len(lods))
         debug = self.debug
         for askQuery in self.askQueries:
@@ -108,8 +107,8 @@ class TestTableQuery(BaseTest):
         name = "testSMWCon"
         s = tq.tableEditing.toSpreadSheet(spreadSheetType=SpreadSheetType.EXCEL, name=name)
         self.assertTrue(s is not None)
-        #debug = self.debug
-        debug=True
+        debug = self.debug
+        #debug=True
         if debug:
             print(type(s))
         # TODO add test
@@ -152,6 +151,10 @@ LIMIT 10"""
             query.endpoint=SPARQL(endpointUrl)
             tq.addQuery(query)
         tq.fetchQueryResults()
+        lods = tq.tableEditing.lods
+        self.assertEqual(1, len(lods))
+        lod=lods["CityTop10"]
+        self.assertTrue(len(lod)==10)
 
 
 if __name__ == "__main__":
