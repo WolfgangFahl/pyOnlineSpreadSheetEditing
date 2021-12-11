@@ -14,7 +14,7 @@ class TableEditing(object):
     spreadsheet editing call
     validation
     '''
-    def __init__(self,lods:dict=None):
+    def __init__(self,lods:dict={}):
         '''
         Constructor
         
@@ -32,6 +32,16 @@ class TableEditing(object):
     
     def fromSpreadSheet(self,spreadSheet:SpreadSheet):
         pass
+    
+    def addLoD(self,name,lod):
+        '''
+        add the given list of dicts with the given name to my lods
+        
+        Args:
+            name(str): the name 
+            lod(list): the list of dicts to add
+        '''
+        self.lods[name]=lod
     
     def addEnhancer(self,callback):
         '''

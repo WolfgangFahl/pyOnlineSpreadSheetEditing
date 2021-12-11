@@ -77,6 +77,9 @@ class TestTableQuery(BaseTest):
         tq=TableQuery()
         tq.fromAskQueries(wikiId=wikiId,askQueries=askQueries)
         self.assertEqual(2,len(tq.queries))
+        self.assertFalse(tq.tableEditing is None)
+        lods=tq.tableEditing.lods
+        self.assertEqual(2,len(lods))
         # TODO check tables/LoDs
         
     def testSpreadSheetFromTableQuery(self):
