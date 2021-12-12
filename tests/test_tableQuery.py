@@ -12,7 +12,8 @@ import os
 import getpass
 from lodstorage.query import Query
 from lodstorage.sparql import SPARQL
-
+from lodstorage.lod import LOD
+import copy
 
 class TestTableQuery(BaseTest):
     '''
@@ -27,6 +28,8 @@ class TestTableQuery(BaseTest):
     def setUp(self):
         BaseTest.setUp(self)
         pass
+      
+   
     
     @classmethod
     def getSMW_WikiUser(cls, wikiId="smw"):
@@ -146,15 +149,25 @@ LIMIT 10"""
         tq = TableQuery()
         for queryMap in testQueries:
             endpointUrl=queryMap.pop("endpoint")
-            _prefixes=queryMap.pop("prefixes")
             query = Query(**queryMap)
+            query.tryItUrl=endpointUrl
             query.endpoint=SPARQL(endpointUrl)
             tq.addQuery(query)
         tq.fetchQueryResults()
         lods = tq.tableEditing.lods
         self.assertEqual(1, len(lods))
-        lod=lods["CityTop10"]
-        self.assertTrue(len(lod)==10)
+        qlod=lods["CityTop10"]
+        self.assertTrue(len(qlod)==10)
+        citiesByLabel,_dup=LOD.getLookup(qlod, "cityLabel")
+        self.assertTrue("Delhi" in citiesByLabel)
+        delhi=citiesByLabel["Delhi"]
+        self.assertTrue(delhi['population']>20000000.0)
+        show=self.debug
+        for tablefmt in ["mediawiki","github","latex"]:
+            lod=copy.deepcopy(qlod)
+            qdoc=query.documentQueryResult(lod,tablefmt=tablefmt)
+            if show:
+                print(qdoc.asText())
 
 
 if __name__ == "__main__":

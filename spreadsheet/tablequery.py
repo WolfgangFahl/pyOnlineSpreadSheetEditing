@@ -64,7 +64,7 @@ class TableQuery(object):
             elif query.lang.lower()=="sparql":
                 if not hasattr(query,"endpoint") or query.endpoint is None:
                     raise(f"endpoint needs to be configured for SPARQL query '{query.name}'")
-                lod=query.endpoint.query(query.query)
+                lod=query.endpoint.queryAsListOfDicts(query.query)
             if lod is not None:
                 self.tableEditing.addLoD(query.name, lod)
         
