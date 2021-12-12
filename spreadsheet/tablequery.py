@@ -61,6 +61,10 @@ class TableQuery(object):
                 if not hasattr(query, "wikiAccess") or query.wikiAccess is None:
                     raise(f"wikiAccess needs to be configured for Semantic MediaWiki ask query '{query.name}'")
                 lod=query.wikiAccess.smwClient.query(query.query)
+                # workaround: undict if dict of dict is returned
+                # TODO: check whether this may be fixed upstream
+                if isinstance(lod,dict):
+                    lod=list(lod.values())
             elif query.lang.lower()=="sparql":
                 if not hasattr(query,"endpoint") or query.endpoint is None:
                     raise(f"endpoint needs to be configured for SPARQL query '{query.name}'")

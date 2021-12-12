@@ -79,6 +79,15 @@ class TestTableQuery(BaseTest):
         tq = TableQuery()
         tq.fromAskQueries(wikiId=wikiId, askQueries=self.askQueries)
         return tq
+    
+    def documentQueryResult(self,query:Query,qlod:list,show=True):
+        '''
+        '''
+        for tablefmt in ["mediawiki","github","latex"]:
+            lod=copy.deepcopy(qlod)
+            qdoc=query.documentQueryResult(lod,tablefmt=tablefmt)
+            if show:
+                print(qdoc.asText())
 
     def testTableQuery(self):
         '''
@@ -92,6 +101,13 @@ class TestTableQuery(BaseTest):
             print(lods)
         self.assertEqual(2, len(lods))
         debug = self.debug
+        debug=True
+        for query in tq.queries.values():
+            qlod=tq.tableEditing.lods[query.name]
+            if debug:
+                print(len(qlod))
+                print(qlod)
+            self.documentQueryResult(query, qlod, show=True)
         for askQuery in self.askQueries:
             name = askQuery["name"]
             self.assertTrue(name in lods)
@@ -100,7 +116,7 @@ class TestTableQuery(BaseTest):
                 print(len(lod))
                 print(lod)
             if name == "events":
-                self.assertTrue(len(lod) >= 18)
+                self.assertTrue(len(lod) >= 18)             
         
     def testSpreadSheetFromTableQuery(self):
         '''
@@ -162,13 +178,7 @@ LIMIT 10"""
         self.assertTrue("Delhi" in citiesByLabel)
         delhi=citiesByLabel["Delhi"]
         self.assertTrue(delhi['population']>20000000.0)
-        show=self.debug
-        for tablefmt in ["mediawiki","github","latex"]:
-            lod=copy.deepcopy(qlod)
-            qdoc=query.documentQueryResult(lod,tablefmt=tablefmt)
-            if show:
-                print(qdoc.asText())
-
+        self.documentQueryResult(query, qlod, show=self.debug)
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
