@@ -1,5 +1,6 @@
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
+from fb4.widgets import  Menu, MenuItem
 from flask import render_template
 import socket
 import os
@@ -35,8 +36,27 @@ class WebServer(AppWrap):
 
         @self.app.route('/')
         def home():
-            #return redirect(self.basedUrl(url_for('series')))
-            return render_template('ose/home.html')
+            return self.homePage()
+        
+    def homePage(self): 
+        '''
+        render the homepage
+        '''
+        template="ose/home.html"
+        title="Online Spreadsheet Editing"
+        
+        html=render_template(template, title=title, menu=self.getMenuList())
+        return html
+           
+    def getMenuList(self):
+        '''
+        set up the menu for this application
+        '''
+        menu=Menu()
+        menu.addItem(MenuItem("/","Home"))
+        menu.addItem(MenuItem('https://wiki.bitplan.com/index.php/pyOnlineSpreadSheetEditing',"Docs")),
+        menu.addItem(MenuItem('https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing','github'))
+        return menu
                         
 
 DEBUG = False
