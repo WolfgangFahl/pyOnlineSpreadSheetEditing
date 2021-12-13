@@ -42,8 +42,7 @@ class TestWebServer(BaseTest):
         html=response.data.decode()
         if self.debug:
             print(html)
-        return html
-
+        return html 
 
     def testWebServerHome(self):
         '''
