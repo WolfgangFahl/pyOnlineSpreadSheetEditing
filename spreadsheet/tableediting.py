@@ -36,9 +36,10 @@ class TableEditing(object):
             name(str): the name of the spreadsheet
         '''
         spreadSheet=SpreadSheet.create(spreadSheetType,name=name)
+        spreadSheet.tables=self.lods
         return spreadSheet
     
-    def fromSpreadSheet(self,spreadSheet:SpreadSheet):
+    def fromSpreadSheet(self, spreadSheet:SpreadSheet):
         pass
     
     def addLoD(self,name,lod):
