@@ -1,3 +1,4 @@
+# required dependencies for https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing
 # web server with Flask and Bootstrap4
 pyFlaskBootstrap4~=0.3.1
 #flask-dropzone
