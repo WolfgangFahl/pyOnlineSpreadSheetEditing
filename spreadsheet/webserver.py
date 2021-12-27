@@ -1,7 +1,10 @@
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
 from fb4.widgets import  Menu, MenuItem
-from flask import render_template
+from wtforms import  SelectField,  SubmitField
+from flask import render_template, flash
+from flask_wtf import FlaskForm
+from wikibot.wikiuser import WikiUser
 import socket
 import os
 import sys
@@ -32,11 +35,16 @@ class WebServer(AppWrap):
         self.app.app_context().push()
         self.authenticate=False
         self.sseBluePrint = SSE_BluePrint(self.app, 'sse', baseUrl=self.baseUrl)
+        self.wikiUsers=WikiUser.getWikiUsers()
 
 
         @self.app.route('/')
         def home():
             return self.homePage()
+        
+        @self.app.route('/wikiedit',methods=['GET', 'POST'])
+        def wikiEdit():
+            return self.wikiEdit()
         
     def homePage(self): 
         '''
@@ -47,6 +55,25 @@ class WebServer(AppWrap):
         
         html=render_template(template, title=title, menu=self.getMenuList())
         return html
+    
+    def wikiEdit(self):
+        '''
+        upload
+        '''
+        title='wikiEdit'
+        template="ose/wikiedit.html"
+        editForm=WikiEditForm()
+        wikiChoices=[]
+        for wikiUser in sorted(self.wikiUsers):
+            wikiChoices.append((wikiUser,wikiUser)) 
+        editForm.sourceWiki.choices=wikiChoices    
+        editForm.targetWiki.choices=wikiChoices
+        if editForm.validate_on_submit():
+            flash("uploading ...","info")
+        else:
+            pass
+        html=render_template(template, title=title, menu=self.getMenuList(),editForm=editForm)
+        return html
            
     def getMenuList(self):
         '''
@@ -54,10 +81,18 @@ class WebServer(AppWrap):
         '''
         menu=Menu()
         menu.addItem(MenuItem("/","Home"))
+        menu.addItem(MenuItem("/wikiedit","Wiki Edit"))
         menu.addItem(MenuItem('https://wiki.bitplan.com/index.php/pyOnlineSpreadSheetEditing',"Docs")),
         menu.addItem(MenuItem('https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing','github'))
         return menu
-                        
+
+class WikiEditForm(FlaskForm):
+    '''
+    upload form
+    '''
+    submit=SubmitField('upload')     
+    sourceWiki=SelectField('source Wiki')
+    targetWiki=SelectField('target Wiki')   
 
 DEBUG = False
 
