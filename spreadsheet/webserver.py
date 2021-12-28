@@ -5,13 +5,16 @@ from wtforms import  SelectField,  SubmitField
 from flask import render_template, flash
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
+from fb4.sqldb import db
+from fb4.login_bp import LoginBluePrint
+from flask_login import current_user, login_required
 import socket
 import os
 import sys
 
 class WebServer(AppWrap):
     """
-    Openline Spreasheet Editing Service
+    Open Source Online Spreasheet Editing Service
     """
 
     def __init__(self, host=None, port=8559, verbose=True, debug=False):
@@ -33,10 +36,14 @@ class WebServer(AppWrap):
         super().__init__(host=host, port=port, debug=debug, template_folder=template_folder)
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         self.app.app_context().push()
+        db.init_app(self.app)
+        self.db=db
         self.authenticate=False
         self.sseBluePrint = SSE_BluePrint(self.app, 'sse', baseUrl=self.baseUrl)
         self.wikiUsers=WikiUser.getWikiUsers()
-
+    
+        self.loginBluePrint=LoginBluePrint(self.app,'login',welcome="home")
+        self.initUsers()
 
         @self.app.route('/')
         def home():
@@ -45,6 +52,14 @@ class WebServer(AppWrap):
         @self.app.route('/wikiedit',methods=['GET', 'POST'])
         def wikiEdit():
             return self.wikiEdit()
+        
+        #
+        # setup global handlers
+        #
+        @self.app.before_first_request
+        def before_first_request_func():
+            loginMenuList=self.getMenuList("Login")
+            self.loginBluePrint.setLoginArgs(menu=loginMenuList)
         
     def homePage(self): 
         '''
@@ -75,16 +90,64 @@ class WebServer(AppWrap):
         html=render_template(template, title=title, menu=self.getMenuList(),editForm=editForm)
         return html
            
-    def getMenuList(self):
+    def getMenuList(self,activeItem:str=None):
         '''
-        set up the menu for this application
+        get the list of menu items for the admin menu
+        Args:
+            activeItem(str): the active  menu item
+        Return:
+            list: the list of menu items
         '''
         menu=Menu()
+        #self.basedUrl(url_for(
         menu.addItem(MenuItem("/","Home"))
         menu.addItem(MenuItem("/wikiedit","Wiki Edit"))
         menu.addItem(MenuItem('https://wiki.bitplan.com/index.php/pyOnlineSpreadSheetEditing',"Docs")),
         menu.addItem(MenuItem('https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing','github'))
+        if current_user.is_anonymous:
+            menu.addItem(MenuItem('/login','login'))
+        else:
+            menu.addItem(MenuItem('/logout','logout'))
+        if activeItem is not None:
+            for menuItem in menu.items:
+                if isinstance(menuItem,MenuItem):
+                    if menuItem.title==activeItem:
+                        menuItem.active=True
+                    menuItem.url=self.basedUrl(menuItem.url)
         return menu
+    
+    def log(self,msg):
+        '''
+        log the given message
+        '''
+        if self.verbose:
+            print(msg)
+    
+    def getUserNameForWikiUser(self,wuser:WikiUser)->str:
+        '''
+        get the username for the given wiki user
+        
+        Args:
+            wuser(WikiUser): the user to get the username for
+        
+        Returns:
+            str: a fully qualifying username e.g. testuser@testwiki
+        '''
+        username=f"{wuser.user}@{wuser.wikiId}"
+        return username
+        
+    def initUsers(self,withDBCreate=True):
+        '''
+        initialize my users
+        '''  
+        if withDBCreate:
+            self.db.drop_all()
+            self.db.create_all()
+        wusers=WikiUser.getWikiUsers()
+        self.log(f"Initializing {len(wusers)} users ...")
+        for userid,wuser in enumerate(wusers.values()):
+            username=self.getUserNameForWikiUser(wuser)
+            self.loginBluePrint.addUser(self.db,username,wuser.getPassword(),userid=userid)
 
 class WikiEditForm(FlaskForm):
     '''
