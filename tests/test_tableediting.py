@@ -5,8 +5,8 @@ Created on 2021-12-08
 '''
 import unittest
 from tests.basetest import BaseTest
-from spreadsheet.tableediting import TableEditing
-from spreadsheet.spreadsheet import SpreadSheet
+from onlinespreadsheet.tableediting import TableEditing
+from onlinespreadsheet.spreadsheet import SpreadSheet
 
 class TestTableEditing(BaseTest):
     '''

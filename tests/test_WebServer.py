@@ -6,7 +6,7 @@ Created on 13.12.2021
 import unittest
 from tests.basetest import BaseTest
 import warnings
-from spreadsheet.webserver import WebServer
+from onlinespreadsheet.webserver import WebServer
 
 class TestWebServer(BaseTest):
     """Test the WebServers RESTful interface"""
