@@ -5,8 +5,8 @@ Created on 09.12.2021
 '''
 import unittest
 from tests.basetest import BaseTest
-from spreadsheet.tablequery import TableQuery
-from spreadsheet.tableediting import SpreadSheetType
+from onlinespreadsheet.tablequery import TableQuery
+from onlinespreadsheet.tableediting import SpreadSheetType
 from wikibot.wikiuser import WikiUser
 import os
 import getpass
@@ -28,8 +28,6 @@ class TestTableQuery(BaseTest):
     def setUp(self):
         BaseTest.setUp(self)
         pass
-      
-   
     
     @classmethod
     def getSMW_WikiUser(cls, wikiId="smw"):
@@ -49,6 +47,9 @@ class TestTableQuery(BaseTest):
                 wikiDict = {"wikiId": wikiId, "email":"webmaster@semantic-mediawiki.org", "url":"https://www.semantic-mediawiki.org", "scriptPath":"/w", "version":"MediaWiki 1.31.16"}
             if wikiId == "or":
                 wikiDict = {"wikiId": wikiId, "email":"webmaster@openresearch.org", "url":"https://www.openresearch.org", "scriptPath":"/mediawiki/", "version":"MediaWiki 1.31.1"}   
+            if wikiId == "orclone":
+                wikiDict = {"wikiId": wikiId, "email":"webmaster@openresearch.org", 
+                            "url":"https://confident.dbis.rwth-aachen.de", "scriptPath":"/or/", "version":"MediaWiki 1.35.5"}   
             wikiDict["user"] = f"{cls.user}"
             if wikiDict is None:
                 raise Exception(f"{iniFile} missing for wikiId {wikiId}")

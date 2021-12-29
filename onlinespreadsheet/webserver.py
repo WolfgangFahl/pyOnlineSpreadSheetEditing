@@ -1,7 +1,9 @@
+from  onlinespreadsheet.tablequery import TableQuery
+
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
 from fb4.widgets import  Menu, MenuItem
-from wtforms import  SelectField,  SubmitField
+from wtforms import  SelectField,  SubmitField, TextAreaField
 from flask import render_template, flash
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
@@ -11,6 +13,7 @@ from flask_login import current_user, login_required
 import socket
 import os
 import sys
+
 
 class WebServer(AppWrap):
     """
@@ -49,7 +52,9 @@ class WebServer(AppWrap):
         def home():
             return self.homePage()
         
+     
         @self.app.route('/wikiedit',methods=['GET', 'POST'])
+        @login_required
         def wikiEdit():
             return self.wikiEdit()
         
@@ -73,7 +78,7 @@ class WebServer(AppWrap):
     
     def wikiEdit(self):
         '''
-        upload
+        wikiEdit
         '''
         title='wikiEdit'
         template="ose/wikiedit.html"
@@ -84,7 +89,9 @@ class WebServer(AppWrap):
         editForm.sourceWiki.choices=wikiChoices    
         editForm.targetWiki.choices=wikiChoices
         if editForm.validate_on_submit():
-            flash("uploading ...","info")
+            tq=editForm.toTableQuery()
+            flash("retrieving data ...","info")
+            tq.fetchQueryResults()
         else:
             pass
         html=render_template(template, title=title, menu=self.getMenuList(),editForm=editForm)
@@ -153,9 +160,21 @@ class WikiEditForm(FlaskForm):
     '''
     upload form
     '''
-    submit=SubmitField('upload')     
+    submit=SubmitField('download')     
     sourceWiki=SelectField('source Wiki')
     targetWiki=SelectField('target Wiki')   
+    query1 = TextAreaField('query1', render_kw={"rows": 3, "cols": 80})
+    queryn = TextAreaField('queryn', render_kw={"rows": 3, "cols": 80})
+    
+    def toTableQuery(self)->TableQuery:
+        '''
+        convert me to a TableQuery
+        '''
+        sourceWikiId=self.sourceWiki.data
+        tq = TableQuery()
+        tq.addAskQuery(sourceWikiId, "query1", self.query1.data, "query 1")
+        tq.addAskQuery(sourceWikiId, "queryN", self.queryn.data, "query N")
+        return tq
 
 DEBUG = False
 

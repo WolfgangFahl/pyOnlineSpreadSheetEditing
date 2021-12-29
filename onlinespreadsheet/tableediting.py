@@ -3,7 +3,7 @@ Created on 2021-12-08
 
 @author: wf
 '''
-from spreadsheet.spreadsheet import SpreadSheet, SpreadSheetType
+from onlinespreadsheet.spreadsheet import SpreadSheet, SpreadSheetType
 
 
 class TableEditing(object):
@@ -11,7 +11,7 @@ class TableEditing(object):
     table Editing
     
     enhancement
-    spreadsheet editing call
+    onlinespreadsheet editing call
     validation
     '''
     def __init__(self,lods:dict=None):
@@ -32,8 +32,8 @@ class TableEditing(object):
         convert me to the given spreadSheetType
         
         Args:
-            spreadSheetType(SpreadSheetType): the type of spreadsheet to create
-            name(str): the name of the spreadsheet
+            spreadSheetType(SpreadSheetType): the type of onlinespreadsheet to create
+            name(str): the name of the onlinespreadsheet
         '''
         spreadSheet=SpreadSheet.create(spreadSheetType,name=name)
         spreadSheet.tables=self.lods

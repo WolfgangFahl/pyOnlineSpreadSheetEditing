@@ -58,7 +58,7 @@ class TestSpreadSheet(BaseTest):
 
     def testRoundTrip(self):
         """
-        tests the spreadsheet round trip for all SpreadSheet types
+        tests the onlinespreadsheet round trip for all SpreadSheet types
         """
         spreadSheetTypes={OdsDocument,ExcelDocument, CSVSpreadSheet}
         for spreadSheetType in spreadSheetTypes:
@@ -75,11 +75,11 @@ class TestSpreadSheet(BaseTest):
 
     def testLoading(self):
         """"
-        tests the loading of a spreadsheet file
+        tests the loading of a onlinespreadsheet file
         """
         spreadSheetTypes = {OdsDocument, ExcelDocument, CSVSpreadSheet}
         for spreadSheetType in spreadSheetTypes:
-            # creating a spreadsheet file
+            # creating a onlinespreadsheet file
             doc = spreadSheetType("Test")
             fileName = f"{self.tmpDir.name}/{doc.filename}"
             doc.addTable("Persons", self.testLoD)

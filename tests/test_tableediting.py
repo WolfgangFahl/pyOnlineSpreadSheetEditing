@@ -20,7 +20,7 @@ class TestTableEditing(BaseTest):
 
     def fixUrls(self,s:SpreadSheet):
         '''
-        fix event homepages in the given spreadsheet
+        fix event homepages in the given onlinespreadsheet
         '''
         events=s.lods["events"]
         for event in events:

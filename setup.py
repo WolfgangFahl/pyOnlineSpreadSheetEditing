@@ -13,7 +13,7 @@ setup(
     name='pyOnlineSpreadSheetEditing',
     version='0.0.3',
 
-    packages=['spreadsheet',],
+    packages=['onlinespreadsheet',],
     author='Wolfgang Fahl',
     author_email='wf@bitplan.com',
     maintainer='Wolfgang Fahl',

@@ -26,7 +26,7 @@ class SpreadSheetType(Enum):
 
 class SpreadSheet:
     '''
-    i am spreadsheet
+    i am onlinespreadsheet
     '''
 
     FILE_TYPE=NotImplemented
@@ -46,8 +46,8 @@ class SpreadSheet:
         create a SpreadSheet of the given types
         
         Args:
-            spreadSheetType(SpreadSheetType): the type of spreadsheet to create
-            name(str): the name of the spreadsheet
+            spreadSheetType(SpreadSheetType): the type of onlinespreadsheet to create
+            name(str): the name of the onlinespreadsheet
         
         '''
         spreadSheet=None
@@ -64,7 +64,7 @@ class SpreadSheet:
         """
         Tries to load the given document as SpreadSheet
         Args:
-            document: spreadsheet document to load
+            document: onlinespreadsheet document to load
 
         Returns:
             SpreadSheet
@@ -389,7 +389,7 @@ class OdsDocument(ExcelDocument):
     """
 
     FILE_TYPE = '.ods'
-    MIME_TYPE = 'application/vnd.oasis.opendocument.spreadsheet'
+    MIME_TYPE = 'application/vnd.oasis.opendocument.onlinespreadsheet'
 
     def __init__(self, name: str):
         """
