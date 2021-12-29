@@ -21,8 +21,10 @@ class TestSpreadsheet(BaseTest):
         '''
         test the different formats
         '''
+        choices=SpreadSheetType.asSelectFieldChoices()
+        print(choices)
         for stype in SpreadSheetType:
-            print (f"{stype.name}:{stype.getPostfix()}:{stype.getMimeType()}")
+            print (f"{stype.name}:{stype.getPostfix()}:{stype.getMimeType()}:{stype.getName()}:{stype.getTitle()}")
         pass
 
 

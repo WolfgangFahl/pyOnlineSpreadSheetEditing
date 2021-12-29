@@ -13,6 +13,7 @@ from flask_login import current_user, login_required
 import socket
 import os
 import sys
+from onlinespreadsheet.spreadsheet import SpreadSheetType
 
 
 class WebServer(AppWrap):
@@ -165,7 +166,7 @@ class WikiEditForm(FlaskForm):
     targetWiki=SelectField('target Wiki')   
     query1 = TextAreaField('query1', render_kw={"rows": 3, "cols": 80})
     queryn = TextAreaField('queryn', render_kw={"rows": 3, "cols": 80})
-    format=SelectField('format',choices=[(1, "csv")])
+    format=SelectField('format',choices=SpreadSheetType.asSelectFieldChoices())
     
     def toTableQuery(self)->TableQuery:
         '''

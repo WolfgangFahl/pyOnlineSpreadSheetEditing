@@ -17,19 +17,27 @@ from werkzeug.datastructures import FileStorage
 class Format:
     formatMap={
         "CSV": {
+            "name": "CSV",
+            "title": "Comma separated Values",
             "postfix": ".csv",
             "mimetype": "text/csv"
             
         },
         "EXCEL": {
+            "name": "Excel",
+            "title": "Microsoft Excel",
             "postfix": ".xlsx",
             "mimetype": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         },
         "JSON": {
+            "name": "JSON",
+            "title": "Javascript Simple Object Notation",
             "postfix": ".json",
             "mimetype": "application/json"
         },
         "ODS": {
+            "name": "ODS",
+            "title": "OpenDocument Spreadsheet",
             "postfix": ".ods",
             "mimetype": "application/vnd.oasis.opendocument.onlinespreadsheet"
         }
@@ -44,14 +52,29 @@ class SpreadSheetType(Enum):
     EXCEL=auto()
     ODS=auto()
     JSON=auto()
+    
+    def getProperty(self,propertyName):
+        value=Format.formatMap[self.name][propertyName]
+        return value
        
     def getPostfix(self):
-        postfix=Format.formatMap[self.name]["postfix"]
-        return postfix
+        return self.getProperty("postfix")
+       
+    def getName(self):
+        return self.getProperty("name")
     
     def getMimeType(self):
-        postfix=Format.formatMap[self.name]["mimetype"]
-        return postfix    
+        return self.getProperty("mimetype")
+    
+    def getTitle(self):
+        return self.getProperty("title")
+    
+    @classmethod
+    def asSelectFieldChoices(cls):
+        choices=[]
+        for i,choice in enumerate(cls):
+            choices.append((choice.name,choice.getTitle()))
+        return choices
 
 
 class SpreadSheet:
