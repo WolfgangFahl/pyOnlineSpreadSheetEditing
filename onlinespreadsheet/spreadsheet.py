@@ -1,9 +1,9 @@
 import io
 import math
 import os
-import dateutil
+import dateutil.parser as dateparser
 import pandas as pd
-import dateutil.parser as parser
+
 
 from io import BytesIO
 from enum import Enum,auto
@@ -13,7 +13,28 @@ from pandas import Timestamp, NaT
 from datetime import datetime, date
 from werkzeug.datastructures import FileStorage
 
-
+    
+class Format:
+    formatMap={
+        "CSV": {
+            "postfix": ".csv",
+            "mimetype": "text/csv"
+            
+        },
+        "EXCEL": {
+            "postfix": ".xlsx",
+            "mimetype": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        "JSON": {
+            "postfix": ".json",
+            "mimetype": "application/json"
+        },
+        "ODS": {
+            "postfix": ".ods",
+            "mimetype": "application/vnd.oasis.opendocument.onlinespreadsheet"
+        }
+        
+    }    
 class SpreadSheetType(Enum):
     '''
     Entities of openresearch.
@@ -22,6 +43,15 @@ class SpreadSheetType(Enum):
     CSV=auto()
     EXCEL=auto()
     ODS=auto()
+    JSON=auto()
+       
+    def getPostfix(self):
+        postfix=Format.formatMap[self.name]["postfix"]
+        return postfix
+    
+    def getMimeType(self):
+        postfix=Format.formatMap[self.name]["mimetype"]
+        return postfix    
 
 
 class SpreadSheet:
@@ -72,6 +102,7 @@ class SpreadSheet:
         documentSpreadSheetType=None
         documentName=""
         spreadsheet = None
+        # TODO - use SpreadSheeeType enum instead
         spreadSheetTypes=[OdsDocument, ExcelDocument, CSVSpreadSheet]
         if isinstance(document, FileStorage):
             document.stream.seek(0)
@@ -211,7 +242,7 @@ class SpreadSheet:
         if typeConversionMap is None:
             def toDate(value):
                 if isinstance(value, str):
-                    return dateutil.parser.parse(value).date()
+                    return dateparser.parse(value).date()
                 elif isinstance(value, datetime):
                     return value.date()
                 elif isinstance(value, date):
@@ -224,7 +255,7 @@ class SpreadSheet:
                 int:      lambda value: int(value),
                 float:    lambda value: float(value),
                 date:     lambda value: toDate(value),
-                datetime: lambda value: dateutil.parser.parse(value)
+                datetime: lambda value: dateparser.parse(value)
             }
         # build sample types map
         sampleTypes = {}

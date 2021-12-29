@@ -165,6 +165,7 @@ class WikiEditForm(FlaskForm):
     targetWiki=SelectField('target Wiki')   
     query1 = TextAreaField('query1', render_kw={"rows": 3, "cols": 80})
     queryn = TextAreaField('queryn', render_kw={"rows": 3, "cols": 80})
+    format=SelectField('format',choices=[(1, "csv")])
     
     def toTableQuery(self)->TableQuery:
         '''
