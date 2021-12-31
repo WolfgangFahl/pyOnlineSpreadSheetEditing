@@ -13,3 +13,5 @@ XlsxWriter
 openpyxl
 pandas~=1.3.5
 #setuptools~=57.0.0
+# https://pypi.org/project/ruamel.yaml/
+ruamel.yaml

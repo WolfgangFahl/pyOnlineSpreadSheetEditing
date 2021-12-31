@@ -1,19 +1,21 @@
-from  onlinespreadsheet.tablequery import TableQuery
+
 
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
-from fb4.widgets import  Menu, MenuItem
-from wtforms import  SelectField,  SubmitField, TextAreaField
-from flask import render_template, flash
+from fb4.widgets import Link,Menu, MenuItem
+from wtforms import  StringField,SelectField,  SubmitField, TextAreaField
+from flask import render_template, flash, redirect,url_for
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
 from fb4.sqldb import db
 from fb4.login_bp import LoginBluePrint
 from flask_login import current_user, login_required
 import socket
+import copy
 import os
 import sys
 from onlinespreadsheet.spreadsheet import SpreadSheetType
+from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
 
 
 class WebServer(AppWrap):
@@ -48,16 +50,26 @@ class WebServer(AppWrap):
     
         self.loginBluePrint=LoginBluePrint(self.app,'login',welcome="home")
         self.initUsers()
+        self.editConfigurationManager=EditConfigManager()
+        self.editConfigurationManager.load()
 
         @self.app.route('/')
         def home():
             return self.homePage()
         
+        @self.app.route('/editconfigs')
+        def editConfigs():
+            return self.showEditConfigs()
+        
      
         @self.app.route('/wikiedit',methods=['GET', 'POST'])
+        def wikiEditNone():
+            return self.wikiEdit(editConfigName=None)
+      
+        @self.app.route('/wikiedit/<editConfigName>',methods=['GET', 'POST'])
         @login_required
-        def wikiEdit():
-            return self.wikiEdit()
+        def wikiEdit(editConfigName:str):
+            return self.wikiEdit(editConfigName)
         
         #
         # setup global handlers
@@ -77,7 +89,21 @@ class WebServer(AppWrap):
         html=render_template(template, title=title, menu=self.getMenuList())
         return html
     
-    def wikiEdit(self):
+    def showEditConfigs(self):
+        '''
+        show my edit configurations
+        '''
+        template="ose/editconfigs.html"
+        title="View/Load Edit configurations for Online Spreadsheet Editing"
+        dictList=[]
+        for editConfig in self.editConfigurationManager.editConfigs.values():
+            link=Link(self.basedUrl(url_for("wikiEdit",editConfigName=editConfig.name)),title=editConfig.name)
+            dictList.append({"name":link})
+        lodKeys=["name"]    
+        html=render_template(template, dictList=dictList,lodKeys=lodKeys,tableHeaders=lodKeys,title=title, menu=self.getMenuList())
+        return html
+    
+    def wikiEdit(self,editConfigName:str=None):
         '''
         wikiEdit
         '''
@@ -89,10 +115,28 @@ class WebServer(AppWrap):
             wikiChoices.append((wikiUser,wikiUser)) 
         editForm.sourceWiki.choices=wikiChoices    
         editForm.targetWiki.choices=wikiChoices
+        if editConfigName is not None:
+            if editConfigName in self.editConfigurationManager.editConfigs:
+                editConfig=self.editConfigurationManager.editConfigs[editConfigName]
+                editForm.fromEditConfig(editConfig)
+            else:
+                flash(f"unknown edit configuration {editConfigName}","warn")
+        # submitted
         if editForm.validate_on_submit():
-            tq=editForm.toTableQuery()
-            flash("retrieving data ...","info")
-            tq.fetchQueryResults()
+            # check which button was pressed
+            if editForm.save.data:
+                editConfig=editForm.toEditConfig()
+                self.editConfigurationManager.add(editConfig)
+                self.editConfigurationManager.save()
+                flash(f"{editConfig.name} saved","info")
+            elif editForm.load.data:
+                return redirect(self.basedUrl(url_for('editConfigs')))
+                pass
+            else:
+                editConfig=editForm.toEditConfig()
+                tq=editConfig.toTableQuery()
+                flash("retrieving data ...","info")
+                tq.fetchQueryResults()
         else:
             pass
         html=render_template(template, title=title, menu=self.getMenuList(),editForm=editForm)
@@ -162,21 +206,40 @@ class WikiEditForm(FlaskForm):
     upload form
     '''
     submit=SubmitField('download')     
+    save=SubmitField('save')
+    load=SubmitField('load')
+    name=StringField('name')
     sourceWiki=SelectField('source Wiki')
     targetWiki=SelectField('target Wiki')   
-    query1 = TextAreaField('query1', render_kw={"rows": 3, "cols": 80})
-    queryn = TextAreaField('queryn', render_kw={"rows": 3, "cols": 80})
+    query1 = TextAreaField('query 1', render_kw={"rows": 3, "cols": 80})
+    queryN = TextAreaField('query N', render_kw={"rows": 3, "cols": 80})
     format=SelectField('format',choices=SpreadSheetType.asSelectFieldChoices())
     
-    def toTableQuery(self)->TableQuery:
+    def toEditConfig(self):
         '''
-        convert me to a TableQuery
+        convert my data to an edit configuration
+        
+        view to model conversion
         '''
-        sourceWikiId=self.sourceWiki.data
-        tq = TableQuery()
-        tq.addAskQuery(sourceWikiId, "query1", self.query1.data, "query 1")
-        tq.addAskQuery(sourceWikiId, "queryN", self.queryn.data, "query N")
-        return tq
+        editConfig=EditConfig(self.name.data)
+        editConfig.sourceWikiId=self.sourceWiki.data
+        editConfig.targetWikiId=self.targetWiki.data
+        editConfig.query1=self.query1.data
+        editConfig.queryN=self.queryN.data
+        editConfig.format=self.format.data
+        return editConfig
+    
+    def fromEditConfig(self,editConfig):
+        '''
+        update the view from the model
+        '''
+        self.name.data=editConfig.name
+        self.sourceWiki.data=editConfig.sourceWikiId
+        self.targetWiki.data=editConfig.targetWikiId
+        self.query1.data=editConfig.query1
+        self.queryN.data=editConfig.queryN
+        self.format.data=editConfig.format
+        
 
 DEBUG = False
 
