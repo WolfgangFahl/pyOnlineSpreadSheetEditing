@@ -2,7 +2,7 @@
 
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
-from fb4.widgets import Link,Menu, MenuItem
+from fb4.widgets import Copyright, Link,Menu, MenuItem
 from wtforms import  StringField,SelectField,  SubmitField, TextAreaField
 from flask import render_template, flash, redirect,url_for
 from flask_wtf import FlaskForm
@@ -11,7 +11,6 @@ from fb4.sqldb import db
 from fb4.login_bp import LoginBluePrint
 from flask_login import current_user, login_required
 import socket
-import copy
 import os
 import sys
 from onlinespreadsheet.spreadsheet import SpreadSheetType
@@ -46,6 +45,11 @@ class WebServer(AppWrap):
         self.db=db
         self.authenticate=False
         self.sseBluePrint = SSE_BluePrint(self.app, 'sse', baseUrl=self.baseUrl)
+        
+        #  server specific initializations
+        link=Link("http://www.bitplan.com/Wolfgang_Fahl",title="Wolfgang Fahl")
+        self.copyRight=Copyright(period="2021-2022",link=link)
+        
         self.wikiUsers=WikiUser.getWikiUsers()
     
         self.loginBluePrint=LoginBluePrint(self.app,'login',welcome="home")
@@ -58,11 +62,13 @@ class WebServer(AppWrap):
             return self.homePage()
         
         @self.app.route('/editconfigs')
+        @login_required
         def editConfigs():
             return self.showEditConfigs()
         
      
         @self.app.route('/wikiedit',methods=['GET', 'POST'])
+        @login_required
         def wikiEditNone():
             return self.wikiEdit(editConfigName=None)
       
@@ -76,8 +82,20 @@ class WebServer(AppWrap):
         #
         @self.app.before_first_request
         def before_first_request_func():
-            loginMenuList=self.getMenuList("Login")
-            self.loginBluePrint.setLoginArgs(menu=loginMenuList)
+            loginMenu=self.getMenu("Login")
+            self.loginBluePrint.setLoginArgs(menu=loginMenu)
+     
+    def render_template(self,templateName:str,title:str,activeItem:str,**kwArgs):
+        '''
+        render the given template with the default arguments
+        
+        Args:
+            templateName(str): the name of the template to render
+            title(str): the title to display for html
+            activeItem(str): the name of the menu item to display as active
+        '''
+        html=render_template(templateName,title=title,menu=self.getMenu(activeItem),copyright=self.copyRight,**kwArgs)
+        return html
         
     def homePage(self): 
         '''
@@ -85,8 +103,8 @@ class WebServer(AppWrap):
         '''
         template="ose/home.html"
         title="Online Spreadsheet Editing"
-        
-        html=render_template(template, title=title, menu=self.getMenuList())
+        activeItem="Home"
+        html=self.render_template(template, title=title,activeItem=activeItem)
         return html
     
     def showEditConfigs(self):
@@ -99,16 +117,18 @@ class WebServer(AppWrap):
         for editConfig in self.editConfigurationManager.editConfigs.values():
             link=Link(self.basedUrl(url_for("wikiEdit",editConfigName=editConfig.name)),title=editConfig.name)
             dictList.append({"name":link})
-        lodKeys=["name"]    
-        html=render_template(template, dictList=dictList,lodKeys=lodKeys,tableHeaders=lodKeys,title=title, menu=self.getMenuList())
+        lodKeys=["name"] 
+        activeItem=""   
+        html=self.render_template(template, dictList=dictList,lodKeys=lodKeys,tableHeaders=lodKeys,title=title, activeItem=activeItem)
         return html
     
     def wikiEdit(self,editConfigName:str=None):
         '''
         wikiEdit
         '''
-        title='wikiEdit'
+        title='Multipage Wiki Editing'
         template="ose/wikiedit.html"
+        activeItem="Wiki Edit"
         editForm=WikiEditForm()
         wikiChoices=[]
         for wikiUser in sorted(self.wikiUsers):
@@ -129,20 +149,19 @@ class WebServer(AppWrap):
                 self.editConfigurationManager.add(editConfig)
                 self.editConfigurationManager.save()
                 flash(f"{editConfig.name} saved","info")
-            elif editForm.load.data:
-                return redirect(self.basedUrl(url_for('editConfigs')))
-                pass
             else:
                 editConfig=editForm.toEditConfig()
                 tq=editConfig.toTableQuery()
                 flash("retrieving data ...","info")
                 tq.fetchQueryResults()
+                # TODO
+                # show download result
         else:
             pass
-        html=render_template(template, title=title, menu=self.getMenuList(),editForm=editForm)
+        html=self.render_template(template, title=title, activeItem=activeItem,editForm=editForm)
         return html
            
-    def getMenuList(self,activeItem:str=None):
+    def getMenu(self,activeItem:str=None):
         '''
         get the list of menu items for the admin menu
         Args:
@@ -152,14 +171,15 @@ class WebServer(AppWrap):
         '''
         menu=Menu()
         #self.basedUrl(url_for(
-        menu.addItem(MenuItem("/","Home"))
-        menu.addItem(MenuItem("/wikiedit","Wiki Edit"))
-        menu.addItem(MenuItem('https://wiki.bitplan.com/index.php/pyOnlineSpreadSheetEditing',"Docs")),
-        menu.addItem(MenuItem('https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing','github'))
+        menu.addItem(MenuItem("/","Home",mdiIcon="home"))
+        menu.addItem(MenuItem("/wikiedit","Wiki Edit",mdiIcon="settings_suggest"))
+        menu.addItem(MenuItem("/editconfigs","Edit configurations",mdiIcon="settings"))
+        menu.addItem(MenuItem('https://wiki.bitplan.com/index.php/pyOnlineSpreadSheetEditing',"Docs",mdiIcon="description",newTab=True)),
+        menu.addItem(MenuItem('https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing','github',mdiIcon="reviews"))
         if current_user.is_anonymous:
-            menu.addItem(MenuItem('/login','login'))
+            menu.addItem(MenuItem('/login','login',mdiIcon="login"))
         else:
-            menu.addItem(MenuItem('/logout','logout'))
+            menu.addItem(MenuItem('/logout','logout',mdiIcon="logout"))
         if activeItem is not None:
             for menuItem in menu.items:
                 if isinstance(menuItem,MenuItem):
@@ -207,7 +227,6 @@ class WikiEditForm(FlaskForm):
     '''
     submit=SubmitField('download')     
     save=SubmitField('save')
-    load=SubmitField('load')
     name=StringField('name')
     sourceWiki=SelectField('source Wiki')
     targetWiki=SelectField('target Wiki')   
