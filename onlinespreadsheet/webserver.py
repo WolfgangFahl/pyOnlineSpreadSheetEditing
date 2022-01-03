@@ -175,7 +175,7 @@ class WebServer(AppWrap):
         menu.addItem(MenuItem("/wikiedit","Wiki Edit",mdiIcon="settings_suggest"))
         menu.addItem(MenuItem("/editconfigs","Edit configurations",mdiIcon="settings"))
         menu.addItem(MenuItem('https://wiki.bitplan.com/index.php/pyOnlineSpreadSheetEditing',"Docs",mdiIcon="description",newTab=True)),
-        menu.addItem(MenuItem('https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing','github',mdiIcon="reviews"))
+        menu.addItem(MenuItem('https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing','github',mdiIcon="reviews",newTab=True))
         if current_user.is_anonymous:
             menu.addItem(MenuItem('/login','login',mdiIcon="login"))
         else:
