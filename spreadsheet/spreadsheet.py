@@ -256,6 +256,7 @@ class CSVSpreadSheet(SpreadSheet):
 
     FILE_TYPE = '.zip'
     TABLE_TYPE = '.csv'
+    MIME_TYPE = 'application/zip'
 
     def __init__(self, name: str):
         super().__init__(name=name, spreadSheetType=SpreadSheetType.CSV)
@@ -273,6 +274,7 @@ class CSVSpreadSheet(SpreadSheet):
             for tableName, table in self.tables.items():
                 csv=CSV.toCSV(table)
                 documentZip.writestr(tableName+self.TABLE_TYPE, csv)
+        buffer.seek(0)
         return buffer
 
     def _loadFromFile(self, file):
