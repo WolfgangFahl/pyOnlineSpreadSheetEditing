@@ -8,7 +8,7 @@ from wikibot.wikiuser import WikiUser
 from wikibot.wikiclient import WikiClient
 from wikibot.smw import SMWClient
 #from wikibot.wikipush import WikiPush
-from spreadsheet.tableediting import TableEditing
+from onlinespreadsheet.tableediting import TableEditing
 
 class SmwWikiAccess:
     '''
@@ -72,22 +72,25 @@ class TableQuery(object):
             if lod is not None:
                 self.tableEditing.addLoD(query.name, lod)
         
-        
-    def fromAskQueries(self,wikiId:str,askQueries:list):
-        '''
-        initialize me from the given Queries
-        '''
+    def addAskQuery(self,wikiId:str,name,ask:str,title:str=None,description:str=None):
         if wikiId not in self.wikiAccessMap:
             self.wikiAccessMap[wikiId] = SmwWikiAccess(wikiId)
         wikiAccess=self.wikiAccessMap[wikiId]
+        query=Query(name=name,query=ask,lang='ask',title=title,description=description,debug=self.debug)
+        query.wikiAccess=wikiAccess
+        self.addQuery(query)
+        
+    def fromAskQueries(self,wikiId:str,askQueries:list,withFetch:bool=True):
+        '''
+        initialize me from the given Queries
+        '''
         for askQuery in askQueries:
             name=askQuery["name"]
             ask=askQuery["ask"]
             title=askQuery["title"] if "title" in askQuery else None
             description=askQuery["description"] if "description" in askQuery else None
-            query=Query(name=name,query=ask,lang='ask',title=title,description=description,debug=self.debug)
-            query.wikiAccess=wikiAccess
-            self.addQuery(query)
-        self.fetchQueryResults()
+            self.addAskQuery(wikiId, name, ask, title, description)
+        if withFetch:
+            self.fetchQueryResults()
             
             

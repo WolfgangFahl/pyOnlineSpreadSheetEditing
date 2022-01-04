@@ -3,6 +3,7 @@
 	<name>pyOnlineSpreadSheetEditing</name>
 	<comment></comment>
 	<projects>
+		<project>pyFlaskBootstrap4</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

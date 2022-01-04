@@ -5,8 +5,8 @@ Created on 2021-12-08
 '''
 import unittest
 from tests.basetest import BaseTest
-from spreadsheet.tableediting import TableEditing
-from spreadsheet.spreadsheet import SpreadSheet
+from onlinespreadsheet.tableediting import TableEditing
+from onlinespreadsheet.spreadsheet import SpreadSheet
 
 class TestTableEditing(BaseTest):
     '''
@@ -20,7 +20,7 @@ class TestTableEditing(BaseTest):
 
     def fixUrls(self,s:SpreadSheet):
         '''
-        fix event homepages in the given spreadsheet
+        fix event homepages in the given onlinespreadsheet
         '''
         events=s.lods["events"]
         for event in events:
