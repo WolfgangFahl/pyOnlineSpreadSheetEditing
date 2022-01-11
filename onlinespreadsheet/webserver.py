@@ -135,7 +135,7 @@ class WebServer(AppWrap):
             wikiChoices.append((wikiUser,wikiUser)) 
         editForm.sourceWiki.choices=wikiChoices    
         editForm.targetWiki.choices=wikiChoices
-        if editConfigName is not None:
+        if editConfigName is not None and not editForm.validate_on_submit():
             if editConfigName in self.editConfigurationManager.editConfigs:
                 editConfig=self.editConfigurationManager.editConfigs[editConfigName]
                 editForm.fromEditConfig(editConfig)
