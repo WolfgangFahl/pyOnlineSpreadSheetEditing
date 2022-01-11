@@ -5,7 +5,6 @@ Created on 2021-12-09
 '''
 import re
 from typing import Optional
-from urllib import parse
 from enum import Enum, auto
 
 import requests
@@ -95,6 +94,16 @@ class TableQuery(object):
                         self.tableEditing.addLoD(name, lod)
         
     def addAskQuery(self,wikiId:str,name,ask:str,title:str=None,description:str=None):
+        '''
+        add an ask query for the given wiki
+        
+        Args:
+              wikiId(str): the id of the wiki to add
+              name(str): the name of the query to add
+              ask(str): the SMW ask query
+              title(str): the title of the query
+              description(str): the description of the query
+        '''
         if wikiId not in self.wikiAccessMap:
             self.wikiAccessMap[wikiId] = SmwWikiAccess(wikiId)
         wikiAccess=self.wikiAccessMap[wikiId]
@@ -117,7 +126,7 @@ class TableQuery(object):
 
     def addRESTfulQuery(self, name:str, url:str, title:str=None, description:str=None):
         """
-        add RESFful query to the queries
+        add RESTFful query to the queries
 
         Args:
             url(str): RESTful query URL optionally with parameters
