@@ -83,6 +83,7 @@ class SpreadSheet:
     '''
 
     FILE_TYPE=NotImplemented
+    MIME_TYPE=NotImplemented
     
     def __init__(self,name:str,spreadSheetType:SpreadSheetType):
         '''

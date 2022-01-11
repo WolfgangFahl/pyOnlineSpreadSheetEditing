@@ -3,6 +3,12 @@ Created on 2021-12-09
 
 @author: wf
 '''
+import re
+from typing import Optional
+from urllib import parse
+from enum import Enum, auto
+
+import requests
 from lodstorage.query import Query
 from wikibot.wikiuser import WikiUser
 from wikibot.wikiclient import WikiClient
@@ -27,6 +33,15 @@ class SmwWikiAccess:
         self.wikiClient = WikiClient.ofWikiUser(self.wikiUser)
         self.smwClient=SMWClient(self.wikiClient.getSite(),showProgress=showProgress, queryDivision=queryDivision,debug=self.debug)
         # self.wikiPush = WikiPush(fromWikiId=self.wikiUser.wikiId)
+
+class QueryType(Enum):
+    """
+    Query type
+    """
+    SQL=auto()
+    RESTful=auto()
+    ASK=auto()
+    SPARQL=auto()
 
 class TableQuery(object):
     '''
@@ -56,21 +71,28 @@ class TableQuery(object):
         
         '''
         for _name,query in self.queries.items():
-            lod=None
+            qres=None
             if query.lang=="ask":
                 if not hasattr(query, "wikiAccess") or query.wikiAccess is None:
                     raise(f"wikiAccess needs to be configured for Semantic MediaWiki ask query '{query.name}'")
-                lod=query.wikiAccess.smwClient.query(query.query)
+                qres=query.wikiAccess.smwClient.query(query.query)
                 # workaround: undict if dict of dict is returned
                 # TODO: check whether this may be fixed upstream
-                if isinstance(lod,dict):
-                    lod=list(lod.values())
+                if isinstance(qres,dict):
+                    qres=list(qres.values())
             elif query.lang.lower()=="sparql":
                 if not hasattr(query,"endpoint") or query.endpoint is None:
                     raise(f"endpoint needs to be configured for SPARQL query '{query.name}'")
-                lod=query.endpoint.queryAsListOfDicts(query.query)
-            if lod is not None:
-                self.tableEditing.addLoD(query.name, lod)
+                qres=query.endpoint.queryAsListOfDicts(query.query)
+            elif query.lang.lower() == "restful":
+                response = requests.request("GET", query.query)
+                qres=response.json()
+            if qres is not None:
+                if isinstance(qres, list):
+                    self.tableEditing.addLoD(query.name, qres)
+                elif isinstance(qres, dict):
+                    for name, lod in qres.items():
+                        self.tableEditing.addLoD(name, lod)
         
     def addAskQuery(self,wikiId:str,name,ask:str,title:str=None,description:str=None):
         if wikiId not in self.wikiAccessMap:
@@ -92,5 +114,40 @@ class TableQuery(object):
             self.addAskQuery(wikiId, name, ask, title, description)
         if withFetch:
             self.fetchQueryResults()
+
+    def addRESTfulQuery(self, name:str, url:str, title:str=None, description:str=None):
+        """
+        add RESFful query to the queries
+
+        Args:
+            url(str): RESTful query URL optionally with parameters
+            name(str): name of the query
+            title(str): title of the query
+            description(str): description of the query
+        """
+        query = Query(name=name, query=url, lang='restful', title=title, description=description, debug=self.debug)
+        self.addQuery(query)
             
-            
+    @staticmethod
+    def guessQueryType(query:str) -> Optional[QueryType]:
+        """
+        Tries to guess the query type of the given query
+
+        Args:
+            query(str): query
+
+        Returns:
+            QueryType
+        """
+        query=query.lower().strip()
+        if query.startswith("http"):
+            return QueryType.RESTful
+        elif query.startswith("{{#ask:"):
+            return QueryType.ASK
+        elif query.startswith("prefix") or re.match(pattern=r"^select\s+\?", string=query):
+            return QueryType.SPARQL
+        elif query.startswith("select") and re.search(pattern=r"(\n|\n\r| )from ", string=query):
+            return QueryType.SQL
+        else:
+            return None
+

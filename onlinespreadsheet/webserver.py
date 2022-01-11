@@ -3,8 +3,8 @@
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
 from fb4.widgets import Copyright, Link,Menu, MenuItem
-from wtforms import  StringField,SelectField,  SubmitField, TextAreaField
-from flask import render_template, flash, redirect,url_for
+from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList
+from flask import render_template, flash, redirect, url_for, send_file
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
 from fb4.sqldb import db
@@ -154,8 +154,10 @@ class WebServer(AppWrap):
                 tq=editConfig.toTableQuery()
                 flash("retrieving data ...","info")
                 tq.fetchQueryResults()
-                # TODO
+                # TODO: Add option to apply enhancers and show progreess
                 # show download result
+                spreadsheet=tq.tableEditing.toSpreadSheet(SpreadSheetType.EXCEL, name=editConfig.name)
+                return send_file(path_or_file=spreadsheet.toBytesIO(), mimetype=spreadsheet.MIME_TYPE)
         else:
             pass
         html=self.render_template(template, title=title, activeItem=activeItem,editForm=editForm)
@@ -243,20 +245,23 @@ class WikiEditForm(FlaskForm):
         editConfig=EditConfig(self.name.data)
         editConfig.sourceWikiId=self.sourceWiki.data
         editConfig.targetWikiId=self.targetWiki.data
-        editConfig.query1=self.query1.data
-        editConfig.queryN=self.queryN.data
+        editConfig.addQuery(self.query1.name, self.query1.data)
+        editConfig.addQuery(self.queryN.name, self.queryN.data)
         editConfig.format=self.format.data
         return editConfig
     
-    def fromEditConfig(self,editConfig):
+    def fromEditConfig(self,editConfig:EditConfig):
         '''
         update the view from the model
+
+        Args:
+            editConfig(EditConfig): edit config to load the form from
         '''
         self.name.data=editConfig.name
         self.sourceWiki.data=editConfig.sourceWikiId
         self.targetWiki.data=editConfig.targetWikiId
-        self.query1.data=editConfig.query1
-        self.queryN.data=editConfig.queryN
+        for name, query in editConfig.queries.items():
+            getattr(self, name).data=query
         self.format.data=editConfig.format
         
 

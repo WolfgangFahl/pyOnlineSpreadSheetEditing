@@ -7,7 +7,8 @@ from pathlib import Path
 import io
 import os
 from ruamel import yaml
-from  onlinespreadsheet.tablequery import TableQuery
+from onlinespreadsheet.tablequery import TableQuery, QueryType
+
 
 class EditConfig(object):
     '''
@@ -22,14 +23,23 @@ class EditConfig(object):
             name(str): the name of the edit configuration
         '''
         self.name=name
+        self.queries={}
+
+    def addQuery(self, name:str, query:str):
+        self.queries[name]=query
+        return self
         
     def toTableQuery(self)->TableQuery:
         '''
         convert me to a TableQuery
         '''
         tq = TableQuery()
-        tq.addAskQuery(self.sourceWikiId, "query1", self.query1, "query 1")
-        tq.addAskQuery(self.sourceWikiId, "queryN", self.queryN, "query N")
+        for name, query in self.queries.items():
+            queryType=TableQuery.guessQueryType(query)
+            if queryType is QueryType.ASK:
+                tq.addAskQuery(self.sourceWikiId, name, query)
+            elif queryType is QueryType.RESTful:
+                tq.addRESTfulQuery(name=name, url=query)
         return tq
 
 class EditConfigManager(yaml.YAMLObject):

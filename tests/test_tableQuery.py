@@ -5,7 +5,7 @@ Created on 09.12.2021
 '''
 import unittest
 from tests.basetest import BaseTest
-from onlinespreadsheet.tablequery import TableQuery
+from onlinespreadsheet.tablequery import TableQuery, QueryType
 from onlinespreadsheet.tableediting import SpreadSheetType
 from wikibot.wikiuser import WikiUser
 import os
@@ -180,6 +180,44 @@ LIMIT 10"""
         delhi=citiesByLabel["Delhi"]
         self.assertTrue(delhi['population']>20000000.0)
         self.documentQueryResult(query, qlod, show=self.debug)
+
+    def testRESTfulQuery(self):
+        """
+        tests the handling of RESTful queries in TableQuery
+        """
+        tq=TableQuery()
+        tq.addRESTfulQuery(name="WEBIST",url="https://conferencecorpus.bitplan.com/eventseries/WEBIST")
+        tq.fetchQueryResults()
+        self.assertTrue("confref" in tq.tableEditing.lods)
+        self.assertTrue(len(tq.tableEditing.lods["confref"])>15)
+
+    def testGuessQueryType(self):
+        """
+        tests guessing the query type
+        """
+        queries=[{
+                "type": QueryType.RESTful,
+                "query": "http://conferencorpus.bitplan.com/eventseries/WEBIST?format=json"
+            },{
+                "type": QueryType.RESTful,
+                "query": "https://conferencorpus.bitplan.com/eventseries/WEBIST?format=json"
+            },{
+                "type": QueryType.ASK,
+                "query": "{{#ask: [[Concept:Event series]][[EventSeries acronym::WEBIST]]|mainlabel=pageTitle }}"
+            },{
+                "type": QueryType.SPARQL,
+                "query": "SELECT ?s ?p ?o WHERE{ ?s ?p ?o }"
+            },{
+                "type": QueryType.SQL,
+                "query": "SELECT * FROM Event"
+            },{
+                "type": QueryType.SQL,
+                "query": "SELECT name, firstname, count(children) FROM Event"
+            }
+        ]
+        for record in queries:
+            guessedType=TableQuery.guessQueryType(record.get("query"))
+            self.assertEqual(record.get("type"), guessedType)
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
