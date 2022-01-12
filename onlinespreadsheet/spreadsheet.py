@@ -255,12 +255,15 @@ class SpreadSheet:
                 with open(file, mode="rb") as f:
                     buffer=BytesIO()
                     buffer.write(f.read())
+                    # work around along the line of
+                    # https://stackoverflow.com/a/42811024/1497139
+                    buffer.name=f.name
             except Exception as e:
                 print(f"Tried to open {file} as a File and failed")
                 raise e
         else:
             buffer=file
-        self._loadFromBuffer(buffer)
+        return self._loadFromBuffer(buffer)
 
     def _loadFromBuffer(self, buffer):
         """
