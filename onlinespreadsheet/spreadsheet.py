@@ -234,11 +234,12 @@ class SpreadSheet:
         Load SpreadSheet from given file or file object
         """
         tables=self._loadFromFile(file)
-        for name,table in tables.items():
-            if samples:
-                if name in samples:
-                    self.fixLodTypes(table, samples[name])
-            self.tables[name]=table
+        if tables:
+            for name,table in tables.items():
+                if samples:
+                    if name in samples:
+                        self.fixLodTypes(table, samples[name])
+                self.tables[name]=table
             
     def _loadFromFile(self, file):
         """

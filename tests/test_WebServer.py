@@ -10,7 +10,8 @@ from io import BytesIO
 import os
 from onlinespreadsheet.editconfig import EditConfig
 from onlinespreadsheet.webserver import WebServer
-from onlinespreadsheet.spreadsheet import SpreadSheet
+from onlinespreadsheet.spreadsheet import SpreadSheet, ExcelDocument
+import re
 
 class TestWebServer(BaseTest):
     """Test the WebServers RESTful interface"""
@@ -78,8 +79,13 @@ class TestWebServer(BaseTest):
             ecm.add(editConfig)
         # https://stackoverflow.com/a/26364642/1497139
         response=self.getResponse("/download/FCT")
-        spreadSheet=SpreadSheet.load(BytesIO(response.data))
-        self.assertNotNone(spreadSheet)
+        d = response.headers['content-disposition']
+        fileName = re.findall("filename=(.+)", d)
+        buffer=BytesIO(response.data)
+        buffer.name=fileName[0]
+        spreadSheet=SpreadSheet.load(buffer)
+        self.assertTrue(spreadSheet is not None)
+        self.assertEqual(type(spreadSheet),ExcelDocument)
         pass
         
         
