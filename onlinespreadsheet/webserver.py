@@ -3,8 +3,8 @@
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
 from fb4.widgets import Copyright, Link,Menu, MenuItem
-from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList
-from flask import render_template, flash, redirect, url_for, send_file
+from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField
+from flask import render_template, flash, url_for, send_file
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
 from fb4.sqldb import db
@@ -135,7 +135,7 @@ class WebServer(AppWrap):
             wikiChoices.append((wikiUser,wikiUser)) 
         editForm.sourceWiki.choices=wikiChoices    
         editForm.targetWiki.choices=wikiChoices
-        if editConfigName is not None and not editForm.validate_on_submit():
+        if editConfigName is not None and (not editForm.validate_on_submit() or editForm.addQueryButton.data):
             if editConfigName in self.editConfigurationManager.editConfigs:
                 editConfig=self.editConfigurationManager.editConfigs[editConfigName]
                 editForm.fromEditConfig(editConfig)
@@ -143,13 +143,16 @@ class WebServer(AppWrap):
                 flash(f"unknown edit configuration {editConfigName}","warn")
         # submitted
         if editForm.validate_on_submit():
+            editForm.deleteQuery()
             # check which button was pressed
             if editForm.save.data:
                 editConfig=editForm.toEditConfig()
                 self.editConfigurationManager.add(editConfig)
                 self.editConfigurationManager.save()
                 flash(f"{editConfig.name} saved","info")
-            else:
+            elif editForm.addQueryButton.data:
+                editForm.addQuery()
+            elif editForm.download.data:
                 editConfig=editForm.toEditConfig()
                 tq=editConfig.toTableQuery()
                 flash("retrieving data ...","info")
@@ -158,6 +161,8 @@ class WebServer(AppWrap):
                 # show download result
                 spreadsheet=tq.tableEditing.toSpreadSheet(SpreadSheetType.EXCEL, name=editConfig.name)
                 return send_file(path_or_file=spreadsheet.toBytesIO(), mimetype=spreadsheet.MIME_TYPE)
+            else:
+                pass
         else:
             pass
         html=self.render_template(template, title=title, activeItem=activeItem,editForm=editForm)
@@ -223,19 +228,66 @@ class WebServer(AppWrap):
             username=self.getUserNameForWikiUser(wuser)
             self.loginBluePrint.addUser(self.db,username,wuser.getPassword(),userid=userid)
 
+class QueryForm(FlaskForm):
+    """
+    query form for entering one named query
+    """
+    remove=SubmitField("remove")
+    name=StringField("name", render_kw={"rows": 3, "cols": 80})
+    query=TextAreaField('query', render_kw={"rows": 3, "cols": 80})
+
 class WikiEditForm(FlaskForm):
     '''
     upload form
     '''
-    submit=SubmitField('download')     
+    download=SubmitField('download')
     save=SubmitField('save')
     name=StringField('name')
     sourceWiki=SelectField('source Wiki')
-    targetWiki=SelectField('target Wiki')   
-    query1 = TextAreaField('query 1', render_kw={"rows": 3, "cols": 80})
-    queryN = TextAreaField('query N', render_kw={"rows": 3, "cols": 80})
+    targetWiki=SelectField('target Wiki')
+    addQueryButton = SubmitField("addQuery")
+    # In FieldLists the serial name for its items is generated with the short_name,seperator and index of FieldList
+    # (short_name=name and can not be set manually)
+    # thus we set the name of the field to singular and the label to plural
+    queries = FieldList(FormField(QueryForm), min_entries=1, label="Queries", name="Query")
     format=SelectField('format',choices=SpreadSheetType.asSelectFieldChoices())
-    
+
+    def addQuery(self, name:str=None, query:str=None) -> int:
+        """
+        add a new query field
+
+        Args:
+            name(str): name of the query
+            query(str): the query
+
+        Returns:
+            Number of query in the form (index)
+        """
+        n=len(self.queries.entries)
+        if name is None:
+            name=f"query{n}"
+        data={
+            "name": name,
+            "query": query
+        }
+        self.queries.append_entry(data)
+        return n
+
+    def deleteQuery(self):
+        """
+        Delete the selected query.
+        """
+        delQueryIndex=None
+        if len(self.queries.entries)<=self.queries.min_entries:
+            flash(f"Can not delete Query at least {self.queries.min_entries} {'Query is' if self.queries.min_entries == 1 else 'Queries are'} required", category="info")
+            return
+        for i, entry in enumerate(self.queries.entries):
+            if entry.data['remove']:
+                delQueryIndex=i
+                break
+        if delQueryIndex is not None:
+            self.queries.entries.pop(delQueryIndex)
+
     def toEditConfig(self):
         '''
         convert my data to an edit configuration
@@ -245,8 +297,8 @@ class WikiEditForm(FlaskForm):
         editConfig=EditConfig(self.name.data)
         editConfig.sourceWikiId=self.sourceWiki.data
         editConfig.targetWikiId=self.targetWiki.data
-        editConfig.addQuery(self.query1.name, self.query1.data)
-        editConfig.addQuery(self.queryN.name, self.queryN.data)
+        for queryRecord in self.queries.entries:
+            editConfig.addQuery(queryRecord.data.get("name"), queryRecord.data.get("query"))
         editConfig.format=self.format.data
         return editConfig
     
@@ -260,8 +312,12 @@ class WikiEditForm(FlaskForm):
         self.name.data=editConfig.name
         self.sourceWiki.data=editConfig.sourceWikiId
         self.targetWiki.data=editConfig.targetWikiId
+        # reset queries in form
+        for i in range(len(self.queries)):
+            self.queries.pop_entry()
+        # load queries from config
         for name, query in editConfig.queries.items():
-            getattr(self, name).data=query
+            self.addQuery(name=name, query=query)
         self.format.data=editConfig.format
         
 

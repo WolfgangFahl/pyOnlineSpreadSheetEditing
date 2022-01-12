@@ -4,11 +4,9 @@ Created on 2021-12-09
 @author: wf
 '''
 import re
-from typing import Optional
-from urllib import parse
-from enum import Enum, auto
-
 import requests
+from typing import Optional
+from enum import Enum, auto
 from lodstorage.query import Query
 from wikibot.wikiuser import WikiUser
 from wikibot.wikiclient import WikiClient
@@ -70,7 +68,7 @@ class TableQuery(object):
         fetch the QueryResults 
         
         '''
-        for _name,query in self.queries.items():
+        for queryName,query in self.queries.items():
             qres=None
             if query.lang=="ask":
                 if not hasattr(query, "wikiAccess") or query.wikiAccess is None:
@@ -92,7 +90,7 @@ class TableQuery(object):
                     self.tableEditing.addLoD(query.name, qres)
                 elif isinstance(qres, dict):
                     for name, lod in qres.items():
-                        self.tableEditing.addLoD(name, lod)
+                        self.tableEditing.addLoD(f"{queryName}_{name}", lod)
         
     def addAskQuery(self,wikiId:str,name,ask:str,title:str=None,description:str=None):
         if wikiId not in self.wikiAccessMap:
