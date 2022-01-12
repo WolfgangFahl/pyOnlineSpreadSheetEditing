@@ -31,7 +31,8 @@ setup(
           'pyLodStorage~=0.0.85',
           'pyFlaskBootstrap4~=0.4.2',
           'py-3rdparty-mediawiki~=0.5.3',
-          'pandas~=1.3.5'
+          'pandas~=1.3.5',
+          'ruamel.yaml'
     ],
     classifiers=[
             'Programming Language :: Python',

@@ -4,7 +4,7 @@ from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
 from fb4.widgets import Copyright, Link,Menu, MenuItem
 from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField
-from flask import render_template, flash, url_for, send_file
+from flask import abort,render_template, flash, url_for, send_file
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
 from fb4.sqldb import db
@@ -22,13 +22,14 @@ class WebServer(AppWrap):
     Open Source Online Spreasheet Editing Service
     """
 
-    def __init__(self, host=None, port=8559, verbose=True, debug=False):
+    def __init__(self, host=None, port=8559, editConfigPath:str=None,withUsers=True,verbose=True, debug=False):
         '''
         constructor
 
         Args:
             host(str): flask host
             port(int): the port to use for http connections
+            editConfigPath(str): the path to load the edit and query configurations from
             debug(bool): True if debugging should be switched on
             verbose(bool): True if verbose logging should be switched on
         '''
@@ -53,8 +54,9 @@ class WebServer(AppWrap):
         self.wikiUsers=WikiUser.getWikiUsers()
     
         self.loginBluePrint=LoginBluePrint(self.app,'login',welcome="home")
-        self.initUsers()
-        self.editConfigurationManager=EditConfigManager()
+        if withUsers:
+            self.initUsers()
+        self.editConfigurationManager=EditConfigManager(editConfigPath)
         self.editConfigurationManager.load()
 
         @self.app.route('/')
@@ -66,7 +68,10 @@ class WebServer(AppWrap):
         def editConfigs():
             return self.showEditConfigs()
         
-     
+        @self.app.route('/download/<editConfigName>')
+        def download(editConfigName:str):
+            return self.download4EditConfigName(editConfigName)
+
         @self.app.route('/wikiedit',methods=['GET', 'POST'])
         @login_required
         def wikiEditNone():
@@ -154,19 +159,55 @@ class WebServer(AppWrap):
                 editForm.addQuery()
             elif editForm.download.data:
                 editConfig=editForm.toEditConfig()
-                tq=editConfig.toTableQuery()
-                flash("retrieving data ...","info")
-                tq.fetchQueryResults()
-                # TODO: Add option to apply enhancers and show progreess
-                # show download result
-                spreadsheet=tq.tableEditing.toSpreadSheet(SpreadSheetType.EXCEL, name=editConfig.name)
-                return send_file(path_or_file=spreadsheet.toBytesIO(), mimetype=spreadsheet.MIME_TYPE)
-            else:
-                pass
+                flash(f"{editConfig.name} downloaded","info")
+                return self.download4EditConfig(editConfig)
         else:
             pass
         html=self.render_template(template, title=title, activeItem=activeItem,editForm=editForm)
         return html
+
+    def download4EditConfig(self,editConfig):
+        '''
+        start a download for the given edit configuration
+
+        Args:
+            editConfig(EditConfig): the edit configuration
+
+        Returns:
+            the download via send_file
+
+        '''
+        tq=editConfig.toTableQuery()
+        tq.fetchQueryResults()
+        # TODO: Add option to apply enhancers and show progress
+        # show download result
+        spreadsheet=tq.tableEditing.toSpreadSheet(SpreadSheetType.EXCEL, name=editConfig.name)
+        return self.downloadSpreadSheet(spreadsheet)
+
+    def download4EditConfigName(self,editConfigName:str):
+        '''
+        start a download for the given edit configuration name
+
+        Args:
+            editConfigName(str): the edit configuration
+
+        '''
+        if editConfigName in self.editConfigurationManager.editConfigs:
+            editConfig=self.editConfigurationManager.editConfigs[editConfigName]
+            return self.download4EditConfig(editConfig)
+        else:
+            return abort(400,f"invalid edit configuration {editConfigName}")
+
+    def downloadSpreadSheet(self,spreadsheet):
+        '''
+        download the given spreadsheet
+
+        Args:
+            spreadsheet(SpreadhSheet): the spreadsheet to download
+        '''
+        # https://stackoverflow.com/a/53666642/1497139
+        sDownload=send_file(path_or_file=spreadsheet.toBytesIO(), as_attachment=True,download_name=spreadsheet.filename,mimetype=spreadsheet.MIME_TYPE)
+        return sDownload
            
     def getMenu(self,activeItem:str=None):
         '''

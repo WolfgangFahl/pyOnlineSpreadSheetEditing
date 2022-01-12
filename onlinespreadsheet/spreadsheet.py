@@ -15,6 +15,9 @@ from werkzeug.datastructures import FileStorage
 
     
 class Format:
+    '''
+    potential Formats 
+    '''
     formatMap={
         "CSV": {
             "name": "CSV",
@@ -231,21 +234,44 @@ class SpreadSheet:
         Load SpreadSheet from given file or file object
         """
         tables=self._loadFromFile(file)
-        for name,table in tables.items():
-            if samples:
-                if name in samples:
-                    self.fixLodTypes(table, samples[name])
-            self.tables[name]=table
-
-    def _loadFromFile(self, file) -> dict:
+        if tables:
+            for name,table in tables.items():
+                if samples:
+                    if name in samples:
+                        self.fixLodTypes(table, samples[name])
+                self.tables[name]=table
+            
+    def _loadFromFile(self, file):
         """
-        Load SpreadSheet from given file or file object
+        load the document from the given .ods file
+        Args:
+            file: absolut file path to the file that should be loaded
+            samples(dict): samples of the sheets. Expected format: sheetName:SamplesForSheet
+        Returns:
+
+        """
+        if isinstance(file, str):
+            try:
+                with open(file, mode="rb") as f:
+                    buffer=BytesIO()
+                    buffer.write(f.read())
+                    # work around along the line of
+                    # https://stackoverflow.com/a/42811024/1497139
+                    buffer.name=f.name
+            except Exception as e:
+                print(f"Tried to open {file} as a File and failed")
+                raise e
+        else:
+            buffer=file
+        return self._loadFromBuffer(buffer)
+
+    def _loadFromBuffer(self, buffer):
+        """
+        Load SpreadSheet from given buffer
 
         Args:
-            file: file like object or file name of the sheet that should be loaded
+            buffer: file like object
 
-        Returns:
-            dict containing the table name as key and table data as LoD
         """
         raise NotImplementedError
 
@@ -332,7 +358,7 @@ class CSVSpreadSheet(SpreadSheet):
         buffer.seek(0)
         return buffer
 
-    def _loadFromFile(self, file):
+    def _loadFromBuffer(self, file):
         """
         load the document from the given .zip file
         Args:
@@ -340,13 +366,7 @@ class CSVSpreadSheet(SpreadSheet):
         Returns:
 
         """
-        if isinstance(file, str):
-            fileName=file
-            with open(file, "rb") as f:
-                file=BytesIO(f.read())
-                file.name=fileName
-        else:
-            fileName=file.name
+        fileName=file.name
         tables={}
         if fileName.endswith(self.FILE_TYPE):
             with ZipFile(file, mode="r") as documentZip:
@@ -381,7 +401,7 @@ class ExcelDocument(SpreadSheet):
         if engine is None:
             engine="xlsxwriter"
         self.engine=engine
-
+        
     def toBytesIO(self) -> BytesIO:
         """
         Converts the document into an BytesIO stream
@@ -407,28 +427,14 @@ class ExcelDocument(SpreadSheet):
         buffer.name=self.filename
         return buffer
 
-    def _loadFromFile(self, file):
-        """
-        load the document from the given .ods file
-        Args:
-            file: absolut file path to the file that should be loaded
-            samples(dict): samples of the sheets. Expected format: sheetName:SamplesForSheet
-        Returns:
-
-        """
-        if isinstance(file, str):
-            try:
-                with open(file, mode="rb") as f:
-                    buffer=BytesIO()
-                    buffer.write(f.read())
-                    file=buffer
-            except Exception as e:
-                print(f"Tried to open {file} as a File and failed")
-                raise e
-        sheets = pd.read_excel(file, sheet_name=None).keys()
+    def _loadFromBuffer(self,buffer):
+        '''
+        read my table from the given BytesIO buffer
+        '''
+        sheets = pd.read_excel(buffer, sheet_name=None).keys()
         tables={}
         for sheet in sheets:
-            df = pd.read_excel(file, sheet_name=sheet, na_values=None)
+            df = pd.read_excel(buffer, sheet_name=sheet, na_values=None)
             df=df.where(pd.notnull(df), None)
             lod=df.to_dict('records')
             # NaT handling issue due to a bug in pandas https://github.com/pandas-dev/pandas/issues/29024
@@ -437,7 +443,6 @@ class ExcelDocument(SpreadSheet):
             lod=[{k:v if not (isinstance(v, float) and math.isnan(v)) else None for k,v in d.items() }for d in lod]
             tables[sheet] = lod
         return tables
-
 
 class OdsDocument(ExcelDocument):
     """
