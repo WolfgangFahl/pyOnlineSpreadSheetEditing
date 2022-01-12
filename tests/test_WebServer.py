@@ -6,6 +6,8 @@ Created on 13.12.2021
 import unittest
 from tests.basetest import BaseTest
 import warnings
+import os
+from onlinespreadsheet.editconfig import EditConfig
 from onlinespreadsheet.webserver import WebServer
 
 class TestWebServer(BaseTest):
@@ -19,7 +21,9 @@ class TestWebServer(BaseTest):
     @staticmethod
     def getApp():
         warnings.simplefilter("ignore", ResourceWarning)
-        ws=WebServer()
+        editConfigPath="/tmp/.ose"
+        os.makedirs(editConfigPath, exist_ok=True)
+        ws=WebServer(withUsers=False,editConfigPath=editConfigPath)
         app=ws.app
         app.config['TESTING'] = True
         app.config['WTF_CSRF_ENABLED'] = False
@@ -39,6 +43,16 @@ class TestWebServer(BaseTest):
         response=self.client.get(query)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data is not None)
+        return response
+    
+    def getResponseHtml(self,query:str):
+        '''
+        get a response from the app for the given query string
+        
+        Args:
+            query(str): the html query string to fetch the response for
+        '''
+        response=self.getResponse(query)
         html=response.data.decode()
         if self.debug:
             print(html)
@@ -48,9 +62,24 @@ class TestWebServer(BaseTest):
         '''
         test the home page of the Webserver
         '''
-        html=self.getResponse("/")
+        html=self.getResponseHtml("/")
         self.assertTrue("https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing" in html)
         pass
+    
+    def testDownload(self):
+        '''
+        test downloading 
+        '''
+        ecm=self.ws.editConfigurationManager
+        if not "FCT" in ecm.editConfigs:
+            editConfig=EditConfig("FCT")
+            ecm.add(editConfig)
+        # https://stackoverflow.com/a/26364642/1497139
+        response=self.getResponse("/download/FCT")
+        bytesIo=response.data
+        # TODO
+        # test that this is actually an excel sheet
+        
 
 
 if __name__ == "__main__":

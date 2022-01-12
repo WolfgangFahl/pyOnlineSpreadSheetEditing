@@ -15,6 +15,9 @@ from werkzeug.datastructures import FileStorage
 
     
 class Format:
+    '''
+    potential Formats 
+    '''
     formatMap={
         "CSV": {
             "name": "CSV",
@@ -381,7 +384,7 @@ class ExcelDocument(SpreadSheet):
         if engine is None:
             engine="xlsxwriter"
         self.engine=engine
-
+        
     def toBytesIO(self) -> BytesIO:
         """
         Converts the document into an BytesIO stream
@@ -407,6 +410,21 @@ class ExcelDocument(SpreadSheet):
         buffer.name=self.filename
         return buffer
 
+    def _loadFromBuffer(self,buffer):
+        sheets = pd.read_excel(buffer, sheet_name=None).keys()
+        tables={}
+        for sheet in sheets:
+            df = pd.read_excel(buffer, sheet_name=sheet, na_values=None)
+            df=df.where(pd.notnull(df), None)
+            lod=df.to_dict('records')
+            # NaT handling issue due to a bug in pandas https://github.com/pandas-dev/pandas/issues/29024
+            lod=[{k: v.to_pydatetime() if isinstance(v, Timestamp) else None if isinstance(v, type(NaT)) else v for k,v in d.items()} for d in lod]
+            # float nan to None
+            lod=[{k:v if not (isinstance(v, float) and math.isnan(v)) else None for k,v in d.items() }for d in lod]
+            tables[sheet] = lod
+        return tables
+
+        
     def _loadFromFile(self, file):
         """
         load the document from the given .ods file
@@ -421,23 +439,10 @@ class ExcelDocument(SpreadSheet):
                 with open(file, mode="rb") as f:
                     buffer=BytesIO()
                     buffer.write(f.read())
-                    file=buffer
             except Exception as e:
                 print(f"Tried to open {file} as a File and failed")
                 raise e
-        sheets = pd.read_excel(file, sheet_name=None).keys()
-        tables={}
-        for sheet in sheets:
-            df = pd.read_excel(file, sheet_name=sheet, na_values=None)
-            df=df.where(pd.notnull(df), None)
-            lod=df.to_dict('records')
-            # NaT handling issue due to a bug in pandas https://github.com/pandas-dev/pandas/issues/29024
-            lod=[{k: v.to_pydatetime() if isinstance(v, Timestamp) else None if isinstance(v, type(NaT)) else v for k,v in d.items()} for d in lod]
-            # float nan to None
-            lod=[{k:v if not (isinstance(v, float) and math.isnan(v)) else None for k,v in d.items() }for d in lod]
-            tables[sheet] = lod
-        return tables
-
+        self._loadFromBuffer(buffer)
 
 class OdsDocument(ExcelDocument):
     """
