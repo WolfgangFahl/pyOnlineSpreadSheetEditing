@@ -14,6 +14,7 @@ from wikibot.wikiclient import WikiClient
 from wikibot.smw import SMWClient
 #from wikibot.wikipush import WikiPush
 from onlinespreadsheet.tableediting import TableEditing
+from mwclient.errors import APIError
 
 class SmwWikiAccess:
     '''
@@ -24,14 +25,30 @@ class SmwWikiAccess:
     def __init__(self,wikiId:str,showProgress=False,queryDivision=1,debug=False,lenient=True):
         '''
         constructor
-        
-        
         '''
         self.debug=debug
         self.wikiUser = WikiUser.ofWikiId(wikiId,lenient=lenient)
         self.wikiClient = WikiClient.ofWikiUser(self.wikiUser)
         self.smwClient=SMWClient(self.wikiClient.getSite(),showProgress=showProgress, queryDivision=queryDivision,debug=self.debug)
         # self.wikiPush = WikiPush(fromWikiId=self.wikiUser.wikiId)
+        
+    def login(self):
+        self.wikiClient.login()
+        
+    def query(self,query:str):
+        '''
+        query with auto-login
+        '''
+        try:
+            qres=self.smwClient.query(query)
+        except APIError as apie:
+            if "readapidenied" in str(apie):
+                # retry with login
+                self.login()
+                qres=self.smwClient.query(query)
+            else:
+                raise apie   
+        return qres     
 
 class QueryType(Enum):
     """
@@ -74,7 +91,7 @@ class TableQuery(object):
             if query.lang=="ask":
                 if not hasattr(query, "wikiAccess") or query.wikiAccess is None:
                     raise(f"wikiAccess needs to be configured for Semantic MediaWiki ask query '{query.name}'")
-                qres=query.wikiAccess.smwClient.query(query.query)
+                qres=query.wikiAccess.query(query.query)
                 # workaround: undict if dict of dict is returned
                 # TODO: check whether this may be fixed upstream
                 if isinstance(qres,dict):
