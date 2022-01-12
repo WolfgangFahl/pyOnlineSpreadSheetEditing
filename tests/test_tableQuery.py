@@ -188,8 +188,8 @@ LIMIT 10"""
         tq=TableQuery()
         tq.addRESTfulQuery(name="WEBIST",url="https://conferencecorpus.bitplan.com/eventseries/WEBIST")
         tq.fetchQueryResults()
-        self.assertTrue("confref" in tq.tableEditing.lods)
-        self.assertTrue(len(tq.tableEditing.lods["confref"])>15)
+        self.assertTrue("WEBIST_confref" in tq.tableEditing.lods)
+        self.assertTrue(len(tq.tableEditing.lods["WEBIST_confref"])>15)
 
     def testGuessQueryType(self):
         """
