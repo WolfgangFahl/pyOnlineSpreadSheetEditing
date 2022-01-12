@@ -239,16 +239,35 @@ class SpreadSheet:
                 if name in samples:
                     self.fixLodTypes(table, samples[name])
             self.tables[name]=table
-
-    def _loadFromFile(self, file) -> dict:
+            
+    def _loadFromFile(self, file):
         """
-        Load SpreadSheet from given file or file object
+        load the document from the given .ods file
+        Args:
+            file: absolut file path to the file that should be loaded
+            samples(dict): samples of the sheets. Expected format: sheetName:SamplesForSheet
+        Returns:
+
+        """
+        if isinstance(file, str):
+            try:
+                with open(file, mode="rb") as f:
+                    buffer=BytesIO()
+                    buffer.write(f.read())
+            except Exception as e:
+                print(f"Tried to open {file} as a File and failed")
+                raise e
+        else:
+            buffer=file
+        self._loadFromBuffer(buffer)
+
+    def _loadFromBuffer(self, buffer):
+        """
+        Load SpreadSheet from given buffer
 
         Args:
-            file: file like object or file name of the sheet that should be loaded
+            buffer: file like object
 
-        Returns:
-            dict containing the table name as key and table data as LoD
         """
         raise NotImplementedError
 
@@ -335,7 +354,7 @@ class CSVSpreadSheet(SpreadSheet):
         buffer.seek(0)
         return buffer
 
-    def _loadFromFile(self, file):
+    def _loadFromBuffer(self, file):
         """
         load the document from the given .zip file
         Args:
@@ -343,13 +362,7 @@ class CSVSpreadSheet(SpreadSheet):
         Returns:
 
         """
-        if isinstance(file, str):
-            fileName=file
-            with open(file, "rb") as f:
-                file=BytesIO(f.read())
-                file.name=fileName
-        else:
-            fileName=file.name
+        fileName=file.name
         tables={}
         if fileName.endswith(self.FILE_TYPE):
             with ZipFile(file, mode="r") as documentZip:
@@ -411,6 +424,9 @@ class ExcelDocument(SpreadSheet):
         return buffer
 
     def _loadFromBuffer(self,buffer):
+        '''
+        read my table from the given BytesIO buffer
+        '''
         sheets = pd.read_excel(buffer, sheet_name=None).keys()
         tables={}
         for sheet in sheets:
@@ -423,26 +439,6 @@ class ExcelDocument(SpreadSheet):
             lod=[{k:v if not (isinstance(v, float) and math.isnan(v)) else None for k,v in d.items() }for d in lod]
             tables[sheet] = lod
         return tables
-
-        
-    def _loadFromFile(self, file):
-        """
-        load the document from the given .ods file
-        Args:
-            file: absolut file path to the file that should be loaded
-            samples(dict): samples of the sheets. Expected format: sheetName:SamplesForSheet
-        Returns:
-
-        """
-        if isinstance(file, str):
-            try:
-                with open(file, mode="rb") as f:
-                    buffer=BytesIO()
-                    buffer.write(f.read())
-            except Exception as e:
-                print(f"Tried to open {file} as a File and failed")
-                raise e
-        self._loadFromBuffer(buffer)
 
 class OdsDocument(ExcelDocument):
     """

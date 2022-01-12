@@ -6,9 +6,11 @@ Created on 13.12.2021
 import unittest
 from tests.basetest import BaseTest
 import warnings
+from io import BytesIO
 import os
 from onlinespreadsheet.editconfig import EditConfig
 from onlinespreadsheet.webserver import WebServer
+from onlinespreadsheet.spreadsheet import SpreadSheet
 
 class TestWebServer(BaseTest):
     """Test the WebServers RESTful interface"""
@@ -76,9 +78,10 @@ class TestWebServer(BaseTest):
             ecm.add(editConfig)
         # https://stackoverflow.com/a/26364642/1497139
         response=self.getResponse("/download/FCT")
-        bytesIo=response.data
-        # TODO
-        # test that this is actually an excel sheet
+        spreadSheet=SpreadSheet.load(BytesIO(response.data))
+        self.assertNotNone(spreadSheet)
+        pass
+        
         
 
 
