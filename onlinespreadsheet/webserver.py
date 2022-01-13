@@ -15,7 +15,8 @@ import os
 import sys
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
-
+import traceback
+from werkzeug.exceptions import HTTPException
 
 class WebServer(AppWrap):
     """
@@ -89,6 +90,31 @@ class WebServer(AppWrap):
         def before_first_request_func():
             loginMenu=self.getMenu("Login")
             self.loginBluePrint.setLoginArgs(menu=loginMenu)
+        
+        @self.app.errorhandler(Exception)
+        def handle_exception(e):
+            # pass through HTTP errors
+            if isinstance(e, HTTPException):
+                return e
+            traceMessage = traceback.format_exc()
+            # to the server log
+            print(traceMessage)
+            if self.debug:
+                errorMessage=f"{traceMessage}"
+            else:    
+                errorMessage=f"A server error occurred - see log for trace"
+            
+            return self.handleError(errorMessage)
+
+
+    def handleError(self,errorMessage,level="error"):   
+        '''
+        handle the error with the given error Message
+        '''     
+        flash(errorMessage,level)
+        # now you're handling non-HTTP exceptions only
+        html=self.render_template("ose/generic500.html", title="Error", activeItem="Home", error=errorMessage)
+        return html
      
     def render_template(self,templateName:str,title:str,activeItem:str,**kwArgs):
         '''
@@ -354,7 +380,7 @@ class WikiEditForm(FlaskForm):
         self.sourceWiki.data=editConfig.sourceWikiId
         self.targetWiki.data=editConfig.targetWikiId
         # reset queries in form
-        for i in range(len(self.queries)):
+        for _i in range(len(self.queries)):
             self.queries.pop_entry()
         # load queries from config
         for name, query in editConfig.queries.items():
