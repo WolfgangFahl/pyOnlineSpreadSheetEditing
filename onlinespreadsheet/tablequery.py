@@ -58,6 +58,13 @@ class QueryType(Enum):
     ASK=auto()
     SPARQL=auto()
     INVALID=auto()
+    
+    @staticmethod
+    def match(pattern:str,string:str):
+        '''
+        re match search for the given pattern with ignore case
+        '''
+        return re.search(pattern=pattern, string=string, flags=re.IGNORECASE)
 
 class TableQuery(object):
     '''
@@ -170,9 +177,10 @@ class TableQuery(object):
             return QueryType.RESTful
         elif query.startswith("{{#ask:"):
             return QueryType.ASK
-        elif query.startswith("prefix") or re.match(pattern=r"^select\s+\?", string=query):
+        elif (QueryType.match(r"prefix",query) or QueryType.match(r"\s*select\s+\?",query)) or \
+            QueryType.match(r"#.*SPARQL",query):
             return QueryType.SPARQL
-        elif query.startswith("select") and re.search(pattern=r"(\n|\n\r| )from ", string=query):
+        elif QueryType.match(r"\s*select",query) and QueryType.match(r"\s*from\s+",query):
             return QueryType.SQL
         else:
             return QueryType.INVALID

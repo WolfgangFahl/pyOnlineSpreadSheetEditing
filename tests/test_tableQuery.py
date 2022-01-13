@@ -14,6 +14,7 @@ from lodstorage.query import Query
 from lodstorage.sparql import SPARQL
 from lodstorage.lod import LOD
 import copy
+import re
 
 class TestTableQuery(BaseTest):
     '''
@@ -207,7 +208,28 @@ LIMIT 10"""
             },{
                 "type": QueryType.SPARQL,
                 "query": "SELECT ?s ?p ?o WHERE{ ?s ?p ?o }"
-            },{
+            },
+            {
+                "type": QueryType.SPARQL,
+                "query": """# SPARQL query
+# Ten Largest cities of the world 
+# WF 2021-08-23
+# see also http://wiki.bitplan.com/index.php/PyLoDStorage#Examples
+# see also https://github.com/WolfgangFahl/pyLoDStorage/issues/46
+SELECT DISTINCT ?city ?cityLabel ?population ?country ?countryLabel 
+WHERE {
+  VALUES ?cityClass { wd:Q1637706}.
+  ?city wdt:P31 ?cityClass .
+  ?city wdt:P1082 ?population .
+  ?city wdt:P17 ?country .
+  SERVICE wikibase:label {
+    bd:serviceParam wikibase:language "en" .
+  }
+}
+ORDER BY DESC(?population)
+LIMIT 10"""
+            },
+            {
                 "type": QueryType.SQL,
                 "query": "SELECT * FROM Event"
             },{
@@ -218,9 +240,13 @@ LIMIT 10"""
                 "query": "# This is not a proper query"
             }
         ]
-        for record in queries:
-            guessedType=TableQuery.guessQueryType(record.get("query"))
-            self.assertEqual(record.get("type"), guessedType)
+        for i,record in enumerate(queries):
+            query=record.get("query")
+            guessedType=TableQuery.guessQueryType(query)
+            expectedType=record.get("type")
+            if guessedType!=expectedType:
+                print(f"query {i} not guessed correctly: {query}")
+            self.assertEqual(expectedType, guessedType)
             
   
 if __name__ == "__main__":
