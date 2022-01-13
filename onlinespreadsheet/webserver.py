@@ -174,7 +174,7 @@ class WebServer(AppWrap):
                 flash(f"unknown edit configuration {editConfigName}","warn")
         # submitted
         if editForm.validate_on_submit():
-            editForm.deleteQuery()
+            editForm.handleQueryDelete()
             # check which button was pressed
             if editForm.save.data:
                 editConfig=editForm.toEditConfig()
@@ -340,16 +340,18 @@ class WikiEditForm(FlaskForm):
         self.queries.append_entry(data)
         return n
 
-    def deleteQuery(self):
+    def handleQueryDelete(self):
         """
         Delete the selected query.
         """
         delQueryIndex=None
-        if len(self.queries.entries)<=self.queries.min_entries:
-            flash(f"Can not delete Query at least {self.queries.min_entries} {'Query is' if self.queries.min_entries == 1 else 'Queries are'} required", category="info")
-            return
         for i, entry in enumerate(self.queries.entries):
             if entry.data['remove']:
+                if len(self.queries.entries) <= self.queries.min_entries:
+                    qmin=self.queries.min_entries
+                    msg=f"Can not delete Query at least {qmin} {'Query is' if qmin == 1 else 'Queries are'} required"
+                    flash(msg, category="info")
+                    return
                 delQueryIndex=i
                 break
         if delQueryIndex is not None:
