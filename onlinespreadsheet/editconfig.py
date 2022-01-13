@@ -45,6 +45,8 @@ class EditConfig(object):
                 tq.addAskQuery(self.sourceWikiId, name, query)
             elif queryType is QueryType.RESTful:
                 tq.addRESTfulQuery(name=name, url=query)
+            elif queryType is queryType.SPARQL:
+                tq.addSparqlQuery(name=name,query=query)
             else:
                 raise Exception(f"unimplemented query type {queryType}")
         return tq

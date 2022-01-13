@@ -14,6 +14,7 @@ from wikibot.smw import SMWClient
 #from wikibot.wikipush import WikiPush
 from onlinespreadsheet.tableediting import TableEditing
 from mwclient.errors import APIError
+from lodstorage.sparql import SPARQL
 
 class SmwWikiAccess:
     '''
@@ -159,6 +160,21 @@ class TableQuery(object):
             description(str): description of the query
         """
         query = Query(name=name, query=url, lang='restful', title=title, description=description, debug=self.debug)
+        self.addQuery(query)
+        
+    def addSparqlQuery(self,name:str,query:str,endpointUrl:str="https://query.wikidata.org/sparql",title:str=None, description:str=None):
+        """
+        add SPARQL query to the queries
+
+        Args:
+            name(str): name of the query
+            query(str): the SPARQL query to execute
+            endpointUrl(str): the url of the endpoint to use
+            title(str): title of the query
+            description(str): description of the query
+        """
+        query = Query(name=name, query=query, lang='sparql', title=title, description=description, debug=self.debug)
+        query.endpoint=SPARQL(endpointUrl)
         self.addQuery(query)
             
     @staticmethod
