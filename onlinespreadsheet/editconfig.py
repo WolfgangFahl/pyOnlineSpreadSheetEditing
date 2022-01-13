@@ -32,14 +32,21 @@ class EditConfig(object):
     def toTableQuery(self)->TableQuery:
         '''
         convert me to a TableQuery
+        
+        Returns:
+            TableQuery: the table query for my queries
         '''
         tq = TableQuery()
         for name, query in self.queries.items():
             queryType=TableQuery.guessQueryType(query)
-            if queryType is QueryType.ASK:
+            if queryType is QueryType.INVALID:
+                raise Exception(f"unknown / invalid query Type for query {name}")
+            elif queryType is QueryType.ASK:
                 tq.addAskQuery(self.sourceWikiId, name, query)
             elif queryType is QueryType.RESTful:
                 tq.addRESTfulQuery(name=name, url=query)
+            else:
+                raise Exception(f"unimplemented query type {queryType}")
         return tq
 
 class EditConfigManager(yaml.YAMLObject):

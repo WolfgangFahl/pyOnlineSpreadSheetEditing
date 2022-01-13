@@ -213,12 +213,16 @@ LIMIT 10"""
             },{
                 "type": QueryType.SQL,
                 "query": "SELECT name, firstname, count(children) FROM Event"
+            },{
+                "type": QueryType.INVALID,
+                "query": "# This is not a proper query"
             }
         ]
         for record in queries:
             guessedType=TableQuery.guessQueryType(record.get("query"))
             self.assertEqual(record.get("type"), guessedType)
-
+            
+  
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()

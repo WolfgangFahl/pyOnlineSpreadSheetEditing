@@ -57,6 +57,7 @@ class QueryType(Enum):
     RESTful=auto()
     ASK=auto()
     SPARQL=auto()
+    INVALID=auto()
 
 class TableQuery(object):
     '''
@@ -174,5 +175,5 @@ class TableQuery(object):
         elif query.startswith("select") and re.search(pattern=r"(\n|\n\r| )from ", string=query):
             return QueryType.SQL
         else:
-            return None
+            return QueryType.INVALID
 
