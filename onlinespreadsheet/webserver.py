@@ -55,6 +55,9 @@ class WebServer(AppWrap):
         self.loginBluePrint=LoginBluePrint(self.app,'login',welcome="home")
         self.withUsers=withUsers
         self.editConfigPath=editConfigPath
+        self.editConfigurationManager=EditConfigManager(self.editConfigPath)
+        self.editConfigurationManager.load()
+   
         self.autoLoginUser=None
 
         @self.app.route('/')
@@ -112,8 +115,6 @@ class WebServer(AppWrap):
         '''
         if self.withUsers:
             self.initUsers(user=args.user)
-        self.editConfigurationManager=EditConfigManager(self.editConfigPath)
-        self.editConfigurationManager.load()
         super().run(args)
 
     def handleError(self,errorMessage,level="error"):   
