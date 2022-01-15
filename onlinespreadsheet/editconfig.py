@@ -93,7 +93,8 @@ class EditConfigManager(yaml.YAMLObject):
             with open(yamlFile, 'r') as stream:
                 configs = yaml.safe_load(stream)
             for config in configs.values():
-                ec=EditConfig(config['name'])
+                name=config['name']
+                ec=EditConfig(name)
                 for key,value in config.items():
                     ec.__setattr__(key, value)
                 self.add(ec)
