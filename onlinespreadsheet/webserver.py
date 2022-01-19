@@ -8,11 +8,13 @@ from flask import abort,render_template, flash, url_for, send_file
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
 from fb4.sqldb import db
-from fb4.login_bp import LoginBluePrint
 from flask_login import current_user, login_required
 import socket
 import os
 import sys
+
+from onlinespreadsheet.loginBlueprint import LoginBluePrint
+from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
 import traceback
@@ -86,10 +88,6 @@ class WebServer(AppWrap):
         #
         # setup global handlers
         #
-        @self.app.before_first_request
-        def before_first_request_func():
-            loginMenu=self.getMenu("Login")
-            self.loginBluePrint.setLoginArgs(menu=loginMenu)
         
         @self.app.errorhandler(Exception)
         def handle_exception(e):
@@ -253,6 +251,7 @@ class WebServer(AppWrap):
         if current_user.is_anonymous:
             menu.addItem(MenuItem('/login','login',mdiIcon="login"))
         else:
+            menu.addItem(MenuItem('/users', 'users', mdiIcon="people"))  # ToDo: add required role
             menu.addItem(MenuItem('/logout','logout',mdiIcon="logout"))
         if activeItem is not None:
             for menuItem in menu.items:
@@ -281,11 +280,11 @@ class WebServer(AppWrap):
         '''
         username=f"{wuser.user}@{wuser.wikiId}"
         return username
-        
+
     def initUsers(self,withDBCreate=True):
         '''
         initialize my users
-        '''  
+        '''
         if withDBCreate:
             self.db.drop_all()
             self.db.create_all()

@@ -1,0 +1,6 @@
+{% extends 'fb4common/base.html' %}
+{% from 'bootstrap/form.html' import render_form, render_field, render_form_row %}
+
+{% block content %}
+    {{ users | safe }}
+{% endblock %}
