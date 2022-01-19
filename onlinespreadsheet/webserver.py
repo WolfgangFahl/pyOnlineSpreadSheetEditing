@@ -8,6 +8,7 @@ from flask import abort,render_template, flash, url_for, send_file
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
 from fb4.sqldb import db
+from fb4.login_bp import login_user
 from flask_login import current_user, login_required
 import socket
 import os
@@ -48,7 +49,7 @@ class WebServer(AppWrap):
         db.init_app(self.app)
         self.db=db
         self.authenticate=False
-        self.sseBluePrint = SSE_BluePrint(self.app, 'sse', baseUrl=self.baseUrl)
+        self.sseBluePrint = SSE_BluePrint(self.app,'sse',appWrap=self)
         
         #  server specific initializations
         link=Link("http://www.bitplan.com/Wolfgang_Fahl",title="Wolfgang Fahl")
@@ -59,10 +60,12 @@ class WebServer(AppWrap):
         # add BluePrints
         self.loginBluePrint=LoginBluePrint(self.app,'login',welcome="home", appWrap=self)
         self.profileBluePrint=ProfileBlueprint(self.app, "profile", template_folder="profile", appWrap=self)
-        # if withUsers:
-        #     self.initUsers()
-        self.editConfigurationManager=EditConfigManager(editConfigPath)
+        self.withUsers = withUsers
+        self.editConfigPath = editConfigPath
+        self.editConfigurationManager = EditConfigManager(self.editConfigPath)
         self.editConfigurationManager.load()
+
+        self.autoLoginUser=None
 
         @self.app.route('/')
         def home():
@@ -90,6 +93,13 @@ class WebServer(AppWrap):
         #
         # setup global handlers
         #
+        @self.app.before_first_request
+        def before_first_request_func():
+            loginMenu=self.getMenu("Login")
+            # self.loginBluePrint.setLoginArgs(menu=loginMenu)
+            # auto login
+            if self.autoLoginUser is not None:
+                login_user(self.autoLoginUser, remember=True)
         
         @self.app.errorhandler(Exception)
         def handle_exception(e):
@@ -106,6 +116,13 @@ class WebServer(AppWrap):
             
             return self.handleError(errorMessage)
 
+    def run(self,args):
+        '''
+        Override web server start
+        '''
+        if self.withUsers:
+            self.initUsers(user=args.user)
+        super().run(args)
 
     def handleError(self,errorMessage,level="error"):   
         '''
@@ -282,8 +299,8 @@ class WebServer(AppWrap):
         '''
         username=f"{wuser.user}@{wuser.wikiId}"
         return username
-
-    def initUsers(self,withDBCreate=True):
+        
+    def initUsers(self,user=None,withDBCreate=True):
         '''
         initialize my users
         '''
@@ -291,10 +308,26 @@ class WebServer(AppWrap):
             self.db.drop_all()
             self.db.create_all()
         wusers=WikiUser.getWikiUsers()
-        self.log(f"Initializing {len(wusers)} users ...")
+        userCount=len(wusers)
+        if user is not None:
+            userCount=1
+        self.log(f"Initializing {userCount} users ...")
         for userid,wuser in enumerate(wusers.values()):
             username=self.getUserNameForWikiUser(wuser)
-            self.loginBluePrint.addUser(self.db,username,wuser.getPassword(),userid=userid)
+            doAdd=True
+            if user is not None:
+                doAdd=user==wuser.wikiId
+                #print(f"'{user}'=='{wuser.wikiId}'? {doAdd}")
+            if doAdd:
+                try:
+                    loginUser=self.loginBluePrint.addUser(username,wuser.getPassword(),username=userid)
+                except Exception as e:
+                    if "User already exists" in str(e):
+                        print(f"User: {username} already exists")
+                    else:
+                        raise e
+                if user is not None:
+                    self.autoLoginUser=loginUser
 
 class QueryForm(FlaskForm):
     """
@@ -400,6 +433,7 @@ def main(_argv=None):
     
     parser = web.getParser(description="Spreadsheet editing services for Semantic MediaWikis")
     parser.add_argument('--verbose', default=True, action="store_true", help="should relevant server actions be logged [default: %(default)s]")
+    parser.add_argument('--user',help="run server with pre-logged in User access rights for the given user")
     args = parser.parse_args()
     web.optionalDebug(args)
     web.run(args)

@@ -154,6 +154,13 @@ class LoginBluePrint(object):
             return decorated_view
         return decorator
 
+    def addUser(self, id:str,password:str,username:str):
+        """
+        add User to db
+        """
+        user = User.getFromArgs(id=id, password=password, username=username)
+        self.userManager.addUser(user)
+
 
 class Roles(str, Enum):
     """
@@ -188,7 +195,8 @@ class User(JSONAble, UserMixin):
 
     @property
     def roles(self) -> List[str]:
-        return [Roles[name] for name in self._roles.split(";")]
+        if self._roles is not None and isinstance(self._roles, str):
+            return [Roles[name] for name in self._roles.split(";")]
 
     @roles.setter
     def roles(self, roles:List[Roles]):
