@@ -55,10 +55,12 @@ class WebServer(AppWrap):
         self.copyRight=Copyright(period="2021-2022",link=link)
         
         self.wikiUsers=WikiUser.getWikiUsers()
-    
-        self.loginBluePrint=LoginBluePrint(self.app,'login',welcome="home")
-        if withUsers:
-            self.initUsers()
+
+        # add BluePrints
+        self.loginBluePrint=LoginBluePrint(self.app,'login',welcome="home", appWrap=self)
+        self.profileBluePrint=ProfileBlueprint(self.app, "profile", template_folder="profile", appWrap=self)
+        # if withUsers:
+        #     self.initUsers()
         self.editConfigurationManager=EditConfigManager(editConfigPath)
         self.editConfigurationManager.load()
 
