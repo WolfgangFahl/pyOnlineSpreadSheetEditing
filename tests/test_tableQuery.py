@@ -181,6 +181,53 @@ LIMIT 10"""
         delhi=citiesByLabel["Delhi"]
         self.assertTrue(delhi['population']>20000000.0)
         self.documentQueryResult(query, qlod, show=self.debug)
+        
+    def testBlazegraph(self):
+        '''
+        testing blazegraph endpoint
+        '''
+        return False
+        testQueries = [
+        {
+            "endpoint":"http://localhost:9999/sparql",
+            "prefixes": [],
+            "lang": "sparql",
+            "name": "TownsInBavaria",
+            "title": "Towns in Bavaria",
+            "description": "Local Blazegraph  SPARQL query for finding cities",
+            "query": """PREFIX unlocode:<http://unlocode.rkbexplorer.com/id/>
+PREFIX portal: <http://www.aktors.org/ontology/portal#>
+PREFIX support: <http://www.aktors.org/ontology/support#>
+
+SELECT ?townname ?lat ?lon ?regionname ?countryname
+WHERE {
+  ?town a portal:Town.
+  ?town support:has-pretty-name ?townname.
+  ?town portal:has-latitude ?lat.
+  ?town portal:has-longitude ?lon.
+  ?town portal:is-located-in ?region.
+
+  ?region support:has-pretty-name ?regionname.
+  ?region portal:is-part-of ?country.
+
+  ?country support:has-pretty-name ?countryname.
+ 
+   FILTER regex(?regionname,"bayern","i")
+}
+ORDER by ?townname
+LIMIT 7
+"""
+            }]
+        tq = TableQuery()
+        for queryMap in testQueries:
+            endpointUrl=queryMap.pop("endpoint")
+            query = Query(**queryMap)
+            query.tryItUrl=endpointUrl
+            query.endpoint=SPARQL(endpointUrl)
+            tq.addQuery(query)
+        tq.fetchQueryResults()
+        lods = tq.tableEditing.lods
+        print(lods)
 
     def testRESTfulQuery(self):
         """
