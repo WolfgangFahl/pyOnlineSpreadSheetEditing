@@ -1,3 +1,5 @@
+
+
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
 from fb4.widgets import Copyright, Link,Menu, MenuItem
@@ -6,11 +8,14 @@ from flask import abort,render_template, flash, url_for, send_file
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
 from fb4.sqldb import db
-from fb4.login_bp import LoginBluePrint, login_user
+from fb4.login_bp import login_user
 from flask_login import current_user, login_required
 import socket
 import os
 import sys
+
+from onlinespreadsheet.loginBlueprint import LoginBluePrint
+from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
 import traceback
@@ -51,13 +56,15 @@ class WebServer(AppWrap):
         self.copyRight=Copyright(period="2021-2022",link=link)
         
         self.wikiUsers=WikiUser.getWikiUsers()
-    
-        self.loginBluePrint=LoginBluePrint(self.app,'login',welcome="home")
-        self.withUsers=withUsers
-        self.editConfigPath=editConfigPath
-        self.editConfigurationManager=EditConfigManager(self.editConfigPath)
+
+        # add BluePrints
+        self.loginBluePrint=LoginBluePrint(self.app,'login',welcome="home", appWrap=self)
+        self.profileBluePrint=ProfileBlueprint(self.app, "profile", template_folder="profile", appWrap=self)
+        self.withUsers = withUsers
+        self.editConfigPath = editConfigPath
+        self.editConfigurationManager = EditConfigManager(self.editConfigPath)
         self.editConfigurationManager.load()
-   
+
         self.autoLoginUser=None
 
         @self.app.route('/')
@@ -89,7 +96,7 @@ class WebServer(AppWrap):
         @self.app.before_first_request
         def before_first_request_func():
             loginMenu=self.getMenu("Login")
-            self.loginBluePrint.setLoginArgs(menu=loginMenu)
+            # self.loginBluePrint.setLoginArgs(menu=loginMenu)
             # auto login
             if self.autoLoginUser is not None:
                 login_user(self.autoLoginUser, remember=True)
@@ -108,7 +115,7 @@ class WebServer(AppWrap):
                 errorMessage=f"A server error occurred - see log for trace"
             
             return self.handleError(errorMessage)
-    
+
     def run(self,args):
         '''
         Override web server start
@@ -263,6 +270,7 @@ class WebServer(AppWrap):
         if current_user.is_anonymous:
             menu.addItem(MenuItem('/login','login',mdiIcon="login"))
         else:
+            menu.addItem(MenuItem('/users', 'users', mdiIcon="people"))  # ToDo: add required role
             menu.addItem(MenuItem('/logout','logout',mdiIcon="logout"))
         if activeItem is not None:
             for menuItem in menu.items:
@@ -295,7 +303,7 @@ class WebServer(AppWrap):
     def initUsers(self,user=None,withDBCreate=True):
         '''
         initialize my users
-        '''  
+        '''
         if withDBCreate:
             self.db.drop_all()
             self.db.create_all()
@@ -311,7 +319,13 @@ class WebServer(AppWrap):
                 doAdd=user==wuser.wikiId
                 #print(f"'{user}'=='{wuser.wikiId}'? {doAdd}")
             if doAdd:
-                loginUser=self.loginBluePrint.addUser(self.db,username,wuser.getPassword(),userid=userid)
+                try:
+                    loginUser=self.loginBluePrint.addUser(username,wuser.getPassword(),username=userid)
+                except Exception as e:
+                    if "User already exists" in str(e):
+                        print(f"User: {username} already exists")
+                    else:
+                        raise e
                 if user is not None:
                     self.autoLoginUser=loginUser
 
