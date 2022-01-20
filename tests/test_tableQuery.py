@@ -189,7 +189,7 @@ LIMIT 10"""
         return False
         testQueries = [
         {
-            "endpoint":"http://localhost:9999/sparql",
+            "endpoint":"http://localhost:9999/blazegraph/sparql",
             "prefixes": [],
             "lang": "sparql",
             "name": "TownsInBavaria",
