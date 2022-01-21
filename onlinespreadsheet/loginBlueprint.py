@@ -364,7 +364,7 @@ class UserForm(FlaskForm):
     """
     User form to create and edit a user
     """
-    id=EmailField('Email address', [validators.DataRequired(), validators.Email()])
+    id=EmailField('Email address', [validators.DataRequired()])
     username=StringField("Name", [InputRequired("Please enter a username")])
     wikidataid=StringField("Wikidata Id", [validators.Regexp('Q[1-9]\d*', message="Must be a valid  Wikidata Q identifier (Q43649390) ")])
     roles = SelectMultipleField("Role",
