@@ -324,6 +324,7 @@ class WebServer(AppWrap):
                 except Exception as e:
                     if "User already exists" in str(e):
                         print(f"User: {username} already exists")
+                        loginUser=self.loginBluePrint.userManager.getUser(username)
                     else:
                         raise e
                 if user is not None:
@@ -434,7 +435,7 @@ def main(_argv=None):
     parser = web.getParser(description="Spreadsheet editing services for Semantic MediaWikis")
     parser.add_argument('--verbose', default=True, action="store_true", help="should relevant server actions be logged [default: %(default)s]")
     parser.add_argument('--user',help="run server with pre-logged in User access rights for the given user")
-    args = parser.parse_args()
+    args = parser.parse_args(_argv)
     web.optionalDebug(args)
     web.run(args)
 

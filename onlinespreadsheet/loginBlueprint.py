@@ -160,6 +160,7 @@ class LoginBluePrint(object):
         """
         user = User.getFromArgs(id=id, password=password, username=username)
         self.userManager.addUser(user)
+        return user
 
 
 class Roles(str, Enum):
