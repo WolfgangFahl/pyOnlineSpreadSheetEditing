@@ -11,7 +11,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='pyOnlineSpreadSheetEditing',
-    version='0.0.4',
+    version='0.0.5',
 
     packages=['onlinespreadsheet',],
     author='Wolfgang Fahl',
@@ -29,7 +29,7 @@ setup(
     description='python Online SpreadSheet Editing tool with configurable enhancer/importer and check phase',
     install_requires=[
           'pyLodStorage~=0.0.85',
-          'pyFlaskBootstrap4~=0.4.2',
+          'pyFlaskBootstrap4~=0.4.4',
           'py-3rdparty-mediawiki~=0.5.3',
           'pandas~=1.3.5',
           'ruamel.yaml'
