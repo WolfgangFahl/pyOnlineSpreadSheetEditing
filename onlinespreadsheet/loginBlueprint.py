@@ -148,7 +148,8 @@ class LoginBluePrint(object):
         def decorator(func):
             @wraps(func)
             def decorated_view(*args, **kwargs):
-                if role not in current_user.roles:
+                roles=current_user.roles
+                if roles is None or role not in current_user.roles:
                     return self.loginManager.unauthorized()
                 return func(*args, **kwargs)
             return decorated_view
