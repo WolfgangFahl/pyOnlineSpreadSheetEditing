@@ -1,5 +1,3 @@
-
-
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
 from fb4.widgets import Copyright, Link,Menu, MenuItem
@@ -14,10 +12,12 @@ import socket
 import os
 import sys
 
+
 from onlinespreadsheet.loginBlueprint import LoginBluePrint
 from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
+from lodstorage.trulytabular import TrulyTabular
 import traceback
 from werkzeug.exceptions import HTTPException
 
@@ -89,6 +89,10 @@ class WebServer(AppWrap):
         @login_required
         def wikiEdit(editConfigName:str):
             return self.wikiEdit(editConfigName)
+        
+        @self.app.route('/tt/<itemId>')
+        def wikiTrulyTabular(itemId:str):
+            return self.wikiTrulyTabular(itemId)
         
         #
         # setup global handlers
@@ -251,6 +255,16 @@ class WebServer(AppWrap):
         # https://stackoverflow.com/a/53666642/1497139
         sDownload=send_file(path_or_file=spreadsheet.toBytesIO(), as_attachment=True,download_name=spreadsheet.filename,mimetype=spreadsheet.MIME_TYPE)
         return sDownload
+    
+    def wikiTrulyTabular(self,itemId:str):
+        '''
+        Args:
+            itemId: id of the item to show
+        '''
+        tt=TrulyTabular(itemId)
+        count=tt.count()
+        html=f"{tt}:{count}"
+        return html
            
     def getMenu(self,activeItem:str=None):
         '''
