@@ -1,7 +1,8 @@
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
 from fb4.widgets import Copyright, Link,Menu, MenuItem
-from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField
+from wtforms import IntegerField,StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField
+from wtforms.validators import InputRequired
 from flask import abort,render_template, flash, url_for, send_file
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
@@ -18,6 +19,7 @@ from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
 from lodstorage.trulytabular import TrulyTabular
+from lodstorage.query import EndpointManager
 import traceback
 from werkzeug.exceptions import HTTPException
 
@@ -90,9 +92,9 @@ class WebServer(AppWrap):
         def wikiEdit(editConfigName:str):
             return self.wikiEdit(editConfigName)
         
-        @self.app.route('/tt/<itemId>')
-        def wikiTrulyTabular(itemId:str):
-            return self.wikiTrulyTabular(itemId)
+        @self.app.route('/tt',methods=['GET', 'POST'])
+        def wikiTrulyTabular():
+            return self.wikiTrulyTabular()
         
         #
         # setup global handlers
@@ -256,14 +258,23 @@ class WebServer(AppWrap):
         sDownload=send_file(path_or_file=spreadsheet.toBytesIO(), as_attachment=True,download_name=spreadsheet.filename,mimetype=spreadsheet.MIME_TYPE)
         return sDownload
     
-    def wikiTrulyTabular(self,itemId:str):
+    def wikiTrulyTabular(self):
         '''
-        Args:
-            itemId: id of the item to show
+        handle the truly tabular form
         '''
-        tt=TrulyTabular(itemId)
-        count=tt.count()
-        html=f"{tt}:{count}"
+        ttForm=TrulyTabularForm()
+        ttForm.setEndpointChoices()
+        if ttForm.validate_on_submit():
+            itemId=ttForm.itemId.data
+            tt=TrulyTabular(itemId)
+            ttForm.itemLabel.data=tt.label
+            if ttForm.instances.data:
+                count=tt.count()
+                ttForm.itemCount.data=count
+        title='Multipage Wiki Editing'
+        template="ose/ttform.html"
+        activeItem="Truly Tabular"
+        html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm)
         return html
            
     def getMenu(self,activeItem:str=None):
@@ -279,6 +290,7 @@ class WebServer(AppWrap):
         menu.addItem(MenuItem("/","Home",mdiIcon="home"))
         menu.addItem(MenuItem("/wikiedit","Wiki Edit",mdiIcon="settings_suggest"))
         menu.addItem(MenuItem("/editconfigs","Edit configurations",mdiIcon="settings"))
+        menu.addItem(MenuItem("/tt","Truly Tabular",mdiIcon="table"))
         menu.addItem(MenuItem('https://wiki.bitplan.com/index.php/pyOnlineSpreadSheetEditing',"Docs",mdiIcon="description",newTab=True)),
         menu.addItem(MenuItem('https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing','github',mdiIcon="reviews",newTab=True))
         if current_user.is_anonymous:
@@ -343,6 +355,28 @@ class WebServer(AppWrap):
                         raise e
                 if user is not None:
                     self.autoLoginUser=loginUser
+                    
+class TrulyTabularForm(FlaskForm):
+    """
+    User form to create and edit a user
+    """
+    endpointName=SelectField('endpointName')
+    itemId=StringField("id", [InputRequired("Please enter a Wikidata item id")])
+    itemLabel=StringField("label")
+    itemCount=StringField("count")
+    getLabel=SubmitField("label")
+    instances=SubmitField("instances")
+    tabular=SubmitField("tabular")
+
+    def setEndpointChoices(self):
+        '''
+        set my choices
+        '''
+        endpoints=EndpointManager.getEndpoints()
+        self.endpointName.choices=[]
+        for endpoint in endpoints:
+            self.endpointName.choices.append(endpoint)
+        pass
 
 class QueryForm(FlaskForm):
     """
