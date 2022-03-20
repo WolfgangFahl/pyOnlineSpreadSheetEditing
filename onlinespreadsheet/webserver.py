@@ -19,7 +19,7 @@ from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
 from lodstorage.trulytabular import TrulyTabular
-from lodstorage.query import EndpointManager
+from lodstorage.query import EndpointManager, QuerySyntaxHighlight
 import traceback
 from werkzeug.exceptions import HTTPException
 
@@ -66,7 +66,8 @@ class WebServer(AppWrap):
         self.editConfigPath = editConfigPath
         self.editConfigurationManager = EditConfigManager(self.editConfigPath)
         self.editConfigurationManager.load()
-
+        # get endpoints
+        self.endpoints=EndpointManager.getEndpoints()
         self.autoLoginUser=None
 
         @self.app.route('/')
@@ -263,18 +264,29 @@ class WebServer(AppWrap):
         handle the truly tabular form
         '''
         ttForm=TrulyTabularForm()
-        ttForm.setEndpointChoices()
+        ttForm.setEndpointChoices(self.endpoints)
+        queryHigh=None
+        qlod=None
+        lodKeys=None
         if ttForm.validate_on_submit():
             itemId=ttForm.itemId.data
-            tt=TrulyTabular(itemId)
+            endpoint=self.endpoints[ttForm.endpointName.data]
+            tt=TrulyTabular(itemId,endpoint=endpoint.endpoint,method=endpoint.method)
             ttForm.itemLabel.data=tt.label
             if ttForm.instances.data:
                 count=tt.count()
                 ttForm.itemCount.data=count
-        title='Multipage Wiki Editing'
+            elif ttForm.tabular.data:
+                query=tt.mostFrequentPropertiesQuery()    
+                qs=QuerySyntaxHighlight(query)
+                queryHigh=qs.highlight()
+                qlod=tt.sparql.queryAsListOfDicts(query.query)
+                lodKeys=qlod[0].keys()
+                 
+        title='Truly Tabular Wikidata Item Query'
         template="ose/ttform.html"
         activeItem="Truly Tabular"
-        html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm)
+        html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,queryHigh=queryHigh,dictList=qlod,lodKey=lodKeys,tableHeaders=lodKeys)
         return html
            
     def getMenu(self,activeItem:str=None):
@@ -290,9 +302,9 @@ class WebServer(AppWrap):
         menu.addItem(MenuItem("/","Home",mdiIcon="home"))
         menu.addItem(MenuItem("/wikiedit","Wiki Edit",mdiIcon="settings_suggest"))
         menu.addItem(MenuItem("/editconfigs","Edit configurations",mdiIcon="settings"))
-        menu.addItem(MenuItem("/tt","Truly Tabular",mdiIcon="table"))
-        menu.addItem(MenuItem('https://wiki.bitplan.com/index.php/pyOnlineSpreadSheetEditing',"Docs",mdiIcon="description",newTab=True)),
-        menu.addItem(MenuItem('https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing','github',mdiIcon="reviews",newTab=True))
+        menu.addItem(MenuItem("/tt","Truly Tabular"))
+        menu.addItem(MenuItem('https://wiki.bitplan.com/index.php/pyOnlineSpreadSheetEditing',"Docs",mdiIcon="description",newTab=True))
+        menu.addItem(MenuItem('https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing','github',newTab=True))
         if current_user.is_anonymous:
             menu.addItem(MenuItem('/login','login',mdiIcon="login"))
         else:
@@ -368,15 +380,16 @@ class TrulyTabularForm(FlaskForm):
     instances=SubmitField("instances")
     tabular=SubmitField("tabular")
 
-    def setEndpointChoices(self):
+    def setEndpointChoices(self,endpoints):
         '''
-        set my choices
+        set my choices based on the given endpoints dict
+        
+        Args:
+            endpoints(dict): a dictionary of endpoints
+        
         '''
-        endpoints=EndpointManager.getEndpoints()
-        self.endpointName.choices=[]
-        for endpoint in endpoints:
-            self.endpointName.choices.append(endpoint)
-        pass
+        self.endpointName.choices=list(endpoints.keys())
+       
 
 class QueryForm(FlaskForm):
     """
