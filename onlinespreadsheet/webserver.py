@@ -1,7 +1,7 @@
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
-from fb4.widgets import Copyright, Link,Menu, MenuItem
-from wtforms import IntegerField,StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField
+from fb4.widgets import Copyright, Link,Menu, MenuItem, ButtonField
+from wtforms import IntegerField,StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField, widgets
 from wtforms.validators import InputRequired
 from flask import abort,redirect,render_template, flash, url_for, send_file
 from flask_wtf import FlaskForm
@@ -18,9 +18,13 @@ from onlinespreadsheet.loginBlueprint import LoginBluePrint
 from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
+from onlinespreadsheet.pareto import Pareto
+from onlinespreadsheet.propertySelector import PropertySelector, PropertySelectorForm
+
 from lodstorage.trulytabular import TrulyTabular, WikidataItem
 from lodstorage.sparql import SPARQL
 from lodstorage.query import EndpointManager, QuerySyntaxHighlight
+
 import traceback
 from werkzeug.exceptions import HTTPException
 
@@ -260,59 +264,7 @@ class WebServer(AppWrap):
         sDownload=send_file(path_or_file=spreadsheet.toBytesIO(), as_attachment=True,download_name=spreadsheet.filename,mimetype=spreadsheet.MIME_TYPE)
         return sDownload
     
-    def wikiTrulyTabular(self):
-        '''
-        handle the truly tabular form
-        '''
-        ttForm=TrulyTabularForm()
-        ttForm.setEndpointChoices(self.endpoints)
-        queryHigh=None
-        qlod=None
-        lodKeys=None
-        itemId=None
-        tryItLink=None
-        if ttForm.validate_on_submit():
-            if ttForm.clearButton.data:
-                return redirect(url_for('wikiTrulyTabular'))
-            endpoint=self.endpoints[ttForm.endpointName.data]
-            # get id and description by label
-            if ttForm.idButton.data:
-                itemLabel=ttForm.itemLabel.data
-                sparql=SPARQL(endpoint.endpoint,method=endpoint.method)
-                items=WikidataItem.getItemsByLabel(sparql, itemLabel)
-                if len(items)<1:
-                    flash(f"no items found for {itemLabel}")
-                else:
-                    itemId=items[0].qid
-                    ttForm.itemId.data=itemId
-            else:
-                # direct input of id from form
-                itemId=ttForm.itemId.data
-            # if we have a wikidata item ID
-            # we can start
-            if itemId is not None:
-                tt=TrulyTabular(itemId,endpoint=endpoint.endpoint,method=endpoint.method)
-                ttForm.itemLabel.data=tt.item.qlabel
-                ttForm.itemDescription.data=tt.item.description
-                if ttForm.instancesButton.data:
-                    count=tt.count()
-                    ttForm.itemCount.data=count
-                elif ttForm.tabularButton.data:
-                    query=tt.mostFrequentPropertiesQuery()    
-                    qs=QuerySyntaxHighlight(query)
-                    queryHigh=qs.highlight()
-                    # TODO: configure via endpoint configuration
-                    tryItUrl="https://query.wikidata.org/"
-                    tryItUrlEncoded=query.getTryItUrl(tryItUrl)
-                    tryItLink=Link(url=tryItUrlEncoded,title="try it!",tooltip="try out with wikidata query service")
-                    qlod=tt.sparql.queryAsListOfDicts(query.query)
-                    lodKeys=qlod[0].keys()
-                 
-        title='Truly Tabular Wikidata Item Query'
-        template="ose/ttform.html"
-        activeItem="Truly Tabular"
-        html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,queryHigh=queryHigh,tryItLink=tryItLink,dictList=qlod,lodKey=lodKeys,tableHeaders=lodKeys)
-        return html
+   
            
     def getMenu(self,activeItem:str=None):
         '''
@@ -393,6 +345,116 @@ class WebServer(AppWrap):
                 if user is not None:
                     self.autoLoginUser=loginUser
                     
+    def setInputDisabled(self,inputField,disabled:bool=True):
+        '''
+        disable the given input
+        
+        Args:
+            inputField(Input): the WTForms input to disable
+            disabled(bool): if true set the disabled attribute of the input 
+        '''
+        if inputField.render_kw is None:
+            inputField.render_kw={}
+        if disabled:
+            inputField.render_kw["disabled"]= "disabled"
+        else:
+            inputField.render_kw.pop("disabled")
+            
+    def setRenderKw(self,inputField,key,value):
+        '''
+        set a render keyword dict entry for the given input field with the given key and value
+        
+        Args:
+            inputField(Input): the field to modify
+            key(str): the key to use
+            value(str): the value to set
+        '''
+        if inputField.render_kw is None:
+            inputField.render_kw={}
+        inputField.render_kw[key]=value
+        
+    def enableButtonsOnInput(self,buttons:list,inputField):
+        '''
+        enable the given list of buttons on input in the given inputField
+        
+        Args:
+            inputField(Input): the inputField to set the input trigger
+            buttons(list): the list of buttons to enable
+        '''
+        script=""
+        for button in buttons:
+            script+=f"document.getElementById('{button.id}').disabled = false;"
+        self.setRenderKw(inputField,"oninput",script)
+            
+    
+    def wikiTrulyTabular(self):
+        '''
+        handle the truly tabular form
+        '''
+        ttForm=TrulyTabularForm()
+        ttForm.setEndpointChoices(self.endpoints)
+        for button in [ttForm.instancesButton,ttForm.propertiesButton,ttForm.idButton,ttForm.labelButton,ttForm.clearButton]:
+            self.setInputDisabled(button)
+        self.enableButtonsOnInput([ttForm.idButton,ttForm.clearButton],ttForm.itemLabel)
+        self.enableButtonsOnInput([ttForm.labelButton,ttForm.clearButton,ttForm.instancesButton], ttForm.itemId)
+        self.enableButtonsOnInput([ttForm.propertiesButton], ttForm.itemCount)
+        psForm=PropertySelectorForm()
+        psForm.setParetoChoices()
+        queryHigh=None
+        qlod=None
+        lodKeys=None
+        itemId=None
+        tryItLink=None
+        if psForm.validate_on_submit():
+            if psForm.tabularButton.data:
+                flash("tabular analysis not implemented yet!")
+        if ttForm.validate_on_submit():
+            self.setInputDisabled(ttForm.clearButton,False)
+            if ttForm.clearButton.data:
+                return redirect(url_for('wikiTrulyTabular'))
+            endpoint=self.endpoints[ttForm.endpointName.data]
+            # get id and description by label
+            if ttForm.idButton.data:
+                itemLabel=ttForm.itemLabel.data
+                sparql=SPARQL(endpoint.endpoint,method=endpoint.method)
+                items=WikidataItem.getItemsByLabel(sparql, itemLabel)
+                if len(items)<1:
+                    flash(f"no items found for {itemLabel}")
+                else:
+                    itemId=items[0].qid
+                    ttForm.itemId.data=itemId
+            else:
+                # direct input of id from form
+                itemId=ttForm.itemId.data
+            # if we have a wikidata item ID
+            # we can start
+            self.setInputDisabled(ttForm.instancesButton,itemId is None)
+            if itemId is not None:
+                tt=TrulyTabular(itemId,endpoint=endpoint.endpoint,method=endpoint.method)
+                ttForm.itemLabel.data=tt.item.qlabel
+                ttForm.itemDescription.data=tt.item.description
+                if ttForm.instancesButton.data:
+                    count=tt.count()
+                    ttForm.itemCount.data=count
+                elif ttForm.propertiesButton.data:
+                    query=tt.mostFrequentPropertiesQuery()    
+                    qs=QuerySyntaxHighlight(query)
+                    queryHigh=qs.highlight()
+                    # TODO: configure via endpoint configuration
+                    tryItUrl="https://query.wikidata.org/"
+                    tryItUrlEncoded=query.getTryItUrl(tryItUrl)
+                    tryItLink=Link(url=tryItUrlEncoded,title="try it!",tooltip="try out with wikidata query service")
+                    qlod=tt.sparql.queryAsListOfDicts(query.query)
+                    psForm.setPropertyList(qlod)
+                    lodKeys=qlod[0].keys()
+            self.setInputDisabled(ttForm.propertiesButton,disabled=ttForm.itemCount.data is None)   
+                 
+        title='Truly Tabular Wikidata Item Query'
+        template="ose/ttform.html"
+        activeItem="Truly Tabular"
+        html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,psForm=psForm,queryHigh=queryHigh,tryItLink=tryItLink,dictList=qlod,lodKey=lodKeys,tableHeaders=lodKeys)
+        return html
+                    
 class TrulyTabularForm(FlaskForm):
     """
     Form to create a truly tabular analysis for a wikidata item
@@ -405,8 +467,9 @@ class TrulyTabularForm(FlaskForm):
     idButton=SubmitField("id")
     labelButton=SubmitField("label")
     instancesButton=SubmitField("count")
-    tabularButton=SubmitField("tabular")
+    propertiesButton=SubmitField("properties")
     clearButton=SubmitField("clear")
+    
 
     def setEndpointChoices(self,endpoints):
         '''

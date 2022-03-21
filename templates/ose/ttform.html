@@ -80,11 +80,25 @@ https://raw.githubusercontent.com/richleland/pygments-css/master/native.css
 {% endblock %}
 {% block content %}
 {% if title is not none %}<h2>{{ title }}</h2>{%endif %}
-{{ render_form(ttForm) }}
-{% if queryHigh is not none %}{{ queryHigh | safe }}{%endif %}
-{% if tryItLink is not none %}<br>{{ tryItLink | safe }}{%endif %}
-{% if dictList is not none %}
+<div class="row">
+	<div class="form-group col-md-6">
+	 {{ render_form(ttForm) }}
+	</div>
+	<div class="form-group col-md-6">
+	{% if queryHigh is not none %}{{ queryHigh | safe }}{%endif %}
+	{% if tryItLink is not none %}<br>{{ tryItLink | safe }}{%endif %}
+	</div>
+<div>	
+{% if psForm.propertySelector is not none %}
+<!--  property selection -->
+<div class="row">
+  <div class="form-group col-md-4">
+	{{ render_form(psForm) }}
+	</div>
+  <div class="form-group col-md-8">
 {{ macros.table4DictList(dictList,lodKeys=lodKeys, tableHeaders=tableHeaders) }}
+  </div>
+</div>
 {%endif %}
 {% endblock %}
 {% block scripts %}
