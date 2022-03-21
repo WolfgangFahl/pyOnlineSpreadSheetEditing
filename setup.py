@@ -2,7 +2,7 @@
 # see https://stackoverflow.com/a/27868004/1497139
 from setuptools import setup
 from collections import OrderedDict
-
+from onlinespreadsheet.version import Version
 # read the contents of your README file
 from os import path
 this_directory = path.abspath(path.dirname(__file__))
@@ -10,8 +10,8 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='pyOnlineSpreadSheetEditing',
-    version='0.0.6',
+    name=Version.name,
+    version=Version.version,
 
     packages=['onlinespreadsheet',],
     author='Wolfgang Fahl',
@@ -28,8 +28,8 @@ setup(
     license='Apache License',
     description='python Online SpreadSheet Editing tool with configurable enhancer/importer and check phase',
     install_requires=[
-          'pyLodStorage~=0.0.85',
-          'pyFlaskBootstrap4~=0.4.4',
+          'pyLodStorage~=1.1.27',
+          'pyFlaskBootstrap4~=0.4.6',
           'py-3rdparty-mediawiki~=0.5.3',
           'pandas~=1.3.5',
           'ruamel.yaml'
