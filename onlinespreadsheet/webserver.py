@@ -270,6 +270,7 @@ class WebServer(AppWrap):
         qlod=None
         lodKeys=None
         itemId=None
+        tryItLink=None
         if ttForm.validate_on_submit():
             if ttForm.clearButton.data:
                 return redirect(url_for('wikiTrulyTabular'))
@@ -300,13 +301,17 @@ class WebServer(AppWrap):
                     query=tt.mostFrequentPropertiesQuery()    
                     qs=QuerySyntaxHighlight(query)
                     queryHigh=qs.highlight()
+                    # TODO: configure via endpoint configuration
+                    tryItUrl="https://query.wikidata.org/"
+                    tryItUrlEncoded=query.getTryItUrl(tryItUrl)
+                    tryItLink=Link(url=tryItUrlEncoded,title="try it!",tooltip="try out with wikidata query service")
                     qlod=tt.sparql.queryAsListOfDicts(query.query)
                     lodKeys=qlod[0].keys()
                  
         title='Truly Tabular Wikidata Item Query'
         template="ose/ttform.html"
         activeItem="Truly Tabular"
-        html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,queryHigh=queryHigh,dictList=qlod,lodKey=lodKeys,tableHeaders=lodKeys)
+        html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,queryHigh=queryHigh,tryItLink=tryItLink,dictList=qlod,lodKey=lodKeys,tableHeaders=lodKeys)
         return html
            
     def getMenu(self,activeItem:str=None):
