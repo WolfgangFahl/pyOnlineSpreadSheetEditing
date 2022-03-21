@@ -18,7 +18,8 @@ from onlinespreadsheet.loginBlueprint import LoginBluePrint
 from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
-from lodstorage.trulytabular import TrulyTabular
+from lodstorage.trulytabular import TrulyTabular, WikidataItem
+from lodstorage.sparql import SPARQL
 from lodstorage.query import EndpointManager, QuerySyntaxHighlight
 import traceback
 from werkzeug.exceptions import HTTPException
@@ -268,20 +269,33 @@ class WebServer(AppWrap):
         queryHigh=None
         qlod=None
         lodKeys=None
+        itemId=None
         if ttForm.validate_on_submit():
-            itemId=ttForm.itemId.data
             endpoint=self.endpoints[ttForm.endpointName.data]
-            tt=TrulyTabular(itemId,endpoint=endpoint.endpoint,method=endpoint.method)
-            ttForm.itemLabel.data=tt.label
-            if ttForm.instances.data:
-                count=tt.count()
-                ttForm.itemCount.data=count
-            elif ttForm.tabular.data:
-                query=tt.mostFrequentPropertiesQuery()    
-                qs=QuerySyntaxHighlight(query)
-                queryHigh=qs.highlight()
-                qlod=tt.sparql.queryAsListOfDicts(query.query)
-                lodKeys=qlod[0].keys()
+            if ttForm.getId.data:
+                itemLabel=ttForm.itemLabel.data
+                sparql=SPARQL(endpoint.endpoint,method=endpoint.method)
+                items=WikidataItem.getItemsByLabel(sparql, itemLabel)
+                if len(items)<1:
+                    flash(f"no items found for {itemLabel}")
+                else:
+                    itemId=items[0].qid
+                    ttForm.itemId.data=itemId
+            else:
+                itemId=ttForm.itemId.data
+            if itemId is not None:
+                tt=TrulyTabular(itemId,endpoint=endpoint.endpoint,method=endpoint.method)
+                ttForm.itemLabel.data=tt.item.qlabel
+                ttForm.itemDescription.data=tt.item.description
+                if ttForm.instances.data:
+                    count=tt.count()
+                    ttForm.itemCount.data=count
+                elif ttForm.tabular.data:
+                    query=tt.mostFrequentPropertiesQuery()    
+                    qs=QuerySyntaxHighlight(query)
+                    queryHigh=qs.highlight()
+                    qlod=tt.sparql.queryAsListOfDicts(query.query)
+                    lodKeys=qlod[0].keys()
                  
         title='Truly Tabular Wikidata Item Query'
         template="ose/ttform.html"
@@ -373,9 +387,11 @@ class TrulyTabularForm(FlaskForm):
     User form to create and edit a user
     """
     endpointName=SelectField('endpointName')
-    itemId=StringField("id", [InputRequired("Please enter a Wikidata item id")])
+    itemId=StringField("id")
     itemLabel=StringField("label")
+    itemDescription=StringField("description")
     itemCount=StringField("count")
+    getId=SubmitField("id")
     getLabel=SubmitField("label")
     instances=SubmitField("instances")
     tabular=SubmitField("tabular")
