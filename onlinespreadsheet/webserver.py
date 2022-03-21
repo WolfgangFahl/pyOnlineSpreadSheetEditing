@@ -3,7 +3,7 @@ from fb4.sse_bp import SSE_BluePrint
 from fb4.widgets import Copyright, Link,Menu, MenuItem
 from wtforms import IntegerField,StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField
 from wtforms.validators import InputRequired
-from flask import abort,render_template, flash, url_for, send_file
+from flask import abort,redirect,render_template, flash, url_for, send_file
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
 from fb4.sqldb import db
@@ -271,8 +271,11 @@ class WebServer(AppWrap):
         lodKeys=None
         itemId=None
         if ttForm.validate_on_submit():
+            if ttForm.clearButton.data:
+                return redirect(url_for('wikiTrulyTabular'))
             endpoint=self.endpoints[ttForm.endpointName.data]
-            if ttForm.getId.data:
+            # get id and description by label
+            if ttForm.idButton.data:
                 itemLabel=ttForm.itemLabel.data
                 sparql=SPARQL(endpoint.endpoint,method=endpoint.method)
                 items=WikidataItem.getItemsByLabel(sparql, itemLabel)
@@ -282,15 +285,18 @@ class WebServer(AppWrap):
                     itemId=items[0].qid
                     ttForm.itemId.data=itemId
             else:
+                # direct input of id from form
                 itemId=ttForm.itemId.data
+            # if we have a wikidata item ID
+            # we can start
             if itemId is not None:
                 tt=TrulyTabular(itemId,endpoint=endpoint.endpoint,method=endpoint.method)
                 ttForm.itemLabel.data=tt.item.qlabel
                 ttForm.itemDescription.data=tt.item.description
-                if ttForm.instances.data:
+                if ttForm.instancesButton.data:
                     count=tt.count()
                     ttForm.itemCount.data=count
-                elif ttForm.tabular.data:
+                elif ttForm.tabularButton.data:
                     query=tt.mostFrequentPropertiesQuery()    
                     qs=QuerySyntaxHighlight(query)
                     queryHigh=qs.highlight()
@@ -384,17 +390,18 @@ class WebServer(AppWrap):
                     
 class TrulyTabularForm(FlaskForm):
     """
-    User form to create and edit a user
+    Form to create a truly tabular analysis for a wikidata item
     """
     endpointName=SelectField('endpointName')
     itemId=StringField("id")
     itemLabel=StringField("label")
     itemDescription=StringField("description")
     itemCount=StringField("count")
-    getId=SubmitField("id")
-    getLabel=SubmitField("label")
-    instances=SubmitField("instances")
-    tabular=SubmitField("tabular")
+    idButton=SubmitField("id")
+    labelButton=SubmitField("label")
+    instancesButton=SubmitField("count")
+    tabularButton=SubmitField("tabular")
+    clearButton=SubmitField("clear")
 
     def setEndpointChoices(self,endpoints):
         '''
