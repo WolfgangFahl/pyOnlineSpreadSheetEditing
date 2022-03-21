@@ -10,5 +10,5 @@ class Version(object):
     '''
     name="pyOnlineSpreadsheetEditing"
     version='0.1.27'
-    date = '2020-09-10'
-    updated = '2022-03-20'
+    date = '2021-12-11'
+    updated = '2022-03-21'
