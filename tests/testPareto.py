@@ -26,4 +26,8 @@ class TestPareto(BaseTest):
             pareto=Pareto(level)
             if debug:
                 print(pareto.asText(long=True))
+        ratioTests=[(0.5,1),(0.05,2)]
+        for ratio,level in ratioTests:
+            self.assertTrue(Pareto(level).ratioInLevel(ratio))        
+                
     

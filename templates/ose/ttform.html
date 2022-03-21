@@ -96,7 +96,7 @@ https://raw.githubusercontent.com/richleland/pygments-css/master/native.css
 	{{ render_form(psForm) }}
 	</div>
   <div class="form-group col-md-8">
-{{ macros.table4DictList(dictList,lodKeys=lodKeys, tableHeaders=tableHeaders) }}
+{{ macros.table4DictList(psForm.propertyList,lodKeys=psForm.lodKeys, tableHeaders=psForm.tableHeaders) }}
   </div>
 </div>
 {%endif %}

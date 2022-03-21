@@ -27,6 +27,13 @@ class Pareto(object):
         self.decimals=1-round(math.log10(self.bad))
         self.oneOutOf=round(100/self.bad)
         pass
+    
+    def ratioInLevel(self,ratio)->bool:
+        '''
+        check whether the given ratio is in this level
+        '''
+        inLevel=ratio>=1/self.oneOutOf
+        return inLevel
             
     def __str__(self):
         text=self.asText(long=False)

@@ -391,15 +391,16 @@ class WebServer(AppWrap):
         '''
         handle the truly tabular form
         '''
-        ttForm=TrulyTabularForm()
+        ttForm=TrulyTabularForm(form_type="horizontal",horizontal_columns=('lg', 2, 10))
         ttForm.setEndpointChoices(self.endpoints)
+        ttForm.setLanguageChoices()
         for button in [ttForm.instancesButton,ttForm.propertiesButton,ttForm.idButton,ttForm.labelButton,ttForm.clearButton]:
             self.setInputDisabled(button)
         self.enableButtonsOnInput([ttForm.idButton,ttForm.clearButton],ttForm.itemLabel)
         self.enableButtonsOnInput([ttForm.labelButton,ttForm.clearButton,ttForm.instancesButton], ttForm.itemId)
         self.enableButtonsOnInput([ttForm.propertiesButton], ttForm.itemCount)
         psForm=PropertySelectorForm()
-        psForm.setParetoChoices()
+        paretoLevels=psForm.setParetoChoices()
         queryHigh=None
         qlod=None
         lodKeys=None
@@ -409,6 +410,7 @@ class WebServer(AppWrap):
             if psForm.tabularButton.data:
                 flash("tabular analysis not implemented yet!")
         if ttForm.validate_on_submit():
+            lang=ttForm.languageSelect.data
             self.setInputDisabled(ttForm.clearButton,False)
             if ttForm.clearButton.data:
                 return redirect(url_for('wikiTrulyTabular'))
@@ -417,7 +419,7 @@ class WebServer(AppWrap):
             if ttForm.idButton.data:
                 itemLabel=ttForm.itemLabel.data
                 sparql=SPARQL(endpoint.endpoint,method=endpoint.method)
-                items=WikidataItem.getItemsByLabel(sparql, itemLabel)
+                items=WikidataItem.getItemsByLabel(sparql, itemLabel,lang=lang)
                 if len(items)<1:
                     flash(f"no items found for {itemLabel}")
                 else:
@@ -430,7 +432,7 @@ class WebServer(AppWrap):
             # we can start
             self.setInputDisabled(ttForm.instancesButton,itemId is None)
             if itemId is not None:
-                tt=TrulyTabular(itemId,endpoint=endpoint.endpoint,method=endpoint.method)
+                tt=TrulyTabular(itemId,endpoint=endpoint.endpoint,method=endpoint.method,lang=lang)
                 ttForm.itemLabel.data=tt.item.qlabel
                 ttForm.itemDescription.data=tt.item.description
                 if ttForm.instancesButton.data:
@@ -445,14 +447,13 @@ class WebServer(AppWrap):
                     tryItUrlEncoded=query.getTryItUrl(tryItUrl)
                     tryItLink=Link(url=tryItUrlEncoded,title="try it!",tooltip="try out with wikidata query service")
                     qlod=tt.sparql.queryAsListOfDicts(query.query)
-                    psForm.setPropertyList(qlod)
-                    lodKeys=qlod[0].keys()
+                    psForm.setPropertyList(qlod,int(ttForm.itemCount.data),paretoLevels)
             self.setInputDisabled(ttForm.propertiesButton,disabled=ttForm.itemCount.data is None)   
                  
         title='Truly Tabular Wikidata Item Query'
         template="ose/ttform.html"
         activeItem="Truly Tabular"
-        html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,psForm=psForm,queryHigh=queryHigh,tryItLink=tryItLink,dictList=qlod,lodKey=lodKeys,tableHeaders=lodKeys)
+        html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,psForm=psForm,queryHigh=queryHigh,tryItLink=tryItLink)
         return html
                     
 class TrulyTabularForm(FlaskForm):
@@ -460,6 +461,7 @@ class TrulyTabularForm(FlaskForm):
     Form to create a truly tabular analysis for a wikidata item
     """
     endpointName=SelectField('endpointName')
+    languageSelect=SelectField("language")
     itemId=StringField("id")
     itemLabel=StringField("label")
     itemDescription=StringField("description")
@@ -470,6 +472,8 @@ class TrulyTabularForm(FlaskForm):
     propertiesButton=SubmitField("properties")
     clearButton=SubmitField("clear")
     
+    def setLanguageChoices(self):
+        self.languageSelect.choices=["en","es","de","fr","it"]
 
     def setEndpointChoices(self,endpoints):
         '''
