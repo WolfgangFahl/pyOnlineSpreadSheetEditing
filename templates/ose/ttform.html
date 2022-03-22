@@ -89,33 +89,26 @@ https://raw.githubusercontent.com/richleland/pygments-css/master/native.css
 	{% if tryItLink is not none %}<br>{{ tryItLink | safe }}{%endif %}
 	</div>
 <div>	
-{% if psForm.propertySelector is not none %}
+{% if psForm.wtPropertySelector.available() %}
 <!--  property selection -->
 <div class="row">
   <div class="form-group col-md-12">
 	{{ render_form(psForm) }}
-    {{ macros.table4DictList(psForm.propertyList,lodKeys=psForm.lodKeys, tableHeaders=psForm.tableHeaders) }}
   </div>
 </div>
 {%endif %}
 {% endblock %}
 {% block scripts %}
     {{ super() }}
-    {{ macros.loadDataTable() }}
-       <script type="text/javascript">
-    $(document).ready(function() {
-    	$('.table').DataTable({
-    		lengthMenu: [[10, 50, 100, 500, 1000, -1 ], [10, 50, 100, 500, 1000, "all"]],
-    		dom: 'Blfrtip',
-    		select: true,
-    		"pagingType": "full_numbers",
-    		"pageLength": 100,
-		    buttons: [
-		        'copyHtml5',
-        		'selectAll',
-       		 	'selectNone'
-	    	],
-		});
-	});
-    </script>
+<script type="text/javascript">
+// Set all check boxes : 
+// Setting the checked property to the wanted value for all elements with the given name
+  function setAllCheckBoxes(name,checked){
+    var items = document.getElementsByName(name);
+      for (var i = 0; i < items.length; i++) {
+          if (items[i].type == 'checkbox')
+              items[i].checked = checked;
+      }
+  }
+</script>
 {% endblock %}

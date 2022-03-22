@@ -1,0 +1,18 @@
+{% extends 'fb4common/base.html' %}
+{% block scripts %}
+    {{ super() }}
+<script type="text/javascript">
+// Set all check boxes : 
+// Setting the checked property to the wanted value for all elements with the given name
+  function setAllCheckBoxes(name,checked){
+    var items = document.getElementsByName(name);
+      for (var i = 0; i < items.length; i++) {
+          if (items[i].type == 'checkbox')
+              items[i].checked = checked;
+      }
+  }
+</script>
+{% endblock %}
+{% block content %}
+{{ propertySelector | safe }}
+{% endblock %}

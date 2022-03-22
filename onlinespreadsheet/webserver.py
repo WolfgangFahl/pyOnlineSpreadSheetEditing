@@ -3,12 +3,13 @@ from fb4.sse_bp import SSE_BluePrint
 from fb4.widgets import Copyright, Link,Menu, MenuItem
 from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField, widgets
 #from wtforms.validators import InputRequired
-from flask import abort,redirect,render_template, flash, url_for, send_file
+from flask import abort,redirect,render_template, flash,request, url_for, send_file, Response
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
 from fb4.sqldb import db
 from fb4.login_bp import login_user
 from flask_login import current_user, login_required
+import json
 import socket
 import os
 import sys
@@ -18,8 +19,8 @@ from onlinespreadsheet.loginBlueprint import LoginBluePrint
 from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
-from onlinespreadsheet.propertySelector import PropertySelectorForm
-
+from onlinespreadsheet.propertySelector import PropertySelectorForm, PropertySelector
+from onlinespreadsheet.pareto import Pareto
 from lodstorage.trulytabular import TrulyTabular, WikidataItem
 from lodstorage.sparql import SPARQL
 from lodstorage.query import EndpointManager, QuerySyntaxHighlight
@@ -104,6 +105,10 @@ class WebServer(AppWrap):
         @self.app.route('/trulytabular',methods=['GET', 'POST'])
         def wikiTrulyTabularWithForm():
             return self.wikiTrulyTabularWithForm()
+        
+        @self.app.route('/testPropertySelector')
+        def testPropertySelector():
+            return self.testPropertySelector()
         
         #
         # setup global handlers
@@ -266,8 +271,6 @@ class WebServer(AppWrap):
         # https://stackoverflow.com/a/53666642/1497139
         sDownload=send_file(path_or_file=spreadsheet.toBytesIO(), as_attachment=True,download_name=spreadsheet.filename,mimetype=spreadsheet.MIME_TYPE)
         return sDownload
-    
-   
            
     def getMenu(self,activeItem:str=None):
         '''
@@ -347,6 +350,114 @@ class WebServer(AppWrap):
                         raise e
                 if user is not None:
                     self.autoLoginUser=loginUser
+    
+    def testPropertySelector(self):
+        jsonText="""[{
+  "prop": "http://www.wikidata.org/entity/P31",
+  "propLabel": "instance of",
+  "count": 7539
+}, {
+  "prop": "http://www.wikidata.org/entity/P276",
+  "propLabel": "location",
+  "count": 7245
+}, {
+  "prop": "http://www.wikidata.org/entity/P179",
+  "propLabel": "part of the series",
+  "count": 7197
+}, {
+  "prop": "http://www.wikidata.org/entity/P17",
+  "propLabel": "country",
+  "count": 7143
+}, {
+  "prop": "http://www.wikidata.org/entity/P580",
+  "propLabel": "start time",
+  "count": 6942
+}, {
+  "prop": "http://www.wikidata.org/entity/P582",
+  "propLabel": "end time",
+  "count": 6938
+}, {
+  "prop": "http://www.wikidata.org/entity/P1813",
+  "propLabel": "short name",
+  "count": 6752
+}, {
+  "prop": "http://www.wikidata.org/entity/P1476",
+  "propLabel": "title",
+  "count": 6735
+}, {
+  "prop": "http://www.wikidata.org/entity/P973",
+  "propLabel": "described at URL",
+  "count": 6513
+}, {
+  "prop": "http://www.wikidata.org/entity/P227",
+  "propLabel": "GND ID",
+  "count": 3084
+}, {
+  "prop": "http://www.wikidata.org/entity/P214",
+  "propLabel": "VIAF ID",
+  "count": 2131
+}, {
+  "prop": "http://www.wikidata.org/entity/P921",
+  "propLabel": "main subject",
+  "count": 1899
+}, {
+  "prop": "http://www.wikidata.org/entity/P664",
+  "propLabel": "organizer",
+  "count": 1835
+}, {
+  "prop": "http://www.wikidata.org/entity/P856",
+  "propLabel": "official website",
+  "count": 606
+}, {
+  "prop": "http://www.wikidata.org/entity/P244",
+  "propLabel": "Library of Congress authority ID",
+  "count": 506
+}, {
+  "prop": "http://www.wikidata.org/entity/P585",
+  "propLabel": "point in time",
+  "count": 439
+}, {
+  "prop": "http://www.wikidata.org/entity/P823",
+  "propLabel": "speaker",
+  "count": 282
+}, {
+  "prop": "http://www.wikidata.org/entity/P710",
+  "propLabel": "participant",
+  "count": 123
+}, {
+  "prop": "http://www.wikidata.org/entity/P131",
+  "propLabel": "located in the administrative territorial entity",
+  "count": 119
+}, {
+  "prop": "http://www.wikidata.org/entity/P5124",
+  "propLabel": "WikiCFP event ID",
+  "count": 98
+}, {
+  "prop": "http://www.wikidata.org/entity/P2936",
+  "propLabel": "language used",
+  "count": 89
+}, {
+  "prop": "http://www.wikidata.org/entity/P793",
+  "propLabel": "significant event",
+  "count": 82
+}, {
+  "prop": "http://www.wikidata.org/entity/P361",
+  "propLabel": "part of",
+  "count": 67
+}]"""
+        propertyList=json.loads(jsonText)
+        paretoLevels=[]
+        topLevel=9
+        for level in range(1,topLevel+1):
+            pareto=Pareto(level)
+            paretoLevels.append(pareto)
+        ps=PropertySelector(propertyList,total=7539,paretoLevels=paretoLevels)
+        title='Truly Tabular Wikidata Item Query'
+        template="ose/ps.html"
+        activeItem="Truly Tabular"
+        html=self.render_template(template, title=title, activeItem=activeItem,propertySelector=ps)
+        return html
+        
                     
     def setInputDisabled(self,inputField,disabled:bool=True):
         '''
@@ -395,11 +506,21 @@ class WebServer(AppWrap):
         handle the truly tabular processing for the given itemId
         '''
         return self.wikiTrulyTabularWithForm(itemId)
+    
+    def getResponseFormat(self):
+        responseFormat=request.args.get('format')
+        if responseFormat is None:
+            responseFormat="html"
+            # handle content negotiation
+            acceptJson=request.accept_mimetypes['application/json'] 
+            if acceptJson==1: responseFormat="json"
+        return responseFormat
 
     def wikiTrulyTabularWithForm(self,itemId:str=None):
         '''
         handle the truly tabular form
         '''
+        responseFormat=self.getResponseFormat()
         ttForm=TrulyTabularForm()
         ttForm.setEndpointChoices(self.endpoints)
         ttForm.setLanguageChoices()
@@ -462,11 +583,17 @@ class WebServer(AppWrap):
                     psForm.setPropertyList(qlod,int(ttForm.itemCount.data),paretoLevels)
             self.setInputDisabled(ttForm.propertiesButton,disabled=ttForm.itemCount.data is None)   
                  
-        title='Truly Tabular Wikidata Item Query'
-        template="ose/ttform.html"
-        activeItem="Truly Tabular"
-        html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,psForm=psForm,queryHigh=queryHigh,tryItLink=tryItLink)
-        return html
+        if responseFormat=="html":
+            title='Truly Tabular Wikidata Item Query'
+            template="ose/ttform.html"
+            activeItem="Truly Tabular"
+            html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,psForm=psForm,queryHigh=queryHigh,tryItLink=tryItLink)
+            return html
+        elif responseFormat=="json":
+            response = Response(status=200,mimetype='application/json')
+            jsonText=json.dumps(qlod)
+            response.set_data(jsonText)
+            return response
                     
 class TrulyTabularForm(FlaskForm):
     """
