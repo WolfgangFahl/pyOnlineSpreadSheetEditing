@@ -92,11 +92,9 @@ https://raw.githubusercontent.com/richleland/pygments-css/master/native.css
 {% if psForm.propertySelector is not none %}
 <!--  property selection -->
 <div class="row">
-  <div class="form-group col-md-4">
+  <div class="form-group col-md-12">
 	{{ render_form(psForm) }}
-	</div>
-  <div class="form-group col-md-8">
-{{ macros.table4DictList(psForm.propertyList,lodKeys=psForm.lodKeys, tableHeaders=psForm.tableHeaders) }}
+    {{ macros.table4DictList(psForm.propertyList,lodKeys=psForm.lodKeys, tableHeaders=psForm.tableHeaders) }}
   </div>
 </div>
 {%endif %}
@@ -104,5 +102,20 @@ https://raw.githubusercontent.com/richleland/pygments-css/master/native.css
 {% block scripts %}
     {{ super() }}
     {{ macros.loadDataTable() }}
-    {{ macros.activateDataTable() }}
+       <script type="text/javascript">
+    $(document).ready(function() {
+    	$('.table').DataTable({
+    		lengthMenu: [[10, 50, 100, 500, 1000, -1 ], [10, 50, 100, 500, 1000, "all"]],
+    		dom: 'Blfrtip',
+    		select: true,
+    		"pagingType": "full_numbers",
+    		"pageLength": 100,
+		    buttons: [
+		        'copyHtml5',
+        		'selectAll',
+       		 	'selectNone'
+	    	],
+		});
+	});
+    </script>
 {% endblock %}

@@ -1,8 +1,8 @@
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
-from fb4.widgets import Copyright, Link,Menu, MenuItem, ButtonField
-from wtforms import IntegerField,StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField, widgets
-from wtforms.validators import InputRequired
+from fb4.widgets import Copyright, Link,Menu, MenuItem
+from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField, widgets
+#from wtforms.validators import InputRequired
 from flask import abort,redirect,render_template, flash, url_for, send_file
 from flask_wtf import FlaskForm
 from wikibot.wikiuser import WikiUser
@@ -18,8 +18,7 @@ from onlinespreadsheet.loginBlueprint import LoginBluePrint
 from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
-from onlinespreadsheet.pareto import Pareto
-from onlinespreadsheet.propertySelector import PropertySelector, PropertySelectorForm
+from onlinespreadsheet.propertySelector import PropertySelectorForm
 
 from lodstorage.trulytabular import TrulyTabular, WikidataItem
 from lodstorage.sparql import SPARQL
@@ -98,9 +97,13 @@ class WebServer(AppWrap):
         def wikiEdit(editConfigName:str):
             return self.wikiEdit(editConfigName)
         
-        @self.app.route('/tt',methods=['GET', 'POST'])
-        def wikiTrulyTabular():
-            return self.wikiTrulyTabular()
+        @self.app.route('/tt/<itemId>',methods=['GET', 'POST'])
+        def wikiTrulyTabular(itemId:str):
+            return self.wikiTrulyTabular(itemId)
+        
+        @self.app.route('/trulytabular',methods=['GET', 'POST'])
+        def wikiTrulyTabularWithForm():
+            return self.wikiTrulyTabularWithForm()
         
         #
         # setup global handlers
@@ -279,7 +282,7 @@ class WebServer(AppWrap):
         menu.addItem(MenuItem("/","Home",mdiIcon="home"))
         menu.addItem(MenuItem("/wikiedit","Wiki Edit",mdiIcon="settings_suggest"))
         menu.addItem(MenuItem("/editconfigs","Edit configurations",mdiIcon="settings"))
-        menu.addItem(MenuItem("/tt","Truly Tabular"))
+        menu.addItem(MenuItem("/trulytabular","Truly Tabular"))
         menu.addItem(MenuItem('https://wiki.bitplan.com/index.php/pyOnlineSpreadSheetEditing',"Docs",mdiIcon="description",newTab=True))
         menu.addItem(MenuItem('https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing','github',newTab=True))
         if current_user.is_anonymous:
@@ -387,11 +390,17 @@ class WebServer(AppWrap):
         self.setRenderKw(inputField,"oninput",script)
             
     
-    def wikiTrulyTabular(self):
+    def wikiTrulyTabular(self,itemId:str):
+        '''
+        handle the truly tabular processing for the given itemId
+        '''
+        return self.wikiTrulyTabularWithForm(itemId)
+
+    def wikiTrulyTabularWithForm(self,itemId:str=None):
         '''
         handle the truly tabular form
         '''
-        ttForm=TrulyTabularForm(form_type="horizontal",horizontal_columns=('lg', 2, 10))
+        ttForm=TrulyTabularForm()
         ttForm.setEndpointChoices(self.endpoints)
         ttForm.setLanguageChoices()
         for button in [ttForm.instancesButton,ttForm.propertiesButton,ttForm.idButton,ttForm.labelButton,ttForm.clearButton]:
@@ -404,16 +413,16 @@ class WebServer(AppWrap):
         queryHigh=None
         qlod=None
         lodKeys=None
-        itemId=None
         tryItLink=None
+        autoFill=itemId is not None
         if psForm.validate_on_submit():
             if psForm.tabularButton.data:
                 flash("tabular analysis not implemented yet!")
-        if ttForm.validate_on_submit():
+        if ttForm.validate_on_submit() or autoFill:
             lang=ttForm.languageSelect.data
             self.setInputDisabled(ttForm.clearButton,False)
             if ttForm.clearButton.data:
-                return redirect(url_for('wikiTrulyTabular'))
+                return redirect(url_for('wikiTrulyTabularWithForm'))
             endpoint=self.endpoints[ttForm.endpointName.data]
             # get id and description by label
             if ttForm.idButton.data:
@@ -425,9 +434,12 @@ class WebServer(AppWrap):
                 else:
                     itemId=items[0].qid
                     ttForm.itemId.data=itemId
-            else:
+            elif itemId is None:
                 # direct input of id from form
                 itemId=ttForm.itemId.data
+            else:
+                # autofill the item id
+                ttForm.itemId.data=itemId
             # if we have a wikidata item ID
             # we can start
             self.setInputDisabled(ttForm.instancesButton,itemId is None)
@@ -435,10 +447,10 @@ class WebServer(AppWrap):
                 tt=TrulyTabular(itemId,endpoint=endpoint.endpoint,method=endpoint.method,lang=lang)
                 ttForm.itemLabel.data=tt.item.qlabel
                 ttForm.itemDescription.data=tt.item.description
-                if ttForm.instancesButton.data:
+                if ttForm.instancesButton.data or autoFill:
                     count=tt.count()
                     ttForm.itemCount.data=count
-                elif ttForm.propertiesButton.data:
+                if ttForm.propertiesButton.data or autoFill:
                     query=tt.mostFrequentPropertiesQuery()    
                     qs=QuerySyntaxHighlight(query)
                     queryHigh=qs.highlight()
@@ -460,8 +472,8 @@ class TrulyTabularForm(FlaskForm):
     """
     Form to create a truly tabular analysis for a wikidata item
     """
-    endpointName=SelectField('endpointName')
-    languageSelect=SelectField("language")
+    endpointName=SelectField('endpointName',default="wikidata")
+    languageSelect=SelectField("language",default="en")
     itemId=StringField("id")
     itemLabel=StringField("label")
     itemDescription=StringField("description")
