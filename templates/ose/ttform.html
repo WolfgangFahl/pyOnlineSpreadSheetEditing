@@ -110,5 +110,20 @@ https://raw.githubusercontent.com/richleland/pygments-css/master/native.css
               items[i].checked = checked;
       }
   }
+  
+// select the rows that have a column 
+function selectRowsWhereColumnIsSmallerThanValue(value,elementName,col) {
+  // alert(value+":"+elementName);
+  var items = document.getElementsByName(elementName);
+  for (var i = 0; i < items.length; i++) {
+     if (items[i].type == 'checkbox') {
+        var checkbox=items[i]; 
+        var tr=checkbox.parentElement.parentElement;
+        var valueTd=tr.children[col];
+        rowValue=parseInt(valueTd.innerHTML);
+        checkbox.checked=rowValue<=value;
+     }
+  }
+}
 </script>
 {% endblock %}

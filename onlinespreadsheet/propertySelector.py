@@ -57,6 +57,8 @@ class PropertySelectorForm(FlaskForm):
     
     def __init__(self, *args, **kwargs):
         #self.propertySelector=None
+        self.checkBoxName="selectedWikiDataProperty"
+        self.paretoColumn=4
         for _name in kwargs.keys():
             pass
         super(FlaskForm, self).__init__(*args, **kwargs)
@@ -72,11 +74,10 @@ class PropertySelectorForm(FlaskForm):
             paretoList(list): a list of pareto Levels to be considered
         '''
         propertySelection=PropertySelection()
-        checkBoxName="selectedWikiDataProperty"
-        propertySelection.prepare(propertyList,total,paretoList,checkBoxName=checkBoxName)
+        propertySelection.prepare(propertyList,total,paretoList,checkBoxName=self.checkBoxName)
         self.propertyList=propertySelection.propertyList
         propertySelector=self.propertySelectorField.widget
-        propertySelector.checkBoxName=checkBoxName
+        propertySelector.checkBoxName=self.checkBoxName
         propertySelector.alignMap={"right":["#","count","%","pareto"],"center":["select"]}
         propertySelector.lod=self.propertyList
         #self.lodKeys=list(self.propertyList[0].keys())
