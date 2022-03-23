@@ -3,15 +3,14 @@ Created on 2022-03-21
 
 @author: wf
 '''
-from fb4.widgets import Widget, Link
-from wtforms import SelectField,SubmitField,Field
+from onlinespreadsheet.tablerowselector import TableRowSelector,TableRowSelectorField
+from fb4.widgets import Link
+from wtforms import SelectField,SubmitField
 from flask_wtf import FlaskForm
 from onlinespreadsheet.pareto import Pareto
 import copy
-from markupsafe import Markup
-
     
-class PropertySelector(Widget):
+class PropertySelection():
     '''
     select properties
     '''
@@ -19,7 +18,7 @@ class PropertySelector(Widget):
         self.propertyList=None
         pass
 
-    def prepare(self, propertyList:list,total:int,paretoLevels:list,alignMap:dict={"right":["count","%","pareto"],"center":["select"]}):
+    def prepare(self, propertyList:list,total:int,paretoLevels:list,checkBoxName:str):
         '''
         Constructor
         
@@ -27,12 +26,12 @@ class PropertySelector(Widget):
             propertyList(list): the list of properties to show
             total(int): the total number of records
             paretoLevels(list): the pareto Levels to use
-            alignMap(dict): how to align the html table columns
         '''
-        self.alignMap=alignMap
         self.propertyList=copy.deepcopy(propertyList)
-        self.checkBoxName="selectedWikiDataProperty"
-        for prop in self.propertyList:
+        for i,prop in enumerate(self.propertyList):
+            # add index as first column
+            prop["#"]=i+1
+            #prop.move_to_end('#', last=False)
             propLabel=prop.pop("propLabel")
             url=prop.pop("prop")
             itemId=url.replace("http://www.wikidata.org/entity/","")
@@ -44,81 +43,9 @@ class PropertySelector(Widget):
                     level=pareto.level
             prop["%"]=f'{ratio*100:.1f}'
             prop["pareto"]=level
-            prop["select"]=f'<input name="{self.checkBoxName}" id="{itemId}" type="checkbox">'
+            prop["select"]=f'<input name="{checkBoxName}" id="{itemId}" type="checkbox">'
         pass
-                
-    def tableRow(self,record:dict,indent:str)->str:
-        '''
-        get a html  table row for the given record as 
-        
-        Args:
-            record(dict): the dict
-            indent(str): how much to indent the html code
-            alignMap(dict): how to align the html table columns
-        Returns:
-            str: the tr element
-        '''
-        html=f"{indent}<tr>\n"
-        for key in record.keys():
-            align=""
-            for alignValue in self.alignMap:
-                alignList=self.alignMap[alignValue]
-                if key in alignList:
-                    align=f"align='{alignValue}'"
-            html+=f"{indent}  <td {align}>{record[key]}</td>\n"
-        html+=f"{indent}</tr>\n"
-        return html
     
-    def __call__(self, field, **kwargs):
-        html=self.render()
-        return Markup(html)
-        
-    def render(self,indent="  "):
-        '''
-        show a table 
-        '''
-        if not self.propertyList:
-            return ""
-        tableRows=""
-        for record in self.propertyList:
-            tableRows+=self.tableRow(record,indent+"        ")
-        tableHead= f"{indent}      <thead>\n"
-        tableHead+=f"{indent}        <tr>\n"
-        if len(self.propertyList)>0:
-            for key in self.propertyList[0].keys():
-                if key=="select":
-                    tableHead+=f"""{indent}          <th scope="col">
-{indent}            <button type="button" value="all" class="main" onclick="setAllCheckBoxes('{self.checkBoxName}',true)">all</button>
-{indent}            <button type="button" value="non" class="main" onclick="setAllCheckBoxes('{self.checkBoxName}',false)">none</button>"""
-                else:
-                    tableHead+=f'{indent}          <th scope="col">{key}</th>\n'
-        tableHead+=f"{indent}        </tr>\n"
-        tableHead+=f"{indent}      </thead>"
-        html=f"""{indent}<div class="row">
-{indent}  <div class="col-md-12">
-{indent}    <table class="table table-bordered">
-{tableHead}      
-{indent}      <tbody>
-{tableRows}
-{indent}      </tbody>
-{indent}    </table>
-{indent}  </div>
-{indent}</div>
-"""
-        return html     
-    
-class WtPropertySelector(Field):
-    widget=PropertySelector()
-    
-    def __init__(self, *args, **kwargs):
-        '''
-        constructor
-        '''
-        super().__init__(*args,**kwargs)
-    
-    def available(self):
-        isAvailable=self.widget.propertyList is not None
-        return isAvailable
 
 class PropertySelectorForm(FlaskForm):
     """
@@ -126,7 +53,7 @@ class PropertySelectorForm(FlaskForm):
     """                   
     tabularButton=SubmitField("tabular")
     paretoSelect=SelectField('pareto',coerce=int, validate_choice=False)
-    wtPropertySelector=WtPropertySelector(label='')
+    propertySelectorField=TableRowSelectorField(label='')
     
     def __init__(self, *args, **kwargs):
         #self.propertySelector=None
@@ -136,11 +63,22 @@ class PropertySelectorForm(FlaskForm):
         
     def setPropertyList(self,propertyList:list,total:int,paretoList:list):
         '''
-        prepare the property list based on the given total
+        prepare the property list based on the given list, total and pareto list
+        
+        
+        Args:
+            propertyList(list): the list of properties
+            total(int): the number of instances in total
+            paretoList(list): a list of pareto Levels to be considered
         '''
-        propertySelector=self.wtPropertySelector.widget
-        propertySelector.prepare(propertyList,total,paretoList)
-        self.propertyList=propertySelector.propertyList
+        propertySelection=PropertySelection()
+        checkBoxName="selectedWikiDataProperty"
+        propertySelection.prepare(propertyList,total,paretoList,checkBoxName=checkBoxName)
+        self.propertyList=propertySelection.propertyList
+        propertySelector=self.propertySelectorField.widget
+        propertySelector.checkBoxName=checkBoxName
+        propertySelector.alignMap={"right":["#","count","%","pareto"],"center":["select"]}
+        propertySelector.lod=self.propertyList
         #self.lodKeys=list(self.propertyList[0].keys())
         #self.tableHeaders=self.lodKeys
      

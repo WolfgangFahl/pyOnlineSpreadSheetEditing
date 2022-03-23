@@ -1,4 +1,15 @@
 {% extends 'fb4common/base.html' %}
+{% from 'bootstrap/form.html' import render_form %}
+{% block content %}
+{% if psForm.propertySelectorField.available() %}
+<!--  property selection -->
+<div class="row">
+  <div class="form-group col-md-12">
+	{{ render_form(psForm) }}
+  </div>
+</div>
+{%endif %}
+{% endblock %}
 {% block scripts %}
     {{ super() }}
 <script type="text/javascript">
@@ -12,7 +23,4 @@
       }
   }
 </script>
-{% endblock %}
-{% block content %}
-{{ propertySelector | safe }}
 {% endblock %}

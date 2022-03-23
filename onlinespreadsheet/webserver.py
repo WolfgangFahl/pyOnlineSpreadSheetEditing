@@ -19,7 +19,7 @@ from onlinespreadsheet.loginBlueprint import LoginBluePrint
 from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
-from onlinespreadsheet.propertySelector import PropertySelectorForm, PropertySelector
+from onlinespreadsheet.propertySelector import PropertySelectorForm
 from onlinespreadsheet.pareto import Pareto
 from lodstorage.trulytabular import TrulyTabular, WikidataItem
 from lodstorage.sparql import SPARQL
@@ -451,11 +451,12 @@ class WebServer(AppWrap):
         for level in range(1,topLevel+1):
             pareto=Pareto(level)
             paretoLevels.append(pareto)
-        ps=PropertySelector(propertyList,total=7539,paretoLevels=paretoLevels)
+        psForm=PropertySelectorForm()
+        psForm.setPropertyList(propertyList,total=7539,paretoLevels=paretoLevels)
         title='Truly Tabular Wikidata Item Query'
         template="ose/ps.html"
         activeItem="Truly Tabular"
-        html=self.render_template(template, title=title, activeItem=activeItem,propertySelector=ps)
+        html=self.render_template(template, title=title, activeItem=activeItem,psForm=psForm)
         return html
         
                     
