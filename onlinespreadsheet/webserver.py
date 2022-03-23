@@ -534,7 +534,7 @@ class WebServer(AppWrap):
         paretoLevels=psForm.setParetoChoices()
         javaScript=f"selectRowsWhereColumnIsSmallerThanValue(this.value,'{psForm.checkBoxName}',{psForm.paretoColumn})"
         self.setRenderKw(psForm.paretoSelect, "onchange", javaScript)
-        self.setRenderKw(psForm.paretoSelect, "onfocus", javaScript)
+        #self.setRenderKw(psForm.paretoSelect, "onfocus", javaScript)
         queryHigh=None
         qlod=None
         lodKeys=None

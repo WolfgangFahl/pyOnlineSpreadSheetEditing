@@ -18,7 +18,7 @@ class PropertySelection():
         self.propertyList=None
         pass
 
-    def prepare(self, propertyList:list,total:int,paretoLevels:list,checkBoxName:str):
+    def prepare(self, propertyList:list,total:int,paretoLevels:list,checkBoxName:str,defaultParetoSelect=1):
         '''
         Constructor
         
@@ -43,7 +43,8 @@ class PropertySelection():
                     level=pareto.level
             prop["%"]=f'{ratio*100:.1f}'
             prop["pareto"]=level
-            prop["select"]=f'<input name="{checkBoxName}" id="{itemId}" type="checkbox">'
+            checked=" checked" if level<=defaultParetoSelect else ""
+            prop["select"]=f'<input name="{checkBoxName}" id="{itemId}" type="checkbox"{checked}>'
         pass
     
 
