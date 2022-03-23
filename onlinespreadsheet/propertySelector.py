@@ -43,6 +43,11 @@ class PropertySelection():
                     level=pareto.level
             prop["%"]=f'{ratio*100:.1f}'
             prop["pareto"]=level
+            prop["1"]=""
+            prop["max"]=""
+            prop["nt"]=""
+            prop["nt%"]=""
+            prop["✔"]=""
             checked=" checked" if level<=defaultParetoSelect else ""
             prop["select"]=f'<input name="{checkBoxName}" value="{itemId}" id="{itemId}" type="checkbox"{checked}>'
         pass

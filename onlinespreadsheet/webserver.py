@@ -1,7 +1,7 @@
 from fb4.app import AppWrap
 from fb4.sse_bp import SSE_BluePrint
 from fb4.widgets import Copyright, Link,Menu, MenuItem
-from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField, widgets
+from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField
 #from wtforms.validators import InputRequired
 from flask import abort,redirect,render_template, flash,request, url_for, send_file, Response
 from flask_wtf import FlaskForm
@@ -20,7 +20,7 @@ from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
 from onlinespreadsheet.propertySelector import TrulyTabularForm
-from onlinespreadsheet.pareto import Pareto
+
 from lodstorage.trulytabular import TrulyTabular, WikidataItem
 from lodstorage.sparql import SPARQL
 from lodstorage.query import EndpointManager, QuerySyntaxHighlight
@@ -103,13 +103,13 @@ class WebServer(AppWrap):
         def wikiTrulyTabular(itemId:str):
             return self.wikiTrulyTabular(itemId)
         
+        @self.app.route('/ttprop/<itemId>/<propertyId>',methods=['GET', 'POST'])
+        def wikiTrulyTabularPropertyStats(itemId:str,propertyId:str):
+            return self.wikiTrulyTabularPropertyStats(itemId,propertyId)
+            
         @self.app.route('/trulytabular',methods=['GET', 'POST'])
         def wikiTrulyTabularWithForm():
             return self.wikiTrulyTabularWithForm()
-        
-        @self.app.route('/testPropertySelector')
-        def testPropertySelector():
-            return self.testPropertySelector()
         
         #
         # setup global handlers
@@ -350,10 +350,7 @@ class WebServer(AppWrap):
                     else:
                         raise e
                 if user is not None:
-                    self.autoLoginUser=loginUser        
-                    
-    
-            
+                    self.autoLoginUser=loginUser
     
     def wikiTrulyTabular(self,itemId:str):
         '''
@@ -369,11 +366,24 @@ class WebServer(AppWrap):
             acceptJson=request.accept_mimetypes['application/json'] 
             if acceptJson==1: responseFormat="json"
         return responseFormat
-
+    
+    def wikiTrulyTabularPropertyStats(self,itemId:str,propertyId:str):
+        tt=TrulyTabular(itemId,propertyIds=[propertyId])
+        statsRow=next(tt.genPropertyStatistics())
+        jsonText=json.dumps(statsRow)
+        responseFormat=self.getResponseFormat()
+        if responseFormat=="json":
+            response = Response(status=200,mimetype='application/json')
+            response.set_data(jsonText)
+            return response
+        else:
+            return jsonText
+  
     def wikiTrulyTabularWithForm(self,itemId:str=None):
         '''
         handle the truly tabular form
         '''
+        sseChannel=None
         wfu=WtFormsUtils()
         responseFormat=self.getResponseFormat()
         ttForm=TrulyTabularForm()
@@ -445,7 +455,7 @@ class WebServer(AppWrap):
             title='Truly Tabular Wikidata Item Query'
             template="ose/ttform.html"
             activeItem="Truly Tabular"
-            html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,queryHigh=queryHigh,tryItLink=tryItLink)
+            html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,queryHigh=queryHigh,tryItLink=tryItLink,selectedProperties=selectedProperties)
             return html
         elif responseFormat=="json":
             response = Response(status=200,mimetype='application/json')
