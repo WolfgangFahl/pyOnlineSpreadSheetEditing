@@ -19,7 +19,7 @@ from onlinespreadsheet.loginBlueprint import LoginBluePrint
 from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
-from onlinespreadsheet.propertySelector import PropertySelectorForm
+from onlinespreadsheet.propertySelector import TrulyTabularForm
 from onlinespreadsheet.pareto import Pareto
 from lodstorage.trulytabular import TrulyTabular, WikidataItem
 from lodstorage.sparql import SPARQL
@@ -27,6 +27,7 @@ from lodstorage.query import EndpointManager, QuerySyntaxHighlight
 
 import traceback
 from werkzeug.exceptions import HTTPException
+from onlinespreadsheet.wtformsutil import WtFormsUtils
 
 class WebServer(AppWrap):
     """
@@ -349,157 +350,9 @@ class WebServer(AppWrap):
                     else:
                         raise e
                 if user is not None:
-                    self.autoLoginUser=loginUser
-    
-    def testPropertySelector(self):
-        jsonText="""[{
-  "prop": "http://www.wikidata.org/entity/P31",
-  "propLabel": "instance of",
-  "count": 7539
-}, {
-  "prop": "http://www.wikidata.org/entity/P276",
-  "propLabel": "location",
-  "count": 7245
-}, {
-  "prop": "http://www.wikidata.org/entity/P179",
-  "propLabel": "part of the series",
-  "count": 7197
-}, {
-  "prop": "http://www.wikidata.org/entity/P17",
-  "propLabel": "country",
-  "count": 7143
-}, {
-  "prop": "http://www.wikidata.org/entity/P580",
-  "propLabel": "start time",
-  "count": 6942
-}, {
-  "prop": "http://www.wikidata.org/entity/P582",
-  "propLabel": "end time",
-  "count": 6938
-}, {
-  "prop": "http://www.wikidata.org/entity/P1813",
-  "propLabel": "short name",
-  "count": 6752
-}, {
-  "prop": "http://www.wikidata.org/entity/P1476",
-  "propLabel": "title",
-  "count": 6735
-}, {
-  "prop": "http://www.wikidata.org/entity/P973",
-  "propLabel": "described at URL",
-  "count": 6513
-}, {
-  "prop": "http://www.wikidata.org/entity/P227",
-  "propLabel": "GND ID",
-  "count": 3084
-}, {
-  "prop": "http://www.wikidata.org/entity/P214",
-  "propLabel": "VIAF ID",
-  "count": 2131
-}, {
-  "prop": "http://www.wikidata.org/entity/P921",
-  "propLabel": "main subject",
-  "count": 1899
-}, {
-  "prop": "http://www.wikidata.org/entity/P664",
-  "propLabel": "organizer",
-  "count": 1835
-}, {
-  "prop": "http://www.wikidata.org/entity/P856",
-  "propLabel": "official website",
-  "count": 606
-}, {
-  "prop": "http://www.wikidata.org/entity/P244",
-  "propLabel": "Library of Congress authority ID",
-  "count": 506
-}, {
-  "prop": "http://www.wikidata.org/entity/P585",
-  "propLabel": "point in time",
-  "count": 439
-}, {
-  "prop": "http://www.wikidata.org/entity/P823",
-  "propLabel": "speaker",
-  "count": 282
-}, {
-  "prop": "http://www.wikidata.org/entity/P710",
-  "propLabel": "participant",
-  "count": 123
-}, {
-  "prop": "http://www.wikidata.org/entity/P131",
-  "propLabel": "located in the administrative territorial entity",
-  "count": 119
-}, {
-  "prop": "http://www.wikidata.org/entity/P5124",
-  "propLabel": "WikiCFP event ID",
-  "count": 98
-}, {
-  "prop": "http://www.wikidata.org/entity/P2936",
-  "propLabel": "language used",
-  "count": 89
-}, {
-  "prop": "http://www.wikidata.org/entity/P793",
-  "propLabel": "significant event",
-  "count": 82
-}, {
-  "prop": "http://www.wikidata.org/entity/P361",
-  "propLabel": "part of",
-  "count": 67
-}]"""
-        propertyList=json.loads(jsonText)
-        paretoLevels=[]
-        topLevel=9
-        for level in range(1,topLevel+1):
-            pareto=Pareto(level)
-            paretoLevels.append(pareto)
-        psForm=PropertySelectorForm()
-        psForm.setPropertyList(propertyList,total=7539,paretoLevels=paretoLevels)
-        title='Truly Tabular Wikidata Item Query'
-        template="ose/ps.html"
-        activeItem="Truly Tabular"
-        html=self.render_template(template, title=title, activeItem=activeItem,psForm=psForm)
-        return html
-        
+                    self.autoLoginUser=loginUser        
                     
-    def setInputDisabled(self,inputField,disabled:bool=True):
-        '''
-        disable the given input
-        
-        Args:
-            inputField(Input): the WTForms input to disable
-            disabled(bool): if true set the disabled attribute of the input 
-        '''
-        if inputField.render_kw is None:
-            inputField.render_kw={}
-        if disabled:
-            inputField.render_kw["disabled"]= "disabled"
-        else:
-            inputField.render_kw.pop("disabled")
-            
-    def setRenderKw(self,inputField,key,value):
-        '''
-        set a render keyword dict entry for the given input field with the given key and value
-        
-        Args:
-            inputField(Input): the field to modify
-            key(str): the key to use
-            value(str): the value to set
-        '''
-        if inputField.render_kw is None:
-            inputField.render_kw={}
-        inputField.render_kw[key]=value
-        
-    def enableButtonsOnInput(self,buttons:list,inputField):
-        '''
-        enable the given list of buttons on input in the given inputField
-        
-        Args:
-            inputField(Input): the inputField to set the input trigger
-            buttons(list): the list of buttons to enable
-        '''
-        script=""
-        for button in buttons:
-            script+=f"document.getElementById('{button.id}').disabled = false;"
-        self.setRenderKw(inputField,"oninput",script)
+    
             
     
     def wikiTrulyTabular(self,itemId:str):
@@ -521,31 +374,28 @@ class WebServer(AppWrap):
         '''
         handle the truly tabular form
         '''
+        wfu=WtFormsUtils()
         responseFormat=self.getResponseFormat()
         ttForm=TrulyTabularForm()
         ttForm.setEndpointChoices(self.endpoints)
         ttForm.setLanguageChoices()
-        for button in [ttForm.instancesButton,ttForm.propertiesButton,ttForm.idButton,ttForm.labelButton,ttForm.clearButton]:
-            self.setInputDisabled(button)
-        self.enableButtonsOnInput([ttForm.idButton,ttForm.clearButton],ttForm.itemLabel)
-        self.enableButtonsOnInput([ttForm.labelButton,ttForm.clearButton,ttForm.instancesButton], ttForm.itemId)
-        self.enableButtonsOnInput([ttForm.propertiesButton], ttForm.itemCount)
-        psForm=PropertySelectorForm()
-        paretoLevels=psForm.setParetoChoices()
-        javaScript=f"selectRowsWhereColumnIsSmallerThanValue(this.value,'{psForm.checkBoxName}',{psForm.paretoColumn})"
-        self.setRenderKw(psForm.paretoSelect, "onchange", javaScript)
+        for button in [ttForm.instancesButton,ttForm.propertiesButton,ttForm.idButton,ttForm.labelButton,ttForm.tabularButton,ttForm.clearButton]:
+            wfu.setInputDisabled(button)
+        wfu.enableButtonsOnInput([ttForm.idButton,ttForm.clearButton],ttForm.itemLabel)
+        wfu.enableButtonsOnInput([ttForm.labelButton,ttForm.clearButton,ttForm.instancesButton], ttForm.itemId)
+        wfu.enableButtonsOnInput([ttForm.propertiesButton,ttForm.tabularButton], ttForm.itemCount)
+        paretoLevels=ttForm.setParetoChoices()
+        javaScript=f"selectRowsWhereColumnIsSmallerThanValue(this.value,'{ttForm.checkBoxName}',{ttForm.paretoColumn})"
+        wfu.setRenderKw(ttForm.paretoSelect, "onchange", javaScript)
         #self.setRenderKw(psForm.paretoSelect, "onfocus", javaScript)
         queryHigh=None
-        qlod=None
-        lodKeys=None
         tryItLink=None
+        # was this a RESTful call with an item id?
         autoFill=itemId is not None
-        if psForm.validate_on_submit():
-            if psForm.tabularButton.data:
-                flash("tabular analysis not implemented yet!")
+        # tabular button hit
         if ttForm.validate_on_submit() or autoFill:
             lang=ttForm.languageSelect.data
-            self.setInputDisabled(ttForm.clearButton,False)
+            wfu.setInputDisabled(ttForm.clearButton,False)
             if ttForm.clearButton.data:
                 return redirect(url_for('wikiTrulyTabularWithForm'))
             endpoint=self.endpoints[ttForm.endpointName.data]
@@ -567,9 +417,12 @@ class WebServer(AppWrap):
                 ttForm.itemId.data=itemId
             # if we have a wikidata item ID
             # we can start
-            self.setInputDisabled(ttForm.instancesButton,itemId is None)
+            wfu.setInputDisabled(ttForm.instancesButton,itemId is None)
             if itemId is not None:
-                tt=TrulyTabular(itemId,endpoint=endpoint.endpoint,method=endpoint.method,lang=lang)
+                selectedProperties=[]
+                if ttForm.tabularButton.data:
+                    selectedProperties=ttForm.wikidataPropertySelect.data
+                tt=TrulyTabular(itemId,propertyIds=selectedProperties,endpoint=endpoint.endpoint,method=endpoint.method,lang=lang)
                 ttForm.itemLabel.data=tt.item.qlabel
                 ttForm.itemDescription.data=tt.item.description
                 if ttForm.instancesButton.data or autoFill:
@@ -584,50 +437,21 @@ class WebServer(AppWrap):
                     tryItUrlEncoded=query.getTryItUrl(tryItUrl)
                     tryItLink=Link(url=tryItUrlEncoded,title="try it!",tooltip="try out with wikidata query service")
                     qlod=tt.sparql.queryAsListOfDicts(query.query)
-                    psForm.setPropertyList(qlod,int(ttForm.itemCount.data),paretoLevels)
-            self.setInputDisabled(ttForm.propertiesButton,disabled=ttForm.itemCount.data is None)   
+                    ttForm.setPropertyList(qlod,int(ttForm.itemCount.data),paretoLevels)
+                    wfu.setInputDisabled(ttForm.tabularButton, False)
+            wfu.setInputDisabled(ttForm.propertiesButton,disabled=ttForm.itemCount.data is None)   
                  
         if responseFormat=="html":
             title='Truly Tabular Wikidata Item Query'
             template="ose/ttform.html"
             activeItem="Truly Tabular"
-            html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,psForm=psForm,queryHigh=queryHigh,tryItLink=tryItLink)
+            html=self.render_template(template, title=title, activeItem=activeItem,ttForm=ttForm,queryHigh=queryHigh,tryItLink=tryItLink)
             return html
         elif responseFormat=="json":
             response = Response(status=200,mimetype='application/json')
             jsonText=json.dumps(qlod)
             response.set_data(jsonText)
             return response
-                    
-class TrulyTabularForm(FlaskForm):
-    """
-    Form to create a truly tabular analysis for a wikidata item
-    """
-    endpointName=SelectField('endpointName',default="wikidata")
-    languageSelect=SelectField("language",default="en")
-    itemId=StringField("id")
-    itemLabel=StringField("label")
-    itemDescription=StringField("description")
-    itemCount=StringField("count")
-    idButton=SubmitField("id")
-    labelButton=SubmitField("label")
-    instancesButton=SubmitField("count")
-    propertiesButton=SubmitField("properties")
-    clearButton=SubmitField("clear")
-    
-    def setLanguageChoices(self):
-        self.languageSelect.choices=["en","es","de","fr","it"]
-
-    def setEndpointChoices(self,endpoints):
-        '''
-        set my choices based on the given endpoints dict
-        
-        Args:
-            endpoints(dict): a dictionary of endpoints
-        
-        '''
-        self.endpointName.choices=list(endpoints.keys())
-       
 
 class QueryForm(FlaskForm):
     """

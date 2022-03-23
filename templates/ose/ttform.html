@@ -89,14 +89,6 @@ https://raw.githubusercontent.com/richleland/pygments-css/master/native.css
 	{% if tryItLink is not none %}<br>{{ tryItLink | safe }}{%endif %}
 	</div>
 <div>	
-{% if psForm.propertySelectorField.available() %}
-<!--  property selection -->
-<div class="row">
-  <div class="form-group col-md-12">
-	{{ render_form(psForm) }}
-  </div>
-</div>
-{%endif %}
 {% endblock %}
 {% block scripts %}
     {{ super() }}
@@ -112,6 +104,7 @@ https://raw.githubusercontent.com/richleland/pygments-css/master/native.css
   }
   
 // select the rows that have a column 
+// see https://codepen.io/seppl2019/pen/GRyNNpJ
 function selectRowsWhereColumnIsSmallerThanValue(value,elementName,col) {
   // alert(value+":"+elementName);
   var items = document.getElementsByName(elementName);

@@ -114,3 +114,12 @@ class TableRowSelectorField(Field):
     def available(self):
         isAvailable=self.widget.lod is not None
         return isAvailable
+    
+    def process_formdata(self, valuelist):
+        '''
+        process the given value list
+        
+        Override default behavior which would only get the first
+        item in the list
+        '''
+        self.data=valuelist

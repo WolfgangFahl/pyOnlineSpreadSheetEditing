@@ -3,9 +3,9 @@ Created on 2022-03-21
 
 @author: wf
 '''
-from onlinespreadsheet.tablerowselector import TableRowSelector,TableRowSelectorField
+from onlinespreadsheet.tablerowselector import TableRowSelectorField
 from fb4.widgets import Link
-from wtforms import SelectField,SubmitField
+from wtforms import SelectField,StringField,SubmitField
 from flask_wtf import FlaskForm
 from onlinespreadsheet.pareto import Pareto
 import copy
@@ -44,25 +44,58 @@ class PropertySelection():
             prop["%"]=f'{ratio*100:.1f}'
             prop["pareto"]=level
             checked=" checked" if level<=defaultParetoSelect else ""
-            prop["select"]=f'<input name="{checkBoxName}" id="{itemId}" type="checkbox"{checked}>'
+            prop["select"]=f'<input name="{checkBoxName}" value="{itemId}" id="{itemId}" type="checkbox"{checked}>'
         pass
     
-
-class PropertySelectorForm(FlaskForm):
+class TrulyTabularForm(FlaskForm):
     """
-    form to select properties
-    """                   
+    Form to create a truly tabular analysis for a wikidata item
+    and select properties
+    """
+    endpointName=SelectField('endpointName',default="wikidata")
+    languageSelect=SelectField("language",default="en")
+    itemId=StringField("id")
+    itemLabel=StringField("label")
+    itemDescription=StringField("description")
+    itemCount=StringField("count")
+    idButton=SubmitField("id")
+    labelButton=SubmitField("label")
+    instancesButton=SubmitField("count")
+    propertiesButton=SubmitField("properties")
     tabularButton=SubmitField("tabular")
+    clearButton=SubmitField("clear")
     paretoSelect=SelectField('pareto',coerce=int, validate_choice=False)
-    propertySelectorField=TableRowSelectorField(label='')
+    wikidataPropertySelect=TableRowSelectorField(label="")
+    
+    def setLanguageChoices(self):
+        '''
+        set the available language choices
+        
+        @TODO add more languages according to number of speakers
+        '''
+        
+        self.languageSelect.choices=["en","es","de","fr","it"]
+
+    def setEndpointChoices(self,endpoints):
+        '''
+        set my choices based on the given endpoints dict
+        
+        Args:
+            endpoints(dict): a dictionary of endpoints
+        
+        '''
+        self.endpointName.choices=list(endpoints.keys())   
     
     def __init__(self, *args, **kwargs):
+        '''
+        Construct me
+        '''
         #self.propertySelector=None
-        self.checkBoxName="selectedWikiDataProperty"
-        self.paretoColumn=4
         for _name in kwargs.keys():
             pass
-        super(FlaskForm, self).__init__(*args, **kwargs)
+        self.checkBoxName="wikidataPropertySelect"
+        self.paretoColumn=4
+        super().__init__(*args, **kwargs)
         
     def setPropertyList(self,propertyList:list,total:int,paretoList:list):
         '''
@@ -74,10 +107,11 @@ class PropertySelectorForm(FlaskForm):
             total(int): the number of instances in total
             paretoList(list): a list of pareto Levels to be considered
         '''
+     
         propertySelection=PropertySelection()
         propertySelection.prepare(propertyList,total,paretoList,checkBoxName=self.checkBoxName)
         self.propertyList=propertySelection.propertyList
-        propertySelector=self.propertySelectorField.widget
+        propertySelector=self.wikidataPropertySelect.widget
         propertySelector.checkBoxName=self.checkBoxName
         propertySelector.alignMap={"right":["#","count","%","pareto"],"center":["select"]}
         propertySelector.lod=self.propertyList
