@@ -28,9 +28,9 @@ setup(
     license='Apache License',
     description='python Online SpreadSheet Editing tool with configurable enhancer/importer and check phase',
     install_requires=[
-          'pyLodStorage~=1.1.33',
+          'pyLodStorage~=0.2.0',
           'pyFlaskBootstrap4~=0.4.6',
-          'py-3rdparty-mediawiki~=0.5.3',
+          'py-3rdparty-mediawiki~=0.6.1',
           'pandas~=1.3.5',
           'ruamel.yaml'
     ],

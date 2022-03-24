@@ -1,33 +1,46 @@
-from fb4.app import AppWrap
-from fb4.sse_bp import SSE_BluePrint
-from fb4.widgets import Copyright, Link,Menu, MenuItem
-from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField
-#from wtforms.validators import InputRequired
-from flask import abort,redirect,render_template, flash,request, url_for, send_file, Response
-from flask_wtf import FlaskForm
-from wikibot.wikiuser import WikiUser
-from fb4.sqldb import db
-from fb4.login_bp import login_user
-from flask_login import current_user, login_required
+# general libraries
 import json
-import socket
 import os
+import socket
 import sys
 
+# pyFlaskBootstrap4
+# https://github.com/WolfgangFahl/pyFlaskBootstrap4
+# see http://fb4demo.bitplan.com/
+from fb4.app import AppWrap
+from fb4.login_bp import login_user
+from fb4.sqldb import db
+from fb4.sse_bp import SSE_BluePrint
+from fb4.widgets import Copyright, Link,Menu, MenuItem
 
+# standard flask 
+from flask import abort,redirect,render_template, flash,request, url_for, send_file, Response
+from flask_cors import CORS
+from flask_login import current_user, login_required
+from flask_wtf import FlaskForm
+
+# wtforms
+from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField
+
+# user handling
+from wikibot.wikiuser import WikiUser
+
+# online spreadsheet
 from onlinespreadsheet.loginBlueprint import LoginBluePrint
 from onlinespreadsheet.profile import ProfileBlueprint
 from onlinespreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
 from onlinespreadsheet.propertySelector import TrulyTabularForm
+from onlinespreadsheet.wtformsutil import WtFormsUtils
 
+# pylodstorage
 from lodstorage.trulytabular import TrulyTabular, WikidataItem
 from lodstorage.sparql import SPARQL
 from lodstorage.query import EndpointManager, QuerySyntaxHighlight
 
+# debugging
 import traceback
 from werkzeug.exceptions import HTTPException
-from onlinespreadsheet.wtformsutil import WtFormsUtils
 
 class WebServer(AppWrap):
     """
@@ -54,6 +67,8 @@ class WebServer(AppWrap):
         super().__init__(host=host, port=port, debug=debug, template_folder=template_folder)
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         self.app.app_context().push()
+        # allow CORS requests
+        CORS(self.app)
         db.init_app(self.app)
         self.db=db
         self.authenticate=False

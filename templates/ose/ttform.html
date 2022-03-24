@@ -81,6 +81,11 @@ https://raw.githubusercontent.com/richleland/pygments-css/master/native.css
 {% block content %}
 {% if title is not none %}<h2>{{ title }}</h2>{%endif %}
 <div class="row">
+  <div class="form-group col-md-1">
+	<button onclick="complete('wikidataPropertySelect','{{ ttForm.itemId.data }}');">complete</button>
+  </div>
+</div>
+<div class="row">
 	<div class="form-group col-md-6">
 	 {{ render_form(ttForm) }}
 	</div>
