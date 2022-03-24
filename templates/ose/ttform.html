@@ -145,9 +145,12 @@ async function getObjectFromUrl (url) {
         }
 }
 
-//
+// fetch the propery statistics
 async function fetchWdPropertyStatistics(itemId,propertyId) {
-  const url = "https://confident.dbis.rwth-aachen.de/pyose/ttprop/"+itemId+"/"+propertyId;
+  // e.g. https://confident.dbis.rwth-aachen.de/pyose/
+  // const base= "{{ url_for('home') }}"
+  const base="https://confident.dbis.rwth-aachen.de/pyose/";
+  const url = base+"/ttprop/"+itemId+"/"+propertyId;
   console.log(url)
   const statsRow=await getObjectFromUrl(url);
   return statsRow;
@@ -194,7 +197,9 @@ async function completeRow(tr, statsRow) {
   setColumn(tr,6,statsRow,"max");
   setColumn(tr,7,statsRow,"non tabular");
   setColumn(tr,8,statsRow,"non tabular%");
-  setColumnValue(tr,9,"✔");
+  setColumn(tr,9,statsRow,"queryfTryIt");
+  setColumn(tr,9,statsRow,"queryexTryIt");
+  setColumnValue(tr,11,"✔");
 }
 </script>
 {% endblock %}

@@ -47,6 +47,8 @@ class PropertySelection():
             prop["max"]=""
             prop["nt"]=""
             prop["nt%"]=""
+            prop["?f"]=""
+            prop["?ex"]=""
             prop["✔"]=""
             checked=" checked" if level<=defaultParetoSelect else ""
             prop["select"]=f'<input name="{checkBoxName}" value="{itemId}" id="{itemId}" type="checkbox"{checked}>'
@@ -69,7 +71,7 @@ class TrulyTabularForm(FlaskForm):
     propertiesButton=SubmitField("properties")
     tabularButton=SubmitField("tabular")
     clearButton=SubmitField("clear")
-    completeButton=ButtonField("complete")
+    completeButton=ButtonField("truly tabular analysis")
     paretoSelect=SelectField('pareto',coerce=int, validate_choice=False)
     wikidataPropertySelect=TableRowSelectorField(label="")
     
