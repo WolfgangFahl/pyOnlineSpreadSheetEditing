@@ -123,5 +123,78 @@ function selectRowsWhereColumnIsSmallerThanValue(value,elementName,col) {
      }
   }
 }
+  
+//https://stackoverflow.com/a/62762191/1497139
+var handleError = function (err) {
+    console.warn(err);
+    return new Response(JSON.stringify({
+        code: 400,
+        message: 'A network Error occured'
+    }));
+};
+
+async function getObjectFromUrl (url) {
+
+    // Get the response
+    var response = await (fetch(url).catch(handleError));
+
+       if (response.ok) {
+            return response.json();
+        } else {
+            return Promise.reject(response);
+        }
+}
+
+//
+async function fetchWdPropertyStatistics(itemId,propertyId) {
+  const url = "https://confident.dbis.rwth-aachen.de/pyose/ttprop/"+itemId+"/"+propertyId;
+  console.log(url)
+  const statsRow=await getObjectFromUrl(url);
+  return statsRow;
+}
+
+// complete the table for the given wikiData ItemId
+async function complete(elementName, itemId) {
+  // get the check box elements
+  var items = document.getElementsByName(elementName);
+  // loop over all
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type == "checkbox") {
+      var checkbox = items[i];
+      // if the check box is checked
+      if (checkbox.checked) {
+        // grab the whole table row
+        var tr = checkbox.parentElement.parentElement;
+        // get he wikidata propertyId from the checkboxValue
+        const propertyId = checkbox.value;
+        const pjson = await fetchWdPropertyStatistics(itemId, propertyId).then();
+        completeRow(tr, pjson);
+      }
+    }
+  }
+}
+
+// set a Column Value by reading the given attribute from the given object
+function setColumn(tr,col,obj,attr) {
+  var value=obj[attr];
+  setColumnValue(tr,col,value);
+}
+
+// set a column Value for the given tr and col
+function setColumnValue(tr,col,value) {
+  var valueTd = tr.children[col];
+  valueTd.innerHTML = value;
+}
+
+// complete the given tr with the given object
+async function completeRow(tr, statsRow) {
+  console.log("complete statistics row");
+  console.log(statsRow);
+  setColumn(tr,5,statsRow,"1");
+  setColumn(tr,6,statsRow,"max");
+  setColumn(tr,7,statsRow,"non tabular");
+  setColumn(tr,8,statsRow,"non tabular%");
+  setColumnValue(tr,9,"✔");
+}
 </script>
 {% endblock %}

@@ -4,7 +4,7 @@ Created on 2022-03-21
 @author: wf
 '''
 from onlinespreadsheet.tablerowselector import TableRowSelectorField
-from fb4.widgets import Link
+from fb4.widgets import Link,ButtonField
 from wtforms import SelectField,StringField,SubmitField
 from flask_wtf import FlaskForm
 from onlinespreadsheet.pareto import Pareto
@@ -69,6 +69,7 @@ class TrulyTabularForm(FlaskForm):
     propertiesButton=SubmitField("properties")
     tabularButton=SubmitField("tabular")
     clearButton=SubmitField("clear")
+    completeButton=ButtonField("complete")
     paretoSelect=SelectField('pareto',coerce=int, validate_choice=False)
     wikidataPropertySelect=TableRowSelectorField(label="")
     
