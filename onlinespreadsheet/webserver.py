@@ -398,7 +398,7 @@ class WebServer(AppWrap):
         '''
         handle the truly tabular form
         '''
-        sseChannel=None
+        selectedProperties=[]
         wfu=WtFormsUtils()
         responseFormat=self.getResponseFormat()
         ttForm=TrulyTabularForm()
@@ -444,7 +444,6 @@ class WebServer(AppWrap):
             # we can start
             wfu.setInputDisabled(ttForm.instancesButton,itemId is None)
             if itemId is not None:
-                selectedProperties=[]
                 if ttForm.tabularButton.data:
                     selectedProperties=ttForm.wikidataPropertySelect.data
                 tt=TrulyTabular(itemId,propertyIds=selectedProperties,endpoint=endpoint.endpoint,method=endpoint.method,lang=lang)
