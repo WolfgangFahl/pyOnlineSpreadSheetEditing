@@ -18,3 +18,5 @@ ruamel.yaml
 # https://github.com/corydolphin/flask-cors
 # https://flask-cors.readthedocs.io/en/latest/
 flask-cors
+# https://pypi.org/project/streamlit/
+streamlit~=1.8.1

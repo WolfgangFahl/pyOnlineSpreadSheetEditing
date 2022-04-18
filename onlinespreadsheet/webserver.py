@@ -465,6 +465,7 @@ class WebServer(AppWrap):
                     count=tt.count()
                     ttForm.itemCount.data=count
                 if ttForm.propertiesButton.data or autoFill:
+                    # TODO: solve security issue for whereClause ttForm.whereClause.data
                     query=tt.mostFrequentPropertiesQuery()    
                     qs=QuerySyntaxHighlight(query)
                     queryHigh=qs.highlight()
@@ -472,9 +473,12 @@ class WebServer(AppWrap):
                     tryItUrl="https://query.wikidata.org/"
                     tryItUrlEncoded=query.getTryItUrl(tryItUrl)
                     tryItLink=Link(url=tryItUrlEncoded,title="try it!",tooltip="try out with wikidata query service")
-                    qlod=tt.sparql.queryAsListOfDicts(query.query)
-                    ttForm.setPropertyList(qlod,int(ttForm.itemCount.data),paretoLevels)
-                    wfu.setInputDisabled(ttForm.tabularButton, False)
+                    try:
+                        qlod=tt.sparql.queryAsListOfDicts(query.query)
+                        ttForm.setPropertyList(qlod,int(ttForm.itemCount.data),paretoLevels)
+                        wfu.setInputDisabled(ttForm.tabularButton, False)
+                    except Exception as _ex:
+                        flash("Query failed","error")
             wfu.setInputDisabled(ttForm.propertiesButton,disabled=ttForm.itemCount.data is None)   
                  
         if responseFormat=="html":

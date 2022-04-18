@@ -65,6 +65,8 @@ class TrulyTabularForm(FlaskForm):
     itemLabel=StringField("label")
     itemDescription=StringField("description")
     itemCount=StringField("count")
+    # TODO solve security issue
+    #whereClause=StringField("where")
     idButton=SubmitField("id")
     labelButton=SubmitField("label")
     instancesButton=SubmitField("count")
