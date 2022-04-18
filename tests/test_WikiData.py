@@ -1,47 +1,27 @@
 from tests.basetest import BaseTest
 from onlinespreadsheet.wikidata import Wikidata
 from sl.googlesheet import GoogleSheet
-from wikidataintegrator import wdi_core
-from lodstorage.sparql import SPARQL
+from lodstorage.lod import LOD
 
 class TestWikidata(BaseTest):
     '''
     test the Wikidata access
     '''
     
-    def getCountry(self,countryName:str,lang:str="en"):
-        countryLabel=f'"{countryName}"@{lang}'
-        sparqlQuery="""PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://www.wikidata.org/entity/>
-
-SELECT ?country ?countryLabel
-WHERE {
-  {
-    ?country wdt:P31 wd:Q3624078.
-    ?country rdfs:label ?countryLabel.
-    ?country wdt:P1813 %s
-    FILTER(LANG(?countryLabel)= "en" )
-  } UNION {
-    ?country wdt:P31 wd:Q3624078.
-    ?country rdfs:label ?countryLabel.
-    FILTER(?countryLabel= %s )
-  }
-}""" % (countryLabel,countryLabel)
-        endpointUrl="https://query.wikidata.org/sparql"
-        sparql=SPARQL(endpointUrl)
-        countryRows=sparql.queryAsListOfDicts(sparqlQuery)
-        country=None
-        if len(countryRows)>0:
-            country=countryRows[0]["country"].replace("http://www.wikidata.org/entity/","")
-        return country
-    
-    def testCountryLookup(self):
+    def testItemLookup(self):
         '''
-        lookup countries
+        lookup items
         '''
-        country=self.getCountry("Korea")
-        print(country)
+        debug=True
+        wd=Wikidata("https://www.wikidata.org",debug=True)
+        country=wd.getItemByName("USA","Q3624078")
+        if debug:
+            print(country)
+        self.assertEqual("Q30",country)
+        ecir=wd.getItemByName("ECIR","Q47258130")
+        if debug:
+            print(ecir)
+        self.assertEqual("Q5412436",ecir)
         
     def testAddItem(self):
         '''
@@ -52,35 +32,19 @@ WHERE {
         wd=Wikidata("https://www.wikidata.org",debug=True)
         url="https://docs.google.com/spreadsheets/d/1AZ4tji1NDuPZ0gwsAxOADEQ9jz_67yRao2QcCaJQjmk"
         self.gs=GoogleSheet(url)   
-        spreadSheetName="WorldPrayerDays" 
-        self.gs.open([spreadSheetName])  
-        rows=self.gs.asListOfDicts(spreadSheetName)
-        # 1933
-        row=rows[6]
+        spreadSheetNames=["WorldPrayerDays","Wikidata"] 
+        self.gs.open(spreadSheetNames)  
+        rows=self.gs.asListOfDicts("WorldPrayerDays")
+        mapRows=self.gs.asListOfDicts("Wikidata")
+        mapDict,_dup=LOD.getLookup(mapRows, "PropertyId", withDuplicates=False)
+        # 1934
+        row=rows[7]
         print(row)
-
+        print(mapDict)
+       
         write=not BaseTest.inPublicCI()
-        #write=False
+        write=False
         if write:
             wd.login()
-        ist=[]
-        #ist.append(wdi_core.WDItem())
-        title=row["Theme"]
-        year=row["Year"]
-        country=row["MainWriterCountry"]
-        countryQid=self.getCountry(country)
-        # instance of
-        ist.append(wdi_core.WDItemID(value="Q27968055",prop_nr="P31"))
-        # country 
-        if countryQid is not None:
-            ist.append(wdi_core.WDItemID(value=countryQid,prop_nr="P17"))
-        # title
-        ist.append(wdi_core.WDMonolingualText(title,prop_nr="P1476"))
-        # part of the series
-        ist.append(wdi_core.WDItemID(value="Q352581",prop_nr="P179"))
-        yearString=f"+{year}-01-01T00:00:00Z"
-        ist.append(wdi_core.WDTime(yearString,prop_nr="P585",precision=9))
-        label=row["label"]
-        description=row["description"]
-        wd.addItem(ist,label,description,write=write)
+        wd.addDict(row, mapDict,write=write)
         pass
