@@ -63,7 +63,9 @@ class Wikidata:
         if self.debug:
             pprint.pprint(wbPage.get_wd_json_representation())
         if write:
-            wbPage.write(self.login) # edit_summary=
+            return wbPage.write(self.login) # edit_summary=
+        else:
+            return None
             
     def getItemByName(self,itemName:str,itemType:str,lang:str="en"):
         '''
@@ -135,7 +137,8 @@ class Wikidata:
                     ist.append(wdi_core.WDItemID(value=colValue,prop_nr=propId))
         label=row["label"]
         description=row["description"]
-        self.addItem(ist,label,description,write=write)
+        qid=self.addItem(ist,label,description,write=write)
+        return qid
         
         
             

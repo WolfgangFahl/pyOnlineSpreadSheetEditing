@@ -37,7 +37,7 @@ class TestWikidata(BaseTest):
         rows=self.gs.asListOfDicts("WorldPrayerDays")
         mapRows=self.gs.asListOfDicts("Wikidata")
         mapDict,_dup=LOD.getLookup(mapRows, "PropertyId", withDuplicates=False)
-        # 1934
+        # 1935
         row=rows[7]
         print(row)
         print(mapDict)
