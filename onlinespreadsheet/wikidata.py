@@ -34,6 +34,8 @@ class Wikidata:
             with open(configFilePath, mode="r") as f:
                 wikibaseConfigJson = json.load(f)
                 credentials=wikibaseConfigJson["credentials"]
+                if not self.baseurl in credentials:
+                    raise Exception(f"no credentials available for {self.baseurl}")
                 credentialRow=credentials[self.baseurl]
                 user=credentialRow["username"]
                 pwd=credentialRow["password"]
