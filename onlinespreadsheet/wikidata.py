@@ -64,4 +64,9 @@ class Wikidata:
         if write:
             wbPage.write(self.login) # edit_summary=
             
+    def addDict(self,d:dict):
+        '''
+        '''
+        
+            
                 

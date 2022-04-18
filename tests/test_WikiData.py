@@ -55,12 +55,12 @@ WHERE {
         spreadSheetName="WorldPrayerDays" 
         self.gs.open([spreadSheetName])  
         rows=self.gs.asListOfDicts(spreadSheetName)
-        # 1932
-        row=rows[5]
+        # 1933
+        row=rows[6]
         print(row)
 
         write=not BaseTest.inPublicCI()
-        write=False
+        #write=False
         if write:
             wd.login()
         ist=[]
@@ -80,7 +80,7 @@ WHERE {
         ist.append(wdi_core.WDItemID(value="Q352581",prop_nr="P179"))
         yearString=f"+{year}-01-01T00:00:00Z"
         ist.append(wdi_core.WDTime(yearString,prop_nr="P585",precision=9))
-        label=f"World Day of Prayer {year}"
-        description=f"{label}, {title}, {country}"
+        label=row["label"]
+        description=row["description"]
         wd.addItem(ist,label,description,write=write)
         pass
