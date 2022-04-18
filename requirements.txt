@@ -20,5 +20,11 @@ ruamel.yaml
 flask-cors
 # https://pypi.org/project/streamlit/
 streamlit~=1.8.1
+# https://github.com/PablocFonseca/streamlit-aggrid
+streamlit-aggrid
+# https://pypi.org/project/justpy/
+justpy~=0.2.3
 # https://github.com/burnash/gspread
 gspread~=5.3.2 
+# https://stackoverflow.com/questions/71652965/importerror-cannot-import-name-safe-str-cmp-from-werkzeug-security
+Werkzeug~=2.0.0
