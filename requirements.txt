@@ -20,3 +20,5 @@ ruamel.yaml
 flask-cors
 # https://pypi.org/project/streamlit/
 streamlit~=1.8.1
+# https://github.com/burnash/gspread
+gspread~=5.3.2 
