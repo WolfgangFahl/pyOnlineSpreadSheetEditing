@@ -131,6 +131,8 @@ class Wikidata:
                 if colType=="year":
                     yearString=f"+{colValue}-01-01T00:00:00Z"
                     ist.append(wdi_core.WDTime(yearString,prop_nr=propId,precision=9))
+                elif colType=="url":
+                    ist.append(wdi_core.WDUrl(value=colValue,prop_nr=propId))
                 elif colType=="text":
                     ist.append(wdi_core.WDMonolingualText(value=colValue,prop_nr=propId))
                 else:
