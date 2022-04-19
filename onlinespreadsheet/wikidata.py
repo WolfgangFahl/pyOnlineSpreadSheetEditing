@@ -19,6 +19,13 @@ class Wikidata:
     '''
     
     def __init__(self,baseurl,debug:bool=False):
+        '''
+        Constructor
+        
+        Args:
+            baseurl(str): the baseurl of the wikibase to use
+            debug(bool): if True output debug information
+        ''' 
         self.baseurl=baseurl
         self.debug=debug
         self.apiurl=f"{self.baseurl}/w/api.php"
@@ -27,6 +34,8 @@ class Wikidata:
     def getCredentials(self):
         '''
         get my credentials
+        
+        from the wd npm command line tool
         '''
         user=None
         pwd=None
@@ -45,11 +54,14 @@ class Wikidata:
         return user,pwd
             
     def login(self):
+        '''
+        login using the credentials taken via self.getCredentials
+        '''
         user,pwd=self.getCredentials()
         if user is not None:
             self.login = wdi_login.WDLogin(user=user, pwd=pwd, mediawiki_api_url=self.apiurl)
             
-    def addItem(self,ist,label,description,lang:str="en",write:bool=True):
+    def addItem(self,ist:list,label:str,description:str,lang:str="en",write:bool=True):
         '''
         Args:
             ist(list): item statements
@@ -64,6 +76,7 @@ class Wikidata:
         if self.debug:
             pprint.pprint(wbPage.get_wd_json_representation())
         if write:
+            # return the identifier of the generated page
             return wbPage.write(self.login) # edit_summary=
         else:
             return None
@@ -87,6 +100,7 @@ class Wikidata:
       {
         ?item wdt:P31 wd:%s.
         ?item rdfs:label ?itemLabel.
+        # short name
         ?item wdt:P1813 %s
         FILTER(LANG(?itemLabel)= "%s" )
       } UNION {
@@ -144,6 +158,8 @@ class Wikidata:
                         pass
                 elif colType=="url":
                     ist.append(wdi_core.WDUrl(value=colValue,prop_nr=propId))
+                elif colType=="extid":
+                    wdi_core.WDExternalID(value=colValue,prop_nr=propId)
                 elif colType=="text":
                     ist.append(wdi_core.WDMonolingualText(value=colValue,prop_nr=propId))
                 else:

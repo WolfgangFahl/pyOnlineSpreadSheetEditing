@@ -32,6 +32,9 @@ class GoogleSheetWikidataImport():
         self.mapDict,_dup=LOD.getLookup(mapRows, "PropertyId", withDuplicates=False)
         self.wd=Wikidata("https://www.wikidata.org",debug=True)
         self.wd.login()
+        
+    def handleException(self,ex):
+        print(str(ex))
 
     def row_selected(self, msg):
         '''
@@ -51,7 +54,7 @@ class GoogleSheetWikidataImport():
                     self.link.href=f"https://www.wikidata.org/wiki/{qid}"
                     self.link.text=f"{label}"
             except Exception as ex:
-                print(str(ex))
+                self.handleException(ex)
       
         elif self.row_selected == msg.rowIndex:
             self.row_data_div.text = ''
