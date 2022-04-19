@@ -12,12 +12,18 @@ from argparse import RawDescriptionHelpFormatter
 
 class GoogleSheetWikidataImport():
     '''
-    Observer for a google sheet to be used for wikidata import of the content
+    reactive google sheet display to be used for wikidata import of the content
     '''
-    def __init__(self,url,spreadSheetName):
+    def __init__(self,url,spreadSheetName,debug:bool=False):
         '''
         constructor
+        
+        Args:
+            url(str): the url of the google spreadsheet
+            spreadSheetName(str): the name of the sheet to import data from
+            debug(bool): if True show debug information
         '''
+        self.debug=debug
         self.gs=GoogleSheet(url)    
         spreadSheetNames=[spreadSheetName,"Wikidata"] 
         self.gs.open(spreadSheetNames)  
@@ -28,16 +34,25 @@ class GoogleSheetWikidataImport():
         self.wd.login()
 
     def row_selected(self, msg):
+        '''
+        row selection event handler
+        
+        Args:
+            msg(dict): row selection information
+        '''
         print(msg)
         if msg.selected:
             self.row_selected = msg.rowIndex
             write=True
             label=msg.data["label"]
-            qid=self.wd.addDict(msg.data, self.mapDict,write=write)
-            if qid is not None:
-                self.link.href=f"https://www.wikidata.org/wiki/{qid}"
-                self.link.text=f"{label}"
-  
+            try:
+                qid=self.wd.addDict(msg.data, self.mapDict,write=write)
+                if qid is not None:
+                    self.link.href=f"https://www.wikidata.org/wiki/{qid}"
+                    self.link.text=f"{label}"
+            except Exception as ex:
+                print(str(ex))
+      
         elif self.row_selected == msg.rowIndex:
             self.row_data_div.text = ''
 
@@ -47,6 +62,7 @@ class GoogleSheetWikidataImport():
         '''
         wp = jp.WebPage()
         self.row_data_div = jp.Div(a=wp)
+        # link to the wikidata item currently imported
         self.link=jp.A(a=self.row_data_div,href="https://www.wikidata.org/",text="wikidata")
         grid = self.df.jp.ag_grid(a=wp)
         grid.row_data_div = self.row_data_div
@@ -55,6 +71,9 @@ class GoogleSheetWikidataImport():
         return wp
     
     def start(self):
+        '''
+        start the reactive webserver
+        '''
         jp.justpy(self.gridForDataFrame)
 
 def main(argv=None): # IGNORE:C0111
@@ -110,4 +129,3 @@ if __name__ == "__main__":
     if DEBUG:
         sys.argv.append("-d")
     sys.exit(main())
-

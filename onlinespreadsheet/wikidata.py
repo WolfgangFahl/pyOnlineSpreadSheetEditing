@@ -9,6 +9,7 @@ import os
 from wikidataintegrator import wdi_core, wdi_login
 from lodstorage.sparql import SPARQL
 import pprint
+import dateutil.parser
 
 class Wikidata:
     '''
@@ -131,6 +132,16 @@ class Wikidata:
                 if colType=="year":
                     yearString=f"+{colValue}-01-01T00:00:00Z"
                     ist.append(wdi_core.WDTime(yearString,prop_nr=propId,precision=9))
+                elif colType=="date":
+                    try:
+                        dateValue = dateutil.parser.parse(colValue)
+                        isoDate=dateValue.isoformat()
+                        dateString=f"+{isoDate}Z"
+                        ist.append(wdi_core.WDTime(dateString,prop_nr=propId,precision=11))
+                    except Exception as ex:
+                        if self.debug:
+                            print(str(ex))
+                        pass
                 elif colType=="url":
                     ist.append(wdi_core.WDUrl(value=colValue,prop_nr=propId))
                 elif colType=="text":
