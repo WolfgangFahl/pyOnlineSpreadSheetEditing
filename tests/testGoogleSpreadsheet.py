@@ -3,7 +3,7 @@ Created on 2022-04-18
 
 @author: wf
 '''
-from sl.googlesheet import GoogleSheet
+from onlinespreadsheet.googlesheet import GoogleSheet
 from tests.basetest import BaseTest
 
 class TestGoogleSpreadsheet(BaseTest):
@@ -23,7 +23,7 @@ class TestGoogleSpreadsheet(BaseTest):
         for sheetName in sheetNames:
             lod=gs.asListOfDicts(sheetName)
             debug=self.debug
-            debug=True
+            #debug=True
             if debug:
                 print(lod)
             self.assertTrue(len(lod)>=expected[sheetName])
