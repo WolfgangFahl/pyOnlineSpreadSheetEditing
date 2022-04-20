@@ -6,6 +6,7 @@ Created on 2022-04-18
 from pathlib import Path
 import json
 import os
+import re
 from wikidataintegrator import wdi_core, wdi_login
 from lodstorage.sparql import SPARQL
 import pprint
@@ -141,7 +142,10 @@ class Wikidata:
                 colValue=propMap["Value"]
             if colValue:
                 if lookup:
-                    colValue=self.getItemByName(colValue, lookup, lang)
+                    # ignore if the value is already a Wikibase Entity identifier of the form
+                    # Q12345 ...
+                    if not re.match(r"Q[0-9]+",colValue):
+                        colValue=self.getItemByName(colValue, lookup, lang)
             if colValue:
                 if colType=="year":
                     yearString=f"+{colValue}-01-01T00:00:00Z"
@@ -159,7 +163,7 @@ class Wikidata:
                 elif colType=="url":
                     ist.append(wdi_core.WDUrl(value=colValue,prop_nr=propId))
                 elif colType=="extid":
-                    wdi_core.WDExternalID(value=colValue,prop_nr=propId)
+                    ist.append(wdi_core.WDExternalID(value=colValue,prop_nr=propId))
                 elif colType=="text":
                     ist.append(wdi_core.WDMonolingualText(value=colValue,prop_nr=propId))
                 else:
