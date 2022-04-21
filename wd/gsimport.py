@@ -5,6 +5,7 @@ from spreadsheet.version import Version
 from lodstorage.lod import LOD
 import os
 import sys
+import traceback
 
 DEBUG = 0
 from argparse import ArgumentParser
@@ -24,17 +25,37 @@ class GoogleSheetWikidataImport():
             debug(bool): if True show debug information
         '''
         self.debug=debug
-        self.gs=GoogleSheet(url)    
-        spreadSheetNames=[spreadSheetName,"Wikidata"] 
-        self.gs.open(spreadSheetNames)  
-        self.df=self.gs.dfs[spreadSheetName]
-        mapRows=self.gs.asListOfDicts("Wikidata")
-        self.mapDict,_dup=LOD.getLookup(mapRows, "PropertyId", withDuplicates=False)
+        self.url=url
+        self.spreadSheetName=spreadSheetName
         self.wd=Wikidata("https://www.wikidata.org",debug=True)
         self.wd.login()
         
     def handleException(self,ex):
+        '''
+        handle the given exception
+        
+        Args:
+            ex(Exception): the exception to handle
+        '''
         print(str(ex))
+        print(traceback.format_exc())
+      
+    def reload(self,_msg=None):
+        '''
+        reload clicked
+        '''
+        self.gs=GoogleSheet(self.url)    
+        spreadSheetNames=[self.spreadSheetName,"Wikidata"] 
+        self.gs.open(spreadSheetNames)  
+        self.df=self.gs.dfs[self.spreadSheetName]
+        mapRows=self.gs.asListOfDicts("Wikidata")
+        self.mapDict,_dup=LOD.getLookup(mapRows, "PropertyId", withDuplicates=False)
+        
+        grid = self.df.jp.ag_grid(a=self.container)
+        grid.row_data_div = self.row_data_div
+        grid.on('rowSelected', self.row_selected)
+        grid.options.columnDefs[0].checkboxSelection = True
+      
 
     def row_selected(self, msg):
         '''
@@ -49,10 +70,13 @@ class GoogleSheetWikidataImport():
             write=True
             label=msg.data["label"]
             try:
-                qid=self.wd.addDict(msg.data, self.mapDict,write=write)
+                qid,errors=self.wd.addDict(msg.data, self.mapDict,write=write)
                 if qid is not None:
                     self.link.href=f"https://www.wikidata.org/wiki/{qid}"
                     self.link.text=f"{label}"
+                if len(errors)>0:
+                    self.errors.text=errors
+                    print(errors)
             except Exception as ex:
                 self.handleException(ex)
       
@@ -63,15 +87,16 @@ class GoogleSheetWikidataImport():
         '''
         show aggrid for the given data frame
         '''
-        wp = jp.WebPage()
-        self.row_data_div = jp.Div(a=wp)
+        self.wp = jp.WebPage()
+        self.container=jp.Div(a=self.wp)
         # link to the wikidata item currently imported
-        self.link=jp.A(a=self.row_data_div,href="https://www.wikidata.org/",text="wikidata")
-        grid = self.df.jp.ag_grid(a=wp)
-        grid.row_data_div = self.row_data_div
-        grid.on('rowSelected', self.row_selected)
-        grid.options.columnDefs[0].checkboxSelection = True
-        return wp
+        button_classes = 'w-24 mr-2 mb-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full'
+        self.reloadButton=jp.Button(a=self.container,text='reload',classes=button_classes,click=self.reload)
+        self.link=jp.A(a=self.container,href="https://www.wikidata.org/",text="wikidata")
+        self.row_data_div = jp.Div(a=self.container)
+        self.errors=jp.Span(a=self.container,style='color:red')
+        self.reload()
+        return self.wp
     
     def start(self):
         '''
@@ -126,6 +151,7 @@ USAGE
         indent = len(program_name) * " "
         sys.stderr.write(program_name + ": " + repr(e) + "\n")
         sys.stderr.write(indent + "  for help use --help")
+        print(traceback.format_exc())
         return 2     
 
 if __name__ == "__main__":
