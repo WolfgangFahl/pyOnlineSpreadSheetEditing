@@ -6,7 +6,7 @@ Created on 09.12.2021
 import unittest
 from tests.basetest import BaseTest
 from onlinespreadsheet.tablequery import TableQuery, QueryType
-from onlinespreadsheet.tableediting import SpreadSheetType
+from spreadsheet.tableediting import SpreadSheetType
 from wikibot.wikiuser import WikiUser
 import os
 import getpass
@@ -14,7 +14,7 @@ from lodstorage.query import Query
 from lodstorage.sparql import SPARQL
 from lodstorage.lod import LOD
 import copy
-import re
+
 
 class TestTableQuery(BaseTest):
     '''

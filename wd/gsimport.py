@@ -1,7 +1,7 @@
 import justpy as jp
-from onlinespreadsheet.googlesheet import GoogleSheet
-from onlinespreadsheet.wikidata import Wikidata
-from onlinespreadsheet.version import Version
+from spreadsheet.googlesheet import GoogleSheet
+from spreadsheet.wikidata import Wikidata
+from spreadsheet.version import Version
 from lodstorage.lod import LOD
 import os
 import sys

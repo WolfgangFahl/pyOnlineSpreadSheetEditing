@@ -10,7 +10,7 @@ from io import BytesIO
 import os
 from onlinespreadsheet.editconfig import EditConfig
 from onlinespreadsheet.webserver import WebServer
-from onlinespreadsheet.spreadsheet import SpreadSheet, ExcelDocument
+from spreadsheet.spreadsheet import SpreadSheet, ExcelDocument
 import re
 
 class TestWebServer(BaseTest):

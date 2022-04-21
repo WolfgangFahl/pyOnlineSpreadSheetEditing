@@ -12,7 +12,7 @@ from wikibot.wikiuser import WikiUser
 from wikibot.wikiclient import WikiClient
 from wikibot.smw import SMWClient
 #from wikibot.wikipush import WikiPush
-from onlinespreadsheet.tableediting import TableEditing
+from spreadsheet.tableediting import TableEditing
 from mwclient.errors import APIError
 from lodstorage.sparql import SPARQL
 

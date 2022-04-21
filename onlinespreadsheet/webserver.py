@@ -28,7 +28,7 @@ from wikibot.wikiuser import WikiUser
 # online spreadsheet
 from onlinespreadsheet.loginBlueprint import LoginBluePrint
 from onlinespreadsheet.profile import ProfileBlueprint
-from onlinespreadsheet.spreadsheet import SpreadSheetType
+from spreadsheet.spreadsheet import SpreadSheetType
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
 from onlinespreadsheet.propertySelector import TrulyTabularForm
 from onlinespreadsheet.wtformsutil import WtFormsUtils
