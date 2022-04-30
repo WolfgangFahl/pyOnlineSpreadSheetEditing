@@ -174,7 +174,6 @@ class GoogleSheetWikidataImport():
         
     def refreshGridSettings(self):
         # enable row selection event handler
-        self.grid.row_data_div = self.row_data_div
         self.grid.on('rowSelected', self.onRowSelected)
         self.grid.options.columnDefs[0].checkboxSelection = True
         self.grid.html_columns = [0,8,9]
@@ -246,16 +245,16 @@ class GoogleSheetWikidataImport():
                 mapDict=self.wbQueries[self.sheetName].propertiesById
                 qid,errors=self.wd.addDict(msg.data, mapDict,write=write)
                 if qid is not None:
-                    self.link.href=f"https://www.wikidata.org/wiki/{qid}"
-                    self.link.text=f"{label}"
+                    link=self.createLink(f"https://www.wikidata.org/wiki/{qid}", f"{label}")
+                    self.df.iloc[msg.rowIndex,0]=link
+                    self.grid.load_pandas_frame(self.df)
+                    self.refreshLod()
+                    self.refreshGridSettings()
                 if len(errors)>0:
                     self.errors.text=errors
                     print(errors)
             except Exception as ex:
                 self.handleException(ex)
-      
-        elif self.rowSelected == msg.rowIndex:
-            self.row_data_div.text = ''
 
     def gridForDataFrame(self):
         '''
@@ -282,8 +281,6 @@ class GoogleSheetWikidataImport():
         self.pkSelect=jp.Select(classes=selectorClasses,a=self.header,value=self.pk,
             change=self.onChangePk)
         jp.Br(a=self.header)
-        self.link=jp.A(a=self.header,href="https://www.wikidata.org/",text="wikidata")
-        self.row_data_div = jp.Div(a=self.container)
         self.errors=jp.Span(a=self.container,style='color:red')
         self.reload()
         return self.wp
