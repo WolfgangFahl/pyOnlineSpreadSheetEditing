@@ -41,6 +41,7 @@ class GoogleSheetWikidataImport():
         self.pk=pk
         self.endpoint=endpoint
         self.lang=lang
+        # @TODO make configurable
         self.wd=Wikidata("https://www.wikidata.org",debug=True)
         self.wd.login()
         self.grid=None
@@ -170,20 +171,29 @@ class GoogleSheetWikidataImport():
         self.refreshGridSettings()
         
     def refreshLod(self):
+        '''
+        refresh my list of dicts (table) from the pandas data frame
+        '''
         self.lod=self.df.to_dict('records')
         
     def refreshGridSettings(self):
-        # enable row selection event handler
+        '''
+        refresh the ag grid settings e.g. enable the row selection event handler
+        enable row selection event handler
+        '''
         self.grid.on('rowSelected', self.onRowSelected)
         self.grid.options.columnDefs[0].checkboxSelection = True
+        # @TODO set html colums according to types
         self.grid.html_columns = [0,8,9]
          
     def reload(self,_msg=None):
         '''
-        reload clicked
+        reload the table content from myl url and sheet name
         '''
         self.load(self.url,self.sheetName)
+        # is there already agrid?
         if self.grid is None:
+            # set up the aggrid
             grid_options={
                 'enableCellTextSelection':True
             }
@@ -191,9 +201,9 @@ class GoogleSheetWikidataImport():
             self.grid=grid
         else:
             self.grid.load_pandas_frame(self.df)
-            self.refreshLod()
-        
+        self.refreshLod()
         self.refreshGridSettings()
+        # set up the primary key selector
         self.pkSelect.delete_components()
         wbQuery=self.wbQueries[self.sheetName]
         for propertyName,row in wbQuery.propertiesByName.items():
@@ -201,33 +211,51 @@ class GoogleSheetWikidataImport():
             if columnName:
                 self.pkSelect.add(jp.Option(value=propertyName,text=columnName))
       
-    def onChangeSheet(self, msg):
+    def onChangeSheet(self, msg:dict):
         '''
         handle selection of a different sheet 
+        
+        Args:
+            msg(dict): the justpy message
         '''
         if self.debug:
             print(msg)
         self.sheetName=msg.value
-        self.reload()
+        try:
+            self.reload()
+        except Exception as ex:
+            self.handleException(ex)
         
-    def onChangePk(self, msg):
+    def onChangePk(self, msg:dict):
         '''
         handle selection of a different primary key
+        
+        Args:
+            msg(dict): the justpy message
         '''
         if self.debug:
             print(msg)
         self.pk=msg.value
-        self.reload()
+        try:
+            self.reload()
+        except Exception as ex:
+            self.handleException(ex)
         
-    def onChangeUrl(self,msg):
+    def onChangeUrl(self,msg:dict):
         '''
         handle selection of a different url
+        
+        Args:
+            msg(dict): the justpy message
         '''
         if self.debug:
             print(msg)
         self.url=msg.value
-        self.reload()
-    
+        try:
+            self.reload()
+        except Exception as ex:
+            self.handleException(ex)
+     
     def onRowSelected(self, msg):
         '''
         row selection event handler
@@ -282,12 +310,15 @@ class GoogleSheetWikidataImport():
             change=self.onChangePk)
         jp.Br(a=self.header)
         self.errors=jp.Span(a=self.container,style='color:red')
-        self.reload()
+        try:
+            self.reload()
+        except Exception as ex:
+            self.handleException(ex)
         return self.wp
     
     def start(self):
         '''
-        start the reactive webserver
+        start the reactive justpy webserver
         '''
         jp.justpy(self.gridForDataFrame)
 
