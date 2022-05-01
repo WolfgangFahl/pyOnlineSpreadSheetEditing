@@ -151,7 +151,8 @@ class GoogleSheetWikidataImport():
                 #https://stackoverflow.com/a/17071908/1497139
                 lodRow=lodByPk[pkValue]
                 self.df.loc[self.df[pkColumn]==pkValue,"item"]=self.createLink(row["item"],row["itemLabel"])
-                self.checkCell(pkColumn,pkValue,"description",row["itemDescription"],propVarname="itemDescription",propType="string",propLabel="")
+                itemDescription=row.get("itemDescription","")
+                self.checkCell(pkColumn,pkValue,"description",itemDescription,propVarname="itemDescription",propType="string",propLabel="")
                 for propVarname,value in row.items():
                     # remap the property variable name to the original property description
                     if propVarname in wbQuery.propertiesByVarname:
@@ -195,7 +196,11 @@ class GoogleSheetWikidataImport():
         if self.grid is None:
             # set up the aggrid
             grid_options={
-                'enableCellTextSelection':True
+                'enableCellTextSelection':True,
+                # enable sorting on all columns by default
+                'defaultColDef': {
+                    'sortable': True
+                },
             }
             grid = self.df.jp.ag_grid(a=self.container,options=grid_options)
             self.grid=grid
