@@ -109,16 +109,38 @@ class GoogleSheetWikidataImport():
         link=f"<a href='{url}' style='color:blue'>{text}</a>"
         return link
     
-    def checkCell(self,pkColumn,pkValue,column,value,propVarname,propType,propLabel):
+    def checkCell(self,pkColumn,pkValue,column,value,propVarname,propType,propLabel,propUrl:str=None):
+        '''
+        update the cell value for the given 
+        
+        Args:    
+            pkColumn(str): primary key column
+            pkValue(str): primary key value
+            value(object): the value to set for the cell
+            propVarName(str): the name of the property Variable set in the SPARQL statement
+            propType(str): the abbreviation for the property Type
+            propLabel(str): the propertyLabel (if any)
+            propUrl(str): the propertyUrl (if any)
+        '''
         dfCell=self.df.loc[self.df[pkColumn]==pkValue,column]
-        dfValue=dfCell.values[0]
+        dfValue=dfCell.values[0] if len(dfCell.values)>0 else None
         valueType=type(value)
-        print(f"{column}({propVarname})={value}({propLabel}:{valueType})⮂{dfValue}")
+        print(f"{column}({propVarname})={value}({propLabel}{propUrl}:{valueType})⮂{dfValue}")
         # overwrite empty cells
-        if not dfValue:
+        overwrite=not dfValue
+        if dfValue:
+            # overwrite values with links
+            if not propType and dfValue==value:
+                overwrite=True
+            if propType=="extid" and dfValue==value:
+                overwrite=True
+        if overwrite and value:
             doadd=True
+            # create links for item  properties
             if not propType:
                 value=self.createLink(value, propLabel)
+            elif propType=="extid":
+                value=self.createLink(propUrl,value)
             if valueType==str:
                 pass    
             elif valueType==datetime.datetime:
@@ -164,8 +186,12 @@ class GoogleSheetWikidataImport():
                                 propLabel=row[f"{propVarname}Label"]
                             else:
                                 propLabel=""
+                            if propType=="extid":
+                                propUrl=row[f"{propVarname}Url"]
+                            else:
+                                propUrl=""
                             if column in lodRow:
-                                self.checkCell(pkColumn,pkValue,column,value,propVarname,propType,propLabel)
+                                self.checkCell(pkColumn,pkValue,column,value,propVarname,propType,propLabel,propUrl)
                            
         self.grid.load_pandas_frame(self.df)
         self.refreshLod()
@@ -185,7 +211,15 @@ class GoogleSheetWikidataImport():
         self.grid.on('rowSelected', self.onRowSelected)
         self.grid.options.columnDefs[0].checkboxSelection = True
         # @TODO set html colums according to types
-        self.grid.html_columns = [0,8,9]
+        self.grid.html_columns = [0]
+        wbQuery=self.wbQueries[self.sheetName]
+        for columnIndex,column in enumerate(self.df.columns):
+            if column in wbQuery.propertiesByColumn:
+                propRow=wbQuery.propertiesByColumn[column]
+                propType=propRow["Type"]
+                if not propType or propType=="extid" or propType=="url":
+                    self.grid.html_columns.append(columnIndex)
+             
          
     def reload(self,_msg=None):
         '''
@@ -278,8 +312,10 @@ class GoogleSheetWikidataImport():
                 mapDict=self.wbQueries[self.sheetName].propertiesById
                 qid,errors=self.wd.addDict(msg.data, mapDict,write=write)
                 if qid is not None:
+                    # set item link
                     link=self.createLink(f"https://www.wikidata.org/wiki/{qid}", f"{label}")
                     self.df.iloc[msg.rowIndex,0]=link
+                    
                     self.grid.load_pandas_frame(self.df)
                     self.refreshLod()
                     self.refreshGridSettings()
