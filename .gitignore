@@ -130,3 +130,5 @@ dmypy.json
 
 # Docs
 docs
+# nohup
+nohup.out

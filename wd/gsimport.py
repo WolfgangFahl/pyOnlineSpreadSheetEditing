@@ -1,22 +1,26 @@
 import justpy as jp
 from spreadsheet.googlesheet import GoogleSheet
 
-from spreadsheet.version import Version
 from lodstorage.lod import LOD
 from lodstorage.sparql import SPARQL
+
 import datetime
+import re
 import os
 import pprint
 import sys
 import traceback
+
+from jp.widgets import MenuButton
+from jp.widgets import MenuLink
+
+from spreadsheet.version import Version
 from spreadsheet.wikidata import Wikidata
 from spreadsheet.wbquery import WikibaseQuery
-
 
 DEBUG = 0
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
-
 
 class GoogleSheetWikidataImport():
     '''
@@ -71,17 +75,32 @@ class GoogleSheetWikidataImport():
         self.gs.open([sheetName])  
         self.df=self.gs.dfs[sheetName]
         self.refreshLod()
+        
+    def getColumnTypeAndVarname(self,propName):
+        '''
+        slightly modified getter to account for "item" special case
+        '''
+        wbQuery=self.wbQueries[self.sheetName]
+        if propName=="item":
+            column="item"
+            propType=""
+            varName="item"
+        else:
+            column,propType,varName=wbQuery.getColumnTypeAndVarname(propName)
+        return wbQuery,column,propType,varName
             
     def onCheckWikidata(self,msg=None):
         '''
         check clicked - check the wikidata content
+        
+        Args:
+            msg(dict): the justpy message
         '''
         if self.debug:
             print(msg)
         try:
-            wbQuery=self.wbQueries[self.sheetName]
             itemRows=self.gs.asListOfDicts(self.sheetName)
-            pkColumn,pkType,pkProp=wbQuery.getColumnTypeAndVarname(self.pk)
+            wbQuery,pkColumn,pkType,pkProp=self.getColumnTypeAndVarname(self.pk)
             itemsByPk,_dup=LOD.getLookup(itemRows,pkColumn)
             if self.debug:
                 print(itemsByPk.keys())
@@ -150,16 +169,28 @@ class GoogleSheetWikidataImport():
                 print(f"{valueType} not added")   
             if doadd:                         
                 self.df.loc[self.df[pkColumn]==pkValue,column]=value
+                
+    def linkWikidataItems(self,itemColumn:str="item"):
+        '''
+        link the wikidata entries in the given item column if containing Q values
         
-    def markGrid(self,rows):
+        Args:
+            itemColumn(str): the name of the column to handle
+        '''
+        for index,row in self.df.iterrows():
+            item=row[itemColumn]
+            if re.match(r"Q[0-9]+",item):
+                itemLink=self.createLink(f"https://www.wikidata.org/wiki/{item}", item)
+                self.df.loc[index,itemColumn]=itemLink
+        
+    def markGrid(self,rows:list):
         '''
         mark my grid with the given rows
         
         Args:
             rows(list): a list of dict with the query result
         '''
-        wbQuery=self.wbQueries[self.sheetName]
-        pkColumn,_pkType,pkProp=wbQuery.getColumnTypeAndVarname(self.pk)
+        wbQuery,pkColumn,_pkType,pkProp=self.getColumnTypeAndVarname(self.pk)
         # get my table data indexed by the primary key
         lodByPk,_dup=LOD.getLookup(self.lod, pkColumn)
         # now check the rows
@@ -210,16 +241,18 @@ class GoogleSheetWikidataImport():
         '''
         self.grid.on('rowSelected', self.onRowSelected)
         self.grid.options.columnDefs[0].checkboxSelection = True
-        # @TODO set html colums according to types
+        # set html columns according to types that have links
+        # first column is item - that is linkable
         self.grid.html_columns = [0]
+        # loop over columns of dataframe
         wbQuery=self.wbQueries[self.sheetName]
         for columnIndex,column in enumerate(self.df.columns):
+            # check whether there is metadata for the column
             if column in wbQuery.propertiesByColumn:
                 propRow=wbQuery.propertiesByColumn[column]
                 propType=propRow["Type"]
                 if not propType or propType=="extid" or propType=="url":
                     self.grid.html_columns.append(columnIndex)
-             
          
     def reload(self,_msg=None):
         '''
@@ -236,14 +269,17 @@ class GoogleSheetWikidataImport():
                     'sortable': True
                 },
             }
+            self.linkWikidataItems()
             grid = self.df.jp.ag_grid(a=self.container,options=grid_options)
             self.grid=grid
         else:
+            self.linkWikidataItems()
             self.grid.load_pandas_frame(self.df)
         self.refreshLod()
         self.refreshGridSettings()
         # set up the primary key selector
         self.pkSelect.delete_components()
+        self.pkSelect.add(jp.Option(value="item",text="item"))
         wbQuery=self.wbQueries[self.sheetName]
         for propertyName,row in wbQuery.propertiesByName.items():
             columnName=row["Column"]
@@ -329,17 +365,19 @@ class GoogleSheetWikidataImport():
         '''
         show aggrid for the given data frame
         '''
-        self.wp = jp.WebPage()
+        self.wp = jp.QuasarPage()
         self.container=jp.Div(a=self.wp)
         self.header=jp.Div(a=self.container)
+        self.reloadButton=MenuButton(a=self.header,text='reload',icon="refresh",click=self.reload)
+        self.checkButton=MenuButton(a=self.header,text='check',icon='check_box',click=self.onCheckWikidata)
+        MenuLink(a=self.header,text="docs",icon="description",href='https://wiki.bitplan.com/index.php/PyOnlineSpreadSheetEditing')
+        MenuLink(a=self.header,text='github',icon='forum', href="https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing")
+        jp.Br(a=self.header)
         # url
         jp.Label(a=self.header,text="Google Spreasheet Url:")
         self.urlInput=jp.Input(a=self.header,placeholder="google sheet url",size=80,value=self.url,change=self.onChangeUrl)
         jp.Br(a=self.header)
         # link to the wikidata item currently imported
-        button_classes = 'w-24 mr-2 mb-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full'
-        self.reloadButton=jp.Button(a=self.header,text='reload',classes=button_classes,click=self.reload)
-        self.checkButton=jp.Button(a=self.header,text='check',classes=button_classes,click=self.onCheckWikidata)
         selectorClasses='w-32 m-4 p-2 bg-white'
         # select for sheets
         self.sheetSelect = jp.Select(classes=selectorClasses, a=self.header, value=self.sheetName,
