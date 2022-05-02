@@ -1,0 +1,15 @@
+#!/bin/bash
+# WF 2022-05-02
+# start Google Spreadssheet Import
+log=/tmp/gsimport.log
+export PYTHONPATH="."
+app="wd/gsimport.py"
+pgrep -fla $app
+if [ $? -eq 0 ]
+then
+  echo "killing running $app"
+  pkill -fla $app
+fi
+nohup python3 $app --url $1 --sheets $2 > $log 2>&1 &
+open http://localhost:8000
+tail -f $log
