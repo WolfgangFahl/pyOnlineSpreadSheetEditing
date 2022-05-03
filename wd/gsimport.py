@@ -3,7 +3,7 @@ from spreadsheet.googlesheet import GoogleSheet
 
 from lodstorage.lod import LOD
 from lodstorage.sparql import SPARQL
-
+import pandas as pd
 import datetime
 import re
 import os
@@ -21,6 +21,55 @@ from spreadsheet.wbquery import WikibaseQuery
 DEBUG = 0
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
+
+class WikidataGrid():
+    '''
+    the tabular data to work with
+    '''
+    def __init__(self,wbQueries):
+        '''
+        constructor
+        
+        wbQueries(dict): the WikibaseQueries
+        df(Dataframe): the pandas dataframe to initialize this grid with
+        '''
+        self.wbQueries=wbQueries
+        
+    def setDataFrame(self,df):
+        self.df=df
+        self.viewDf=pd.DataFrame(df).copy()
+        self.lod=df.to_dict('records')
+        
+    def getColumnTypeAndVarname(self,entityName,propName):
+        '''
+        slightly modified getter to account for "item" special case
+        '''
+        wbQuery=self.wbQueries[entityName]
+        if propName=="item":
+            column="item"
+            propType=""
+            varName="item"
+        else:
+            column,propType,varName=wbQuery.getColumnTypeAndVarname(propName)
+        return wbQuery,column,propType,varName
+    
+    def getHtmlColums(self,entityName):
+        '''
+        get the columns that have html content(links) for the given entityName
+        
+        entityName(str): the name of the entity
+        '''
+        htmlColumns=[0]
+        # loop over columns of dataframe
+        wbQuery=self.wbQueries[entityName]
+        for columnIndex,column in enumerate(self.df.columns):
+            # check whether there is metadata for the column
+            if column in wbQuery.propertiesByColumn:
+                propRow=wbQuery.propertiesByColumn[column]
+                propType=propRow["Type"]
+                if not propType or propType=="extid" or propType=="url":
+                    htmlColumns.append(columnIndex)
+        return htmlColumns    
 
 class GoogleSheetWikidataImport():
     '''
@@ -48,7 +97,8 @@ class GoogleSheetWikidataImport():
         # @TODO make configurable
         self.wd=Wikidata("https://www.wikidata.org",debug=True)
         self.wd.login()
-        self.grid=None
+        self.agGrid=None
+        self.wdgrid=None
         
     def handleException(self,ex):
         '''
@@ -61,7 +111,6 @@ class GoogleSheetWikidataImport():
         if self.debug:
             print(traceback.format_exc())
             
-            
     def load(self,url:str,sheetName:str):
         '''
         load my googlesheet, wikibaseQueries and dataframe
@@ -70,24 +119,12 @@ class GoogleSheetWikidataImport():
             url(str): the url to load the spreadsheet from
             sheetName(str): the sheetName of the sheet/tab to load
         '''
-        self.wbQueries=WikibaseQuery.ofGoogleSheet(url, "Wikidata", debug=self.debug)
+        wbQueries=WikibaseQuery.ofGoogleSheet(url, "Wikidata", debug=self.debug)
         self.gs=GoogleSheet(url)    
         self.gs.open([sheetName])  
-        self.df=self.gs.dfs[sheetName]
-        self.refreshLod()
-        
-    def getColumnTypeAndVarname(self,propName):
-        '''
-        slightly modified getter to account for "item" special case
-        '''
-        wbQuery=self.wbQueries[self.sheetName]
-        if propName=="item":
-            column="item"
-            propType=""
-            varName="item"
-        else:
-            column,propType,varName=wbQuery.getColumnTypeAndVarname(propName)
-        return wbQuery,column,propType,varName
+        df=self.gs.dfs[sheetName]
+        self.wdgrid=WikidataGrid(wbQueries)
+        self.wdgrid.setDataFrame(df)
             
     def onCheckWikidata(self,msg=None):
         '''
@@ -100,12 +137,12 @@ class GoogleSheetWikidataImport():
             print(msg)
         try:
             itemRows=self.gs.asListOfDicts(self.sheetName)
-            wbQuery,pkColumn,pkType,pkProp=self.getColumnTypeAndVarname(self.pk)
+            wbQuery,pkColumn,pkType,pkProp=self.wdgrid.getColumnTypeAndVarname(self.sheetName,self.pk)
             itemsByPk,_dup=LOD.getLookup(itemRows,pkColumn)
             if self.debug:
                 print(itemsByPk.keys())
             lang="en" if pkType =="text" else None
-            valuesClause=wbQuery.getValuesClause(itemsByPk.keys(),pkProp,lang=lang)
+            valuesClause=wbQuery.getValuesClause(itemsByPk.keys(),pkProp,propType=pkType,lang=lang)
             sparqlQuery=wbQuery.asSparql(filterClause=valuesClause,orderClause=f"ORDER BY ?{pkProp}",pk=self.pk)
             if self.debug:
                 print(sparqlQuery)
@@ -128,11 +165,12 @@ class GoogleSheetWikidataImport():
         link=f"<a href='{url}' style='color:blue'>{text}</a>"
         return link
     
-    def checkCell(self,pkColumn,pkValue,column,value,propVarname,propType,propLabel,propUrl:str=None):
+    def checkCell(self,df,pkColumn,pkValue,column,value,propVarname,propType,propLabel,propUrl:str=None):
         '''
         update the cell value for the given 
         
         Args:    
+            df(Dataframe): the dataframe to check 
             pkColumn(str): primary key column
             pkValue(str): primary key value
             value(object): the value to set for the cell
@@ -141,7 +179,7 @@ class GoogleSheetWikidataImport():
             propLabel(str): the propertyLabel (if any)
             propUrl(str): the propertyUrl (if any)
         '''
-        dfCell=self.df.loc[self.df[pkColumn]==pkValue,column]
+        dfCell=df.loc[df[pkColumn]==pkValue,column]
         dfValue=dfCell.values[0] if len(dfCell.values)>0 else None
         valueType=type(value)
         print(f"{column}({propVarname})={value}({propLabel}{propUrl}:{valueType})⮂{dfValue}")
@@ -168,7 +206,7 @@ class GoogleSheetWikidataImport():
                 doadd=False
                 print(f"{valueType} not added")   
             if doadd:                         
-                self.df.loc[self.df[pkColumn]==pkValue,column]=value
+                df.loc[df[pkColumn]==pkValue,column]=value
                 
     def linkWikidataItems(self,itemColumn:str="item"):
         '''
@@ -177,11 +215,12 @@ class GoogleSheetWikidataImport():
         Args:
             itemColumn(str): the name of the column to handle
         '''
-        for index,row in self.df.iterrows():
+        df=self.wdgrid.viewDf
+        for index,row in df.iterrows():
             item=row[itemColumn]
             if re.match(r"Q[0-9]+",item):
                 itemLink=self.createLink(f"https://www.wikidata.org/wiki/{item}", item)
-                self.df.loc[index,itemColumn]=itemLink
+                df.loc[index,itemColumn]=itemLink
         
     def markGrid(self,rows:list):
         '''
@@ -190,77 +229,71 @@ class GoogleSheetWikidataImport():
         Args:
             rows(list): a list of dict with the query result
         '''
-        wbQuery,pkColumn,_pkType,pkProp=self.getColumnTypeAndVarname(self.pk)
+        df=self.wdgrid.viewDf
+        wbQuery,pkColumn,_pkType,pkProp=self.wdgrid.getColumnTypeAndVarname(self.sheetName,self.pk)
         # get my table data indexed by the primary key
-        lodByPk,_dup=LOD.getLookup(self.lod, pkColumn)
+        lodByPk,_dup=LOD.getLookup(self.wdgrid.lod, pkColumn)
         # now check the rows
         for row in rows:
             # get the primary key value
             pkValue=row[pkProp]
+            pkValue=re.sub(r"http://www.wikidata.org/entity/(Q[0-9]+)", r"\1",pkValue)
             # if we have the primary key then we mark the whole row
             if pkValue in lodByPk:
                 if self.debug:
                     print(pkValue)
                 #https://stackoverflow.com/a/17071908/1497139
                 lodRow=lodByPk[pkValue]
-                self.df.loc[self.df[pkColumn]==pkValue,"item"]=self.createLink(row["item"],row["itemLabel"])
+                df.loc[df[pkColumn]==pkValue,"item"]=self.createLink(row["item"],row["itemLabel"])
                 itemDescription=row.get("itemDescription","")
-                self.checkCell(pkColumn,pkValue,"description",itemDescription,propVarname="itemDescription",propType="string",propLabel="")
+                self.checkCell(df,pkColumn,pkValue,"description",itemDescription,propVarname="itemDescription",propType="string",propLabel="")
                 for propVarname,value in row.items():
                     # remap the property variable name to the original property description
                     if propVarname in wbQuery.propertiesByVarname:
                         propRow=wbQuery.propertiesByVarname[propVarname]
-                        if self.debug:
-                            column=propRow["Column"]
-                            propType=propRow["Type"]
-                            if not propType:
-                                propLabel=row[f"{propVarname}Label"]
-                            else:
-                                propLabel=""
-                            if propType=="extid":
-                                propUrl=row[f"{propVarname}Url"]
-                            else:
-                                propUrl=""
-                            if column in lodRow:
-                                self.checkCell(pkColumn,pkValue,column,value,propVarname,propType,propLabel,propUrl)
-                           
-        self.grid.load_pandas_frame(self.df)
-        self.refreshLod()
-        self.refreshGridSettings()
+                        column=propRow["Column"]
+                        propType=propRow["Type"]
+                        if not propType:
+                            propLabel=row[f"{propVarname}Label"]
+                        else:
+                            propLabel=""
+                        if propType=="extid":
+                            propUrl=row[f"{propVarname}Url"]
+                        else:
+                            propUrl=""
+                        if column in lodRow:
+                            self.checkCell(df,pkColumn,pkValue,column,value,propVarname,propType,propLabel,propUrl)
+                       
+        self.reloadAgGrid(df)      
         
-    def refreshLod(self):
+    def reloadAgGrid(self,df,showLimit=10):
         '''
-        refresh my list of dicts (table) from the pandas data frame
+        reload the agGrid
         '''
-        self.lod=self.df.to_dict('records')
+        self.agGrid.load_pandas_frame(df)
+        if self.debug:
+            lod=df.to_dict('records')
+            pprint.pprint(lod[:showLimit])
+        self.refreshGridSettings()
         
     def refreshGridSettings(self):
         '''
         refresh the ag grid settings e.g. enable the row selection event handler
         enable row selection event handler
         '''
-        self.grid.on('rowSelected', self.onRowSelected)
-        self.grid.options.columnDefs[0].checkboxSelection = True
+        self.agGrid.on('rowSelected', self.onRowSelected)
+        self.agGrid.options.columnDefs[0].checkboxSelection = True
         # set html columns according to types that have links
-        # first column is item - that is linkable
-        self.grid.html_columns = [0]
-        # loop over columns of dataframe
-        wbQuery=self.wbQueries[self.sheetName]
-        for columnIndex,column in enumerate(self.df.columns):
-            # check whether there is metadata for the column
-            if column in wbQuery.propertiesByColumn:
-                propRow=wbQuery.propertiesByColumn[column]
-                propType=propRow["Type"]
-                if not propType or propType=="extid" or propType=="url":
-                    self.grid.html_columns.append(columnIndex)
+        self.agGrid.html_columns = self.wdgrid.getHtmlColums(self.sheetName)
          
     def reload(self,_msg=None):
         '''
         reload the table content from myl url and sheet name
         '''
         self.load(self.url,self.sheetName)
+        df=self.wdgrid.viewDf
         # is there already agrid?
-        if self.grid is None:
+        if self.agGrid is None:
             # set up the aggrid
             grid_options={
                 'enableCellTextSelection':True,
@@ -269,18 +302,13 @@ class GoogleSheetWikidataImport():
                     'sortable': True
                 },
             }
-            self.linkWikidataItems()
-            grid = self.df.jp.ag_grid(a=self.container,options=grid_options)
-            self.grid=grid
-        else:
-            self.linkWikidataItems()
-            self.grid.load_pandas_frame(self.df)
-        self.refreshLod()
-        self.refreshGridSettings()
+            self.agGrid = jp.AgGrid(a=self.container,options=grid_options)
+        self.linkWikidataItems()
+        self.reloadAgGrid(df)
         # set up the primary key selector
         self.pkSelect.delete_components()
         self.pkSelect.add(jp.Option(value="item",text="item"))
-        wbQuery=self.wbQueries[self.sheetName]
+        wbQuery=self.wdgrid.wbQueries[self.sheetName]
         for propertyName,row in wbQuery.propertiesByName.items():
             columnName=row["Column"]
             if columnName:
@@ -338,6 +366,7 @@ class GoogleSheetWikidataImport():
         Args:
             msg(dict): row selection information
         '''
+        df=self.wdgrid.viewDf
         if self.debug:
             print(msg)
         if msg.selected:
@@ -350,10 +379,9 @@ class GoogleSheetWikidataImport():
                 if qid is not None:
                     # set item link
                     link=self.createLink(f"https://www.wikidata.org/wiki/{qid}", f"{label}")
-                    self.df.iloc[msg.rowIndex,0]=link
+                    df.iloc[msg.rowIndex,0]=link
                     
-                    self.grid.load_pandas_frame(self.df)
-                    self.refreshLod()
+                    self.agGrid.load_pandas_frame(df)
                     self.refreshGridSettings()
                 if len(errors)>0:
                     self.errors.text=errors
