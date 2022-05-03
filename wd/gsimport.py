@@ -155,14 +155,12 @@ class GridSync():
         '''
         cellValue=viewLodRow[column]
         valueType=type(value)
-        print(f"{column}({propVarname})={value}({propLabel}{propUrl}:{valueType})⮂{cellValue}")
+        print(f"{column}({propVarname})={value}({propLabel}:{propUrl}:{valueType})⮂{cellValue}")
         # overwrite empty cells
         overwrite=not cellValue
         if cellValue:
             # overwrite values with links
-            if not propType and cellValue==value:
-                overwrite=True
-            if propType=="extid" and cellValue==value:
+            if propUrl and cellValue==value:
                 overwrite=True
         if overwrite and value:
             doadd=True
@@ -217,6 +215,11 @@ class GridSync():
                             propUrl=wbRow[f"{propVarname}Url"]
                         else:
                             propUrl=""
+                        # Linked Or
+                        if value.startswith("http://www.wikidata.org/entity/") and f"{propVarname}Label" in wbRow:
+                            propUrl=value
+                            propLabel=wbRow[f"{propVarname}Label"]
+                            value=propLabel
                         if column in lodRow:
                             self.checkCell(viewLodRow,column,value,propVarname,propType,propLabel,propUrl)   
 
@@ -401,7 +404,6 @@ class GoogleSheetWikidataImport():
         Args:
             msg(dict): row selection information
         '''
-        df=self.wdgrid.viewDf
         if self.debug:
             print(msg)
         if msg.selected:
@@ -415,7 +417,6 @@ class GoogleSheetWikidataImport():
                     # set item link
                     link=self.wdgrid.createLink(f"https://www.wikidata.org/wiki/{qid}", f"{label}")
                     self.wdgrid.viewLod[msg.rowIndex]["item"]=link
-                    
                     self.agGrid.load_lod(self.wdgrid.viewLod)
                     self.refreshGridSettings()
                 if len(errors)>0:
