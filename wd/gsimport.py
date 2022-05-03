@@ -109,10 +109,11 @@ class WikidataGrid():
             itemColumn(str): the name of the column to handle
         '''
         for row in viewLod:
-            item=row[itemColumn]
-            if re.match(r"Q[0-9]+",item):
-                itemLink=self.createLink(f"https://www.wikidata.org/wiki/{item}", item)
-                row[itemColumn]=itemLink
+            if itemColumn in row:
+                item=row[itemColumn]
+                if re.match(r"Q[0-9]+",item):
+                    itemLink=self.createLink(f"https://www.wikidata.org/wiki/{item}", item)
+                    row[itemColumn]=itemLink
     
 class GridSync():
     '''
@@ -216,7 +217,7 @@ class GridSync():
                         else:
                             propUrl=""
                         # Linked Or
-                        if value.startswith("http://www.wikidata.org/entity/") and f"{propVarname}Label" in wbRow:
+                        if type(value)==str and value.startswith("http://www.wikidata.org/entity/") and f"{propVarname}Label" in wbRow:
                             propUrl=value
                             propLabel=wbRow[f"{propVarname}Label"]
                             value=propLabel
