@@ -30,6 +30,6 @@ setup(name=Version.name,
             'Programming Language :: Python :: 3.9',
             'Programming Language :: Python :: 3.10',
       ],
-    packages=['onlinespreadsheet',],
+    packages=['onlinespreadsheet','jp','wd'],
     install_requires=requirements,
     zip_safe=False)
