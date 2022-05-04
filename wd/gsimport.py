@@ -250,7 +250,6 @@ class GoogleSheetWikidataImport():
         self.lang=lang
         # @TODO make configurable
         self.wd=Wikidata("https://www.wikidata.org",debug=True)
-        self.wd.login()
         self.agGrid=None
         self.wdgrid=None
         
@@ -397,6 +396,23 @@ class GoogleSheetWikidataImport():
             self.reload()
         except Exception as ex:
             self.handleException(ex)
+            
+    def onLogin(self,msg:dict):
+        '''
+        handle Login
+        Args:
+            msg(dict): the justpy message
+        '''
+        if self.debug:
+            print(msg)
+        if self.wd.user is None:
+            self.wd.loginWithCredentials()
+            self.loginButton.text="logout"
+            self.loginButton.icon="chevron_left"
+        else:
+            self.wd.logout()
+            self.loginButton.text="login"
+            self.loginButton.icon="chevron_right"
      
     def onRowSelected(self, msg):
         '''
@@ -433,10 +449,14 @@ class GoogleSheetWikidataImport():
         self.wp = jp.QuasarPage()
         self.container=jp.Div(a=self.wp)
         self.header=jp.Div(a=self.container)
-        self.reloadButton=MenuButton(a=self.header,text='reload',icon="refresh",click=self.reload)
-        self.checkButton=MenuButton(a=self.header,text='check',icon='check_box',click=self.onCheckWikidata)
-        MenuLink(a=self.header,text="docs",icon="description",href='https://wiki.bitplan.com/index.php/PyOnlineSpreadSheetEditing')
-        MenuLink(a=self.header,text='github',icon='forum', href="https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing")
+        self.toolbar=jp.QToolbar(a=self.header)
+        # for icons see  https://quasar.dev/vue-components/icon
+        # see justpy/templates/local/materialdesignicons/iconfont/codepoints for available icons    
+        self.reloadButton=MenuButton(a=self.toolbar,text='reload',icon="refresh",click=self.reload)
+        self.checkButton=MenuButton(a=self.toolbar,text='check',icon='check_box',click=self.onCheckWikidata)
+        MenuLink(a=self.toolbar,text="docs",icon="description",href='https://wiki.bitplan.com/index.php/PyOnlineSpreadSheetEditing')
+        MenuLink(a=self.toolbar,text='github',icon='forum', href="https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing")
+        self.loginButton=MenuButton(a=self.toolbar,icon='chevron_right',text="login",click=self.onLogin)
         jp.Br(a=self.header)
         # url
         jp.Label(a=self.header,text="Google Spreadsheet Url: ")
