@@ -414,17 +414,20 @@ class GoogleSheetWikidataImport():
         '''
         if self.debug:
             print(msg)
-        if self.wd.user is None:
-            self.wd.loginWithCredentials()
-            self.loginButton.text="logout"
-            self.loginButton.icon="chevron_left"
-            self.dryRunButton.disable=False
-        else:
-            self.wd.logout()
-            self.dryRunButton.value=True
-            self.dryRunButton.disable=True
-            self.loginButton.text="login"
-            self.loginButton.icon="chevron_right"
+        try:    
+            if self.wd.user is None:
+                self.wd.loginWithCredentials()
+                self.loginButton.text="logout"
+                self.loginButton.icon="chevron_left"
+                self.dryRunButton.disable=False
+            else:
+                self.wd.logout()
+                self.dryRunButton.value=True
+                self.dryRunButton.disable=True
+                self.loginButton.text="login"
+                self.loginButton.icon="chevron_right"
+        except Exception as ex:
+                self.handleException(ex)
      
     def onRowSelected(self, msg):
         '''
