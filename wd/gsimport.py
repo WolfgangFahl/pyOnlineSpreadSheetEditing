@@ -397,6 +397,15 @@ class GoogleSheetWikidataImport():
         except Exception as ex:
             self.handleException(ex)
             
+    def onChangeDryRun(self,msg:dict):
+        '''
+        handle change of DryRun setting
+        
+        Args:
+            msg(dict): the justpy message
+        '''
+        self.dryRun=msg.value
+            
     def onLogin(self,msg:dict):
         '''
         handle Login
@@ -409,8 +418,11 @@ class GoogleSheetWikidataImport():
             self.wd.loginWithCredentials()
             self.loginButton.text="logout"
             self.loginButton.icon="chevron_left"
+            self.dryRunButton.disable=False
         else:
             self.wd.logout()
+            self.dryRunButton.value=True
+            self.dryRunButton.disable=True
             self.loginButton.text="login"
             self.loginButton.icon="chevron_right"
      
@@ -425,7 +437,7 @@ class GoogleSheetWikidataImport():
             print(msg)
         if msg.selected:
             self.rowSelected = msg.rowIndex
-            write=True
+            write=not self.dryRun
             label=msg.data["label"]
             try:
                 mapDict=self.wdgrid.wbQueries[self.sheetName].propertiesById
@@ -457,11 +469,13 @@ class GoogleSheetWikidataImport():
         MenuLink(a=self.toolbar,text="docs",icon="description",href='https://wiki.bitplan.com/index.php/PyOnlineSpreadSheetEditing')
         MenuLink(a=self.toolbar,text='github',icon='forum', href="https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing")
         self.loginButton=MenuButton(a=self.toolbar,icon='chevron_right',text="login",click=self.onLogin)
-        jp.Br(a=self.header)
+        #jp.Br(a=self.header)
         # url
-        jp.Label(a=self.header,text="Google Spreadsheet Url: ")
-        self.urlInput=jp.Input(a=self.header,placeholder="google sheet url",size=80,value=self.url,change=self.onChangeUrl)
-        self.gsheetUrl=jp.A(a=self.header,text=self.url,href=self.url)
+        urlLabelText="Google Spreadsheet Url"
+        self.gsheetUrl=jp.A(a=self.header,href=self.url,target="_blank",title=urlLabelText)
+        self.linkIcon=jp.QIcon(a=self.gsheetUrl,name="link",size="md")
+        self.urlInput=jp.Input(a=self.header,placeholder=urlLabelText,size=80,value=self.url,change=self.onChangeUrl)
+        self.dryRunButton=jp.QToggle(a=self.header,text="dry run",value=True,disable=True,change=self.onChangeDryRun)
         jp.Br(a=self.header)
         # link to the wikidata item currently imported
         selectorClasses='w-32 m-4 p-2 bg-white'
@@ -519,7 +533,7 @@ USAGE
         parser.add_argument("-d", "--debug", dest="debug",   action="store_true", help="set debug [default: %(default)s]")
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
         parser.add_argument('--endpoint',help="the endpoint to use [default: %(default)s]",default="https://query.wikidata.org/sparql")
-        parser.add_argument('--dryrun', action="store_true", dest='dryrun', help="dry run only")
+        #parser.add_argument('--dryrun', action="store_true", dest='dryrun', help="dry run only")
         parser.add_argument('--url')
         parser.add_argument('--sheets',nargs="+",required=True)
         parser.add_argument('--pk')
