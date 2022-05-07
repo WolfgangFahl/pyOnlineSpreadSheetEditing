@@ -504,7 +504,8 @@ class GoogleSheetWikidataImport():
         self.gsheetUrl=jp.A(a=self.header,href=self.url,target="_blank",title=urlLabelText)
         self.linkIcon=jp.QIcon(a=self.gsheetUrl,name="link",size="md")
         self.urlInput=jp.Input(a=self.header,placeholder=urlLabelText,size=80,value=self.url,change=self.onChangeUrl)
-        self.dryRunButton=jp.QToggle(a=self.header,text="dry run",value=True,disable=True,change=self.onChangeDryRun)
+        self.dryRunButton=jp.QToggle(a=self.header,text="dry run",value=True,disable=True)
+        self.dryRunButton.on("input",self.onChangeDryRun)
         jp.Br(a=self.header)
         # link to the wikidata item currently imported
         selectorClasses='w-32 m-4 p-2 bg-white'
