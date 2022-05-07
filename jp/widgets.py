@@ -58,6 +58,50 @@ class MenuLink(MenuButton):
         constructor
         '''
         super().__init__(**kwargs,type="a",target="_blank")
+        
+class QPasswordDialog(jp.QDialog):
+    '''
+    a Quasar framework based password dialog
+    '''
+    password_dialog_html="""
+<q-card>
+  <q-card-section>
+      <q-form class="q-gutter-md">
+        <q-input clearable type='text' name="user" label="User"/>
+        <q-input clearable type='password' name="password" label="Password">
+          <q-icon name="visibility_off"/>
+        </q-input>
+      </q-form> 
+  </q-card-section>
+
+  <q-card-actions align="right">
+    <q-btn flat name="Login" label="Login" color="primary" v-close-popup></q-btn>
+    <q-btn flat name="Cancel" label="Cancel" color="primary" v-close-popup></q-btn>
+  </q-card-actions>
+</q-card>
+"""
+    def onVisibilityClick(self,_msg):
+        #print(msg)
+        vt=self.visibilityToggle
+        if vt.name=="visibility_off":
+            vt.name="visibility"
+            self.passwordInput.type="text"
+        else:
+            vt.name="visibility_off"
+            self.passwordInput.type="password"
+                
+    def __init__(self,**kwargs):
+        '''
+        constructor
+        '''
+        jp.QDialog.__init__(self,**kwargs)
+        self.card=jp.parse_html(QPasswordDialog.password_dialog_html,a=self)
+        self.loginButton=self.card.name_dict["Login"]
+        self.cancelButton=self.card.name_dict["Cancel"]
+        self.userInput=self.card.name_dict["user"]
+        self.passwordInput=self.card.name_dict["password"]
+        self.visibilityToggle=self.card.name_dict["visibility_off"]
+        self.visibilityToggle.on("click",self.onVisibilityClick)
  
 
         

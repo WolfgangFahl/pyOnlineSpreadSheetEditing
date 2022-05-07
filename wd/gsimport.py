@@ -11,7 +11,7 @@ import pprint
 import sys
 import traceback
 
-from jp.widgets import LodGrid,MenuButton, MenuLink
+from jp.widgets import LodGrid,MenuButton, MenuLink, QPasswordDialog
 
 from spreadsheet.version import Version
 from spreadsheet.wikidata import Wikidata
@@ -252,6 +252,7 @@ class GoogleSheetWikidataImport():
         self.wd=Wikidata("https://www.wikidata.org",debug=True)
         self.agGrid=None
         self.wdgrid=None
+        self.dryRun=True
         
     def handleException(self,ex):
         '''
@@ -305,8 +306,6 @@ class GoogleSheetWikidataImport():
             self.reloadAgGrid(viewLod)
         except Exception as ex:
             self.handleException(ex)
-            
-  
            
     def reloadAgGrid(self,viewLod:list,showLimit=10):
         '''
@@ -406,6 +405,21 @@ class GoogleSheetWikidataImport():
         '''
         self.dryRun=msg.value
             
+    def loginUser(self,user):
+        self.loginButton.text=f"logout {user}"
+        self.loginButton.icon="chevron_left"
+        self.dryRunButton.disable=False
+        
+    def onloginViaDialog(self,_msg):
+        '''
+        handle login via dialog
+        '''
+        user=self.passwordDialog.userInput.value
+        password=self.passwordDialog.passwordInput.value
+        self.wd.loginWithCredentials(user, password)
+        if self.wd.user is not None:
+            self.loginUser(self.wd.user)
+        
     def onLogin(self,msg:dict):
         '''
         handle Login
@@ -417,9 +431,11 @@ class GoogleSheetWikidataImport():
         try:    
             if self.wd.user is None:
                 self.wd.loginWithCredentials()
-                self.loginButton.text="logout"
-                self.loginButton.icon="chevron_left"
-                self.dryRunButton.disable=False
+                if self.wd.user is None:
+                    self.passwordDialog.loginButton.on("click",self.onloginViaDialog)
+                    self.passwordDialog.value=True
+                else:
+                    self.loginUser(self.wd.user)
             else:
                 self.wd.logout()
                 self.dryRunButton.value=True
@@ -472,6 +488,7 @@ class GoogleSheetWikidataImport():
         MenuLink(a=self.toolbar,text="docs",icon="description",href='https://wiki.bitplan.com/index.php/PyOnlineSpreadSheetEditing')
         MenuLink(a=self.toolbar,text='github',icon='forum', href="https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing")
         self.loginButton=MenuButton(a=self.toolbar,icon='chevron_right',text="login",click=self.onLogin)
+        self.passwordDialog=QPasswordDialog(a=self.wp)
         #jp.Br(a=self.header)
         # url
         urlLabelText="Google Spreadsheet Url"
