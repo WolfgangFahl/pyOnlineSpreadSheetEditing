@@ -103,5 +103,30 @@ class QPasswordDialog(jp.QDialog):
         self.visibilityToggle=self.card.name_dict["visibility_off"]
         self.visibilityToggle.on("click",self.onVisibilityClick)
  
+class QAlert(jp.QDialog):
+    '''
+    alert dialog
+    '''
+    alert_dialog_html = """
+<q-card>
+  <q-card-section>
+    <div name="alertTitle" class="text-h6">Alert</div>
+  </q-card-section>
 
+  <q-card-section name="alertContent">
+  </q-card-section>
+
+  <q-card-actions align="right">
+    <q-btn flat label="OK" color="primary" v-close-popup />
+  </q-card-actions>
+</q-card>
+"""
+    def __init__(self,**kwargs):
+        '''
+        constructor
+        '''
+        jp.QDialog.__init__(self,**kwargs)
+        self.card=jp.parse_html(QAlert.alert_dialog_html,a=self)
+        self.alertTitle=self.card.name_dict["alertTitle"]
+        self.alertContent=self.card.name_dict["alertContent"]
         

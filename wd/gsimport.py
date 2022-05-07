@@ -3,6 +3,7 @@ from spreadsheet.googlesheet import GoogleSheet
 
 from lodstorage.lod import LOD
 from lodstorage.sparql import SPARQL
+from markupsafe import Markup
 import copy
 import datetime
 import re
@@ -11,7 +12,7 @@ import pprint
 import sys
 import traceback
 
-from jp.widgets import LodGrid,MenuButton, MenuLink, QPasswordDialog
+from jp.widgets import LodGrid,MenuButton, MenuLink, QAlert,QPasswordDialog
 
 from spreadsheet.version import Version
 from spreadsheet.wikidata import Wikidata
@@ -470,6 +471,13 @@ class GoogleSheetWikidataImport():
                 if len(errors)>0:
                     self.errors.text=errors
                     print(errors)
+                if self.dryRun:
+                    prettyData=pprint.pformat(msg.data)
+                    html=Markup(f"<pre>{prettyData}</pre>")
+                    self.alertDialog.alertContent.inner_html=html
+                    self.alertDialog.alertTitle.text=f"Dry Run for {label}"
+                    self.alertDialog.value=True
+                    
             except Exception as ex:
                 self.handleException(ex)
 
@@ -489,6 +497,7 @@ class GoogleSheetWikidataImport():
         MenuLink(a=self.toolbar,text='github',icon='forum', href="https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing")
         self.loginButton=MenuButton(a=self.toolbar,icon='chevron_right',text="login",click=self.onLogin)
         self.passwordDialog=QPasswordDialog(a=self.wp)
+        self.alertDialog=QAlert(a=self.wp)
         #jp.Br(a=self.header)
         # url
         urlLabelText="Google Spreadsheet Url"
