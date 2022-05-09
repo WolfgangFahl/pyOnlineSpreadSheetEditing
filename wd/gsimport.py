@@ -118,6 +118,7 @@ class WikidataGrid():
     
 class GridSync():
     '''
+    allow syncing the grid with data from wikibase
     '''
     def __init__(self,wdgrid,sheetName,pk,debug:bool=False):
         self.wdgrid=wdgrid
@@ -297,7 +298,7 @@ class GoogleSheetWikidataImport():
             print(msg)
         try:
             # prepare syncing the table results with the wikibase query result
-            gridSync=GridSync(self.wdgrid,self.sheetName,self.pk)
+            gridSync=GridSync(self.wdgrid,self.sheetName,self.pk,debug=self.debug)
             # query based on table content
             gridSync.query(self.sparql)
             # get the view copy to insert result as html statements
