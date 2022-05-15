@@ -12,7 +12,7 @@ import pprint
 import sys
 import traceback
 
-from jp.widgets import LodGrid,MenuButton, MenuLink, QAlert,QPasswordDialog
+from jpwidgets.widgets import LodGrid,MenuButton, MenuLink, QAlert,QPasswordDialog
 
 from spreadsheet.version import Version
 from spreadsheet.wikidata import Wikidata
@@ -251,10 +251,17 @@ class GoogleSheetWikidataImport():
         self.sparql=SPARQL(self.endpoint)
         self.lang=lang
         # @TODO make configurable
+        self.metaDataSheetName="WikidataMetadata"
         self.wd=Wikidata("https://www.wikidata.org",debug=True)
         self.agGrid=None
         self.wdgrid=None
         self.dryRun=True
+        
+    def clearErrors(self):
+        '''
+        clear the error display
+        '''
+        self.errors.inner_html=""
         
     def handleException(self,ex):
         '''
@@ -273,7 +280,7 @@ class GoogleSheetWikidataImport():
         if self.debug:
             print(trace)
             
-    def load(self,url:str,sheetName:str):
+    def load(self,url:str,sheetName:str,metaDataSheetName="WikidataMetadata"):
         '''
         load my googlesheet, wikibaseQueries and dataframe
         
@@ -281,7 +288,7 @@ class GoogleSheetWikidataImport():
             url(str): the url to load the spreadsheet from
             sheetName(str): the sheetName of the sheet/tab to load
         '''
-        wbQueries=WikibaseQuery.ofGoogleSheet(url, "Wikidata", debug=self.debug)
+        wbQueries=WikibaseQuery.ofGoogleSheet(url, metaDataSheetName, debug=self.debug)
         self.wdgrid=WikidataGrid(wbQueries)
         self.gs=GoogleSheet(url)    
         self.gs.open([sheetName])  
@@ -297,6 +304,7 @@ class GoogleSheetWikidataImport():
         if self.debug:
             print(msg)
         try:
+            self.clearErrors()
             # prepare syncing the table results with the wikibase query result
             gridSync=GridSync(self.wdgrid,self.sheetName,self.pk,debug=self.debug)
             # query based on table content
@@ -331,11 +339,13 @@ class GoogleSheetWikidataImport():
         # set html columns according to types that have links
         self.agGrid.html_columns = self.wdgrid.getHtmlColums(self.sheetName)
          
-    def reload(self,_msg=None):
+    def reload(self,_msg=None,clearErrors=True):
         '''
         reload the table content from myl url and sheet name
         '''
-        self.load(self.url,self.sheetName)
+        if clearErrors:
+            self.clearErrors()
+        self.load(self.url,self.sheetName,self.metaDataSheetName)
         # is there already agrid?
         if self.agGrid is None:
             self.agGrid = LodGrid(a=self.container)
@@ -358,6 +368,7 @@ class GoogleSheetWikidataImport():
         Args:
             msg(dict): the justpy message
         '''
+       
         if self.debug:
             print(msg)
         self.sheetName=msg.value
@@ -431,6 +442,7 @@ class GoogleSheetWikidataImport():
         if self.debug:
             print(msg)
         try:    
+            self.clearErrors()
             if self.wd.user is None:
                 self.wd.loginWithCredentials()
                 if self.wd.user is None:
@@ -456,6 +468,7 @@ class GoogleSheetWikidataImport():
         '''
         if self.debug:
             print(msg)
+        self.clearErrors()
         if msg.selected:
             self.rowSelected = msg.rowIndex
             write=not self.dryRun
