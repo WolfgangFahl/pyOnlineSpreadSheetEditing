@@ -256,6 +256,7 @@ class GoogleSheetWikidataImport():
         self.agGrid=None
         self.wdgrid=None
         self.dryRun=True
+        self.ignoreErrors=False
         
     def clearErrors(self):
         '''
@@ -417,6 +418,15 @@ class GoogleSheetWikidataImport():
             msg(dict): the justpy message
         '''
         self.dryRun=msg.value
+        
+    def onChangeIgnoreErrors(self,msg:dict):
+        '''
+        handle change of IgnoreErrors setting
+        
+        Args:
+            msg(dict): the justpy message
+        '''
+        self.ignoreErrors=msg.value    
             
     def loginUser(self,user):
         self.loginButton.text=f"logout {user}"
@@ -475,7 +485,7 @@ class GoogleSheetWikidataImport():
             label=msg.data["label"]
             try:
                 mapDict=self.wdgrid.wbQueries[self.sheetName].propertiesById
-                qid,errors=self.wd.addDict(msg.data, mapDict,write=write)
+                qid,errors=self.wd.addDict(msg.data, mapDict,write=write,ignoreErrors=self.ignoreErrors)
                 if qid is not None:
                     # set item link
                     link=self.wdgrid.createLink(f"https://www.wikidata.org/wiki/{qid}", f"{label}")
@@ -520,6 +530,8 @@ class GoogleSheetWikidataImport():
         self.urlInput=jp.Input(a=self.header,placeholder=urlLabelText,size=80,value=self.url,change=self.onChangeUrl)
         self.dryRunButton=jp.QToggle(a=self.header,text="dry run",value=True,disable=True)
         self.dryRunButton.on("input",self.onChangeDryRun)
+        self.ignoreErrorsButton=jp.QToggle(a=self.header,text="ignore errors",value=self.ignoreErrors)
+        self.ignoreErrorsButton.on("input",self.onChangeIgnoreErrors)
         jp.Br(a=self.header)
         # link to the wikidata item currently imported
         selectorClasses='w-32 m-4 p-2 bg-white'
