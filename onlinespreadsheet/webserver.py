@@ -463,7 +463,10 @@ class WebServer(AppWrap):
                 ttForm.itemDescription.data=tt.item.description
                 if ttForm.instancesButton.data or autoFill:
                     count=tt.count()
-                    ttForm.itemCount.data=count
+                    if count is not None:
+                        ttForm.itemCount.data=count
+                    if tt.error is not None:
+                        flash(str(tt.error),'error')
                 if ttForm.propertiesButton.data or autoFill:
                     # TODO: solve security issue for whereClause ttForm.whereClause.data
                     query=tt.mostFrequentPropertiesQuery()    

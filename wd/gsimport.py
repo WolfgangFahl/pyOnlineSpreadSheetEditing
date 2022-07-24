@@ -557,6 +557,7 @@ class GoogleSheetWikidataImport():
         '''
         jp.justpy(self.gridForDataFrame)
 
+# command line call
 def main(argv=None): # IGNORE:C0111
     '''main program.'''
 

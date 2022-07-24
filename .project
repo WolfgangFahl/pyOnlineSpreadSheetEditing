@@ -5,6 +5,7 @@
 	<projects>
 		<project>pyFlaskBootstrap4</project>
 		<project>PyGenericSpreadSheet</project>
+		<project>pyJustpyWidgets</project>
 		<project>pyLoDStorage</project>
 	</projects>
 	<buildSpec>
