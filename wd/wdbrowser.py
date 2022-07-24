@@ -10,6 +10,8 @@ import justpy as jp
 from jpwidgets.bt5widgets import App
 import onlinespreadsheet.version as version
 from lodstorage.query import EndpointManager
+from lodstorage.trulytabular import TrulyTabular, WikidataItem
+
 from wd.wdsearch import WikidataSearch
 
 class WikiDataBrowser(App):
@@ -174,10 +176,18 @@ class WikiDataBrowser(App):
         except Exception as ex:
             self.handleException(ex)
             
-   
+    def selectItem(self,itemId):
+        self.feedback.text = f"item {itemId} selected"
+        self.tt=TrulyTabular(itemId)
+        self.feedback.text = f"trulytabular {str(self.tt)} initiated"
+        pass
             
     def onItemSelect(self,msg):
-        self.feedback.text = f"item {msg.value} selected"
+        self.selectItem(msg.value) 
+        
+    def onItemInput(self,_msg):
+        self.selectItem(self.itemSelect.value)
+       
         
     def onChangeLanguage(self,msg):
         self.language=msg.value
@@ -193,7 +203,6 @@ class WikiDataBrowser(App):
         inputLabel=jp.Label(text=text,a=a,classes="form-label label")
         jpinput=jp.Input(a=a,classes="form-input",size=30,placeholder=placeholder)
         jpinput.on('input', change)
-        jpinput.on('change', change)   
         inputLabel.for_component=inputLabel
         return jpinput
     
@@ -212,7 +221,9 @@ class WikiDataBrowser(App):
         colB2=jp.Div(classes="col-3",a=rowB)
         rowC=jp.Div(classes="row",a=self.contentbox)
         
-        self.item=self.createInput(text="Wikidata item", a=colA1, placeholder='Please type here to search ...',change=self.onItemChange) 
+        self.item=self.createInput(text="Wikidata item", a=colA1, placeholder='Please type here to search ...',change=self.onItemChange)
+        # on enter use the currently selected item 
+        self.item.on('change', self.onItemInput)   
         self.itemSelect=jp.Select(classes="form-select",a=colA2,change=self.onItemSelect)
      
         
@@ -229,6 +240,7 @@ class WikiDataBrowser(App):
             self.languageSelect.add(jp.Option(value=lang,text=desc))
             
         self.feedback=jp.Div(a=rowC)
+        
         self.errors=jp.Span(a=rowC,style='color:red')
         return wp
         
