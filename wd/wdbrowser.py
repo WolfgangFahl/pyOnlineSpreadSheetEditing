@@ -9,7 +9,7 @@ import traceback
 import justpy as jp
 from jpwidgets.bt5widgets import App
 import onlinespreadsheet.version as version
-from lodstorage.query import EndpointManager
+from lodstorage.query import EndpointManager, QuerySyntaxHighlight
 from lodstorage.trulytabular import TrulyTabular, WikidataItem
 
 from wd.wdsearch import WikidataSearch
@@ -176,10 +176,24 @@ class WikiDataBrowser(App):
         except Exception as ex:
             self.handleException(ex)
             
+    def getMostFrequentlyUsedProperties(self,tt):
+        try:
+            query=tt.mostFrequentPropertiesQuery()    
+            qs=QuerySyntaxHighlight(query)
+            queryHigh=qs.highlight()
+            # TODO: configure via endpoint configuration
+            tryItUrl="https://query.wikidata.org/"
+            tryItUrlEncoded=query.getTryItUrl(tryItUrl)
+            self.queryDiv.inner_html=queryHigh
+            self.tryItLink=jp.Link(href=tryItUrlEncoded,text="try it!",title="try out with wikidata query service",a=self.queryTryIt)
+        except Exception as ex:
+            self.handleException(ex)
+            
     def selectItem(self,itemId):
         self.feedback.text = f"item {itemId} selected"
         self.tt=TrulyTabular(itemId)
         self.feedback.text = f"trulytabular {str(self.tt)} initiated"
+        self.getMostFrequentlyUsedProperties(self.tt)
         pass
             
     def onItemSelect(self,msg):
@@ -210,17 +224,21 @@ class WikiDataBrowser(App):
         '''
         browse
         '''
-        head="""<link rel="stylesheet" href="/static/css/md_style_indigo.css">"""
+        head="""<link rel="stylesheet" href="/static/css/md_style_indigo.css">
+<link rel="stylesheet" href="/static/css/pygments.css">
+"""
         wp=self.getWp(head)
         rowA=jp.Div(classes="row",a=self.contentbox)
         colA1=jp.Div(classes="col-3",a=rowA)
         colA2=jp.Div(classes="col-3",a=rowA)
-        _colA3=jp.Div(classes="col-6",a=rowA)
+        colA3=jp.Div(classes="col-6",a=rowA)
         rowB=jp.Div(classes="row",a=self.contentbox)
         colB1=jp.Div(classes="col-3",a=rowB)
         colB2=jp.Div(classes="col-3",a=rowB)
         rowC=jp.Div(classes="row",a=self.contentbox)
         
+        self.queryDiv=jp.Div(a=colA3)
+        self.queryTryIt=jp.Div(a=colA3)
         self.item=self.createInput(text="Wikidata item", a=colA1, placeholder='Please type here to search ...',change=self.onItemChange)
         # on enter use the currently selected item 
         self.item.on('change', self.onItemInput)   
