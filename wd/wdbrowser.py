@@ -8,7 +8,7 @@ import html
 import sys
 import justpy as jp
 from jpwidgets.jpTable import Table
-from jpwidgets.bt5widgets import App,ComboBox, Link
+from jpwidgets.bt5widgets import App,ComboBox, Link, ProgressBar
 import onlinespreadsheet.version as version
 from lodstorage.query import Query,EndpointManager, QuerySyntaxHighlight
 from lodstorage.trulytabular import TrulyTabular, WikidataItem
@@ -241,11 +241,17 @@ class WikiDataBrowser(App):
             self.feedback.text="no property Selection available for truly tabular analysis"
             await self.wp.update()
             return
+        propertyCount=0
+        for propRecord in self.propertySelection.propertyMap.values():
+            paretoLevel=propRecord["pareto"]
+            if paretoLevel<=self.paretoLevel:
+                propertyCount+=1
         for i,item in enumerate(self.propertySelection.propertyMap.items()):
             propertyId,propRecord=item
             paretoLevel=propRecord["pareto"]
-            if paretoLevel>=self.paretoLevel:
-                self.feedback.text=f"{i+1}: querying statistics for {propertyId} ..."
+            if paretoLevel<=self.paretoLevel:
+                self.feedback.text=f"{i+1}/{propertyCount}: querying statistics for {propertyId} ..."
+                self.progressBar.updateProgress(int((i+1)*100/propertyCount))
                 await self.wp.update()
                 statsRow=await self.wikiTrulyTabularPropertyStats(tt.itemQid, propertyId)
                 statsRow["✔"]="✔"
@@ -426,7 +432,7 @@ class WikiDataBrowser(App):
             self.languageSelect.add(jp.Option(value=lang,text=desc))
             
         self.paretoSelect=self.createParetoSelect(a=colC1)
-            
+        self.progressBar = ProgressBar(a=rowC)                                
         self.feedback=jp.Div(a=rowC)
         
         self.errors=jp.Span(a=rowC,style='color:red')
