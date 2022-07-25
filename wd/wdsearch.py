@@ -22,11 +22,33 @@ class WikidataSearch(object):
         self.language=language
         self.timeout=timeout
         
-    def search(self,searchFor:str,limit=9):
+    def searchOptions(self,searchFor:str,limit:int=9)->list:
+        '''
+        search and yield a list of qid,itemLabel description tuples
+        
+        Args:
+            searchFor(str): the string to search for
+            limit(int): the maximum amount of results to search for
+        '''
+        srlist=self.search(searchFor, limit)
+        if srlist is None:
+            return
+        for sr in srlist:
+            qid=sr["id"]
+            itemLabel=sr["label"]
+            desc=""
+            if "display" in sr:
+                display=sr["display"]
+                if "description" in display:
+                    desc=display["description"]["value"]
+            yield qid,itemLabel,desc
+
+    def search(self,searchFor:str,limit:int=9):
         '''
         
         Args:
             searchFor(str): the string to search for
+            limit(int): the maximum amount of results to search for
         '''
         try:
             apiurl=f"https://www.wikidata.org/w/api.php?action=wbsearchentities&language={self.language}&format=json&limit={limit}&search="

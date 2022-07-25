@@ -5,7 +5,6 @@ Created on 23.03.2022
 '''
 from fb4.widgets import Widget
 from wtforms import Field
-import collections
 from markupsafe import Markup
 
 class TableRowSelector(Widget):    

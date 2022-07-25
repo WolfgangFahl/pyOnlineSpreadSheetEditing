@@ -3,17 +3,70 @@ Created on 2022-07-24
 
 @author: wf
 '''
+import collections
 import html
 import sys
-import traceback
 import justpy as jp
-from jpwidgets.bt5widgets import App
+from jpwidgets.jpTable import Table
+from jpwidgets.bt5widgets import App,ComboBox
 import onlinespreadsheet.version as version
 from lodstorage.query import EndpointManager, QuerySyntaxHighlight
 from lodstorage.trulytabular import TrulyTabular, WikidataItem
-
+from onlinespreadsheet.pareto import Pareto
 from wd.wdsearch import WikidataSearch
 
+class PropertySelection():
+    '''
+    select properties
+    '''
+    def __init__(self,inputList):
+        '''
+           Constructor
+        
+        Args:
+            propertyList(list): the list of properties to show
+        '''
+        self.propertyList=[]
+        for record in inputList:
+            orecord=collections.OrderedDict(record.copy())
+            self.propertyList.append(orecord)
+        pass
+
+    def prepare(self,total:int,paretoLevels:list,checkBoxName:str,defaultParetoSelect=1):
+        '''
+        prepare the propertyList
+        
+        Args:
+            total(int): the total number of records
+            paretoLevels(list): the pareto Levels to use
+        '''
+        for i,prop in enumerate(self.propertyList):
+            # add index as first column
+            prop["#"]=i+1
+            prop.move_to_end('#', last=False)
+            continue
+            propLabel=prop.pop("propLabel")
+            url=prop.pop("prop")
+            itemId=url.replace("http://www.wikidata.org/entity/","")
+            prop["property"]=jp.Link(href=url,text=propLabel)
+            ratio=int(prop["count"])/total
+            level=0
+            for pareto in reversed(paretoLevels):
+                if pareto.ratioInLevel(ratio):
+                    level=pareto.level
+            prop["%"]=f'{ratio*100:.1f}'
+            prop["pareto"]=level
+            prop["1"]=""
+            prop["max"]=""
+            prop["nt"]=""
+            prop["nt%"]=""
+            prop["?f"]=""
+            prop["?ex"]=""
+            prop["✔"]=""
+            checked=" checked" if level<=defaultParetoSelect else ""
+            prop["select"]=f'<input name="{checkBoxName}" value="{itemId}" id="{itemId}" type="checkbox"{checked}>'
+        pass
+    
 class WikiDataBrowser(App):
     '''
     browser for Wikidata
@@ -42,23 +95,6 @@ class WikiDataBrowser(App):
         parser.add_argument('-en', '--endpointName', default="wikidata", help=f"Name of the endpoint to use for queries. Available by default: {EndpointManager.getEndpointNames()}")
         return parser
     
-        
-    def handleException(self,ex):
-        '''
-        handle the given exception
-        
-        Args:
-            ex(Exception): the exception to handle
-        '''
-        errorMsg=str(ex)
-        trace=""
-        if self.debug:
-            trace=traceback.format_exc()
-        errorMsgHtml=f"{errorMsg}<pre>{trace}</pre>"
-        self.errors.inner_html=errorMsgHtml
-        print(errorMsg)
-        if self.debug:
-            print(trace)
             
     def getLanguages(self):
         # see https://github.com/sahajsk21/Anvesha/blob/master/src/components/topnav.js
@@ -145,6 +181,13 @@ class WikiDataBrowser(App):
             print(msg)
         self.endPointName=msg.value
         
+    def onItemBoxChange(self,msg:dict):
+        searchFor=msg.value
+        self.feedback.text = searchFor
+        for qid,itemLabel,desc in self.wdSearch.searchOptions(searchFor):
+            text=f"{itemLabel} ({qid}) {desc}"
+            self.itemcombo.addOption(text)
+        
     def onItemChange(self,msg:dict):
         '''
         rect on changes in the item input
@@ -152,73 +195,122 @@ class WikiDataBrowser(App):
         try:
             searchFor=msg.value
             self.feedback.text = searchFor
-            srlist=self.wdSearch.search(searchFor)
-            if srlist is not None:
-                # remove current Selection
-                self.itemSelect.delete_components()
-                firstQid=None
-                for sr in srlist:
-                    qid=sr["id"]
-                    if firstQid is None:
-                        firstQid=qid
-                    itemLabel=sr["label"]
-                    desc=""
-                    if "display" in sr:
-                        display=sr["display"]
-                        if "description" in display:
-                            desc=display["description"]["value"]
-                    text=f"{itemLabel} ({qid}) {desc}"
-                    if self.debug:
-                        print(sr)
-                    self.itemSelect.add(jp.Option(value=qid,text=text))
-                if firstQid is not None:
-                    self.itemSelect.value=firstQid
+            # remove current Selection
+            firstQid=None
+            for qid,itemLabel,desc in self.wdSearch.searchOptions(searchFor):
+                if firstQid is None:
+                    self.itemSelect.delete_components()
+                    firstQid=qid
+                text=f"{itemLabel} ({qid}) {desc}"
+                self.itemSelect.add(jp.Option(value=qid,text=text))
+            if firstQid is not None:
+                self.itemSelect.value=firstQid
         except Exception as ex:
             self.handleException(ex)
             
-    def getMostFrequentlyUsedProperties(self,tt):
+    async def getMostFrequentlyUsedProperties(self,tt):
+        '''
+        get the most frequently used properties for the given truly tabular
+        
+        Args:
+            tt(TrulyTabular): the truly tabular Wikidata Item Analysis 
+        '''
         try:
-            query=tt.mostFrequentPropertiesQuery()    
-            qs=QuerySyntaxHighlight(query)
+            self.ttquery=tt.mostFrequentPropertiesQuery()    
+            qs=QuerySyntaxHighlight(self.ttquery)
             queryHigh=qs.highlight()
             # TODO: configure via endpoint configuration
             tryItUrl="https://query.wikidata.org/"
-            tryItUrlEncoded=query.getTryItUrl(tryItUrl)
+            tryItUrlEncoded=self.ttquery.getTryItUrl(tryItUrl)
             self.queryDiv.inner_html=queryHigh
+            # clear div for try It
+            self.queryTryIt.delete_components()
             self.tryItLink=jp.Link(href=tryItUrlEncoded,text="try it!",title="try out with wikidata query service",a=self.queryTryIt)
+            await self.wp.update()
+        except Exception as ex:
+            self.handleException(ex)
+                
+    async def getTable(self,tt,ttquery):
+        try:
+            self.feedback.text="running count query ..."
+            await self.wp.update()
+            ttcount=tt.count()
+            self.countDiv.text=f"{ttcount}"
+            self.feedback.text="running query ..."
+            await self.wp.update()
+            propertyList=tt.sparql.queryAsListOfDicts(ttquery.query)
+            propertySelection=PropertySelection(propertyList)
+            propertySelection.prepare(total=ttcount,paretoLevels=self.paretoLevels,checkBoxName="propertyCheck")
+            self.table=Table(lod=propertySelection.propertyList,allowInput=False,a=self.rowE)        
+            self.feedback.text="table created ..."
+            await self.wp.update()
+        except Exception as ex:
+            self.handleException(ex)
+                              
+    async def selectItem(self,itemId):
+        '''
+        select a Wikidata Item for analysis
+        
+        Args:
+            itemId(str): the Wikidata Q - ID of the selected item
+        '''
+        try:
+            self.feedback.text = f"item {itemId} selected"
+            await self.wp.update()
+            # create the Truly Tabular Analysis
+            self.tt=TrulyTabular(itemId)
+            self.feedback.text = f"trulytabular {str(self.tt)} initiated"
+            await self.wp.update()
+            await self.getMostFrequentlyUsedProperties(self.tt)
+            await self.getTable(self.tt,self.ttquery)
         except Exception as ex:
             self.handleException(ex)
             
-    def selectItem(self,itemId):
-        self.feedback.text = f"item {itemId} selected"
-        self.tt=TrulyTabular(itemId)
-        self.feedback.text = f"trulytabular {str(self.tt)} initiated"
-        self.getMostFrequentlyUsedProperties(self.tt)
-        pass
-            
-    def onItemSelect(self,msg):
-        self.selectItem(msg.value) 
+    async def onItemSelect(self,msg):
+        '''
+        react on item being selected via Select control
+        '''
+        await self.selectItem(msg.value) 
         
-    def onItemInput(self,_msg):
-        self.selectItem(self.itemSelect.value)
-       
+    async def onItemInput(self,_msg):
+        '''
+        react on item being selected via enter key in input
+        '''
+        try: 
+            await self.selectItem(self.itemSelect.value)
+        except Exception as ex:
+            self.handleException(ex)
         
     def onChangeLanguage(self,msg):
+        '''
+        react on language being changed via Select control
+        '''
         self.language=msg.value
         self.wdSearch.language=self.language
+        
+    def onParetoSelect(self,msg):
+        '''
+        '''
+        pass
             
-    def createSelect(self,text,value,change,a):
-        selectorLabel=jp.Label(text=text,a=a,classes="form-label label")
-        select=jp.Select(a=a,classes="form-select",value=value,change=change)
-        selectorLabel.for_component=select
-        return select
-    
-    def createInput(self,text,a,placeholder,change):
-        inputLabel=jp.Label(text=text,a=a,classes="form-label label")
-        jpinput=jp.Input(a=a,classes="form-input",size=30,placeholder=placeholder)
-        jpinput.on('input', change)
-        inputLabel.for_component=inputLabel
-        return jpinput
+    def createParetoSelect(self,a,topLevel:int=9):
+        '''
+        create the pareto select
+        
+        Args:
+            topLevel(int): the maximum pareto Level
+            a(object): the parent component
+            
+        Returns:
+            jp.Select
+        '''
+        pselect=self.createSelect("Pareto",1,change=self.onParetoSelect,a=a)
+        self.paretoLevels=[]
+        for level in range(1,topLevel+1):
+            pareto=Pareto(level)
+            self.paretoLevels.append(pareto)
+            pselect.add(jp.Option(value=pareto.level,text=pareto.asText(long=True)))
+        return pselect
     
     async def browse(self):
         '''
@@ -227,23 +319,34 @@ class WikiDataBrowser(App):
         head="""<link rel="stylesheet" href="/static/css/md_style_indigo.css">
 <link rel="stylesheet" href="/static/css/pygments.css">
 """
-        wp=self.getWp(head)
+        self.wp=self.getWp(head)
         rowA=jp.Div(classes="row",a=self.contentbox)
         colA1=jp.Div(classes="col-3",a=rowA)
         colA2=jp.Div(classes="col-3",a=rowA)
         colA3=jp.Div(classes="col-6",a=rowA)
+        
         rowB=jp.Div(classes="row",a=self.contentbox)
         colB1=jp.Div(classes="col-3",a=rowB)
         colB2=jp.Div(classes="col-3",a=rowB)
+        
         rowC=jp.Div(classes="row",a=self.contentbox)
+        colC1=jp.Div(classes="col-3",a=rowC)
+    
+        self.rowD=jp.Div(classes="row",a=self.contentbox)
+        self.colD1=jp.Div(classes="col-3",a=self.rowD)
+        
+        self.rowE=jp.Div(classes="row",a=self.contentbox)
+        
         
         self.queryDiv=jp.Div(a=colA3)
         self.queryTryIt=jp.Div(a=colA3)
+        # self.itemcombo=ComboBox(a=colA1,placeholder='Please type here to search ...',change=self.onItemBoxChange)
         self.item=self.createInput(text="Wikidata item", a=colA1, placeholder='Please type here to search ...',change=self.onItemChange)
         # on enter use the currently selected item 
         self.item.on('change', self.onItemInput)   
         self.itemSelect=jp.Select(classes="form-select",a=colA2,change=self.onItemSelect)
-     
+        
+        self.countDiv=jp.Div(a=self.colD1)
         
         self.endpointName=self.args.endpointName
         self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=colB1,change=self.onChangeEndpoint)
@@ -257,10 +360,12 @@ class WikiDataBrowser(App):
             desc=html.unescape(desc)
             self.languageSelect.add(jp.Option(value=lang,text=desc))
             
+        self.paretoSelect=self.createParetoSelect(a=colC1)
+            
         self.feedback=jp.Div(a=rowC)
         
         self.errors=jp.Span(a=rowC,style='color:red')
-        return wp
+        return self.wp
         
 def main(argv=None): # IGNORE:C0111
     '''main program.'''

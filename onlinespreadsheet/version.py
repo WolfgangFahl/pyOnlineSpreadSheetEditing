@@ -13,7 +13,7 @@ class Version(object):
     date = '2021-12-11'
     updated = '2022-05-15'
     description='python Online SpreadSheet Editing tool with configurable enhancer/importer and check phase'
-    authors='Wolfgang Fahl/Tkm Holzheim'
+    authors='Wolfgang Fahl/Tim Holzheim'
     license=f'''Copyright 2022 contributors. All rights reserved.
 
   Licensed under the Apache License 2.0
