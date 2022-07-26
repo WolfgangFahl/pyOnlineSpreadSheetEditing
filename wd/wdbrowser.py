@@ -361,7 +361,10 @@ class WikiDataBrowser(App):
             self.propertyList=None
             # delete the Table
             if self.ttTable is not None:
-                self.ttTable.a.remove_component(self.ttTable)
+                try:
+                    self.ttTable.a.remove_component(self.ttTable)
+                except Exception as ex:
+                    pass
                 self.ttTable=None
             self.feedback.text = f"item {itemId} selected"
             await self.wp.update()
