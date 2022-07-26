@@ -8,7 +8,7 @@ import html
 import sys
 import justpy as jp
 from jpwidgets.jpTable import Table
-from jpwidgets.bt5widgets import App,ComboBox, Link, ProgressBar
+from jpwidgets.bt5widgets import App,ComboBox, Link, ProgressBar, Collapsible
 import onlinespreadsheet.version as version
 from lodstorage.query import Query,EndpointManager, QuerySyntaxHighlight
 from lodstorage.trulytabular import TrulyTabular, WikidataItem
@@ -33,6 +33,7 @@ class PropertySelection():
             orecord=collections.OrderedDict(record.copy())
             self.propertyList.append(orecord)
         pass
+        self.aggregates=["min","max","avg","sample","list","counter"]
 
     def prepare(self,total:int,paretoLevels:list,checkBoxName:str,defaultParetoSelect=1):
         '''
@@ -59,14 +60,16 @@ class PropertySelection():
             prop["%"]=f'{ratio*100:.1f}'
             prop["pareto"]=level
             prop["1"]=""
-            prop["max"]=""
+            prop["maxf"]=""
             prop["nt"]=""
             prop["nt%"]=""
             prop["?f"]=""
             prop["?ex"]=""
             prop["✔"]=""
-            checked=" checked" if level<=defaultParetoSelect else ""
-            prop["select"]=f'<input name="{checkBoxName}" value="{itemId}" id="{itemId}" type="checkbox"{checked}>'
+            for col in self.aggregates:
+                prop[col]=""
+            prop["ignore"]=""
+            prop["select"]=""
             self.propertyMap[itemId]=prop
              
 class WikiDataBrowser(App):
@@ -89,6 +92,7 @@ class WikiDataBrowser(App):
         self.language="en"
         self.wdSearch=WikidataSearch(self.language)
         self.paretoLevel=1
+        self.ttTable=None
         
     def getParser(self):
         '''
@@ -249,13 +253,14 @@ class WikiDataBrowser(App):
         for i,item in enumerate(self.propertySelection.propertyMap.items()):
             propertyId,propRecord=item
             paretoLevel=propRecord["pareto"]
+            prop=propRecord["property"]
             if paretoLevel<=self.paretoLevel:
-                self.feedback.text=f"{i+1}/{propertyCount}: querying statistics for {propertyId} ..."
+                self.feedback.inner_html=f"{i+1}/{propertyCount}: querying statistics for {propertyId}:{prop} ..."
                 self.progressBar.updateProgress(int((i+1)*100/propertyCount))
                 await self.wp.update()
                 statsRow=await self.wikiTrulyTabularPropertyStats(tt.itemQid, propertyId)
                 statsRow["✔"]="✔"
-                for column,statsColumn in [("1","1"),("max","max"),("nt","non tabular"),("nt%","non tabular%"),("?f","queryfTryIt"),("?ex","queryexTryIt"),("✔","✔")]:
+                for column,statsColumn in [("1","1"),("maxf","maxf"),("nt","non tabular"),("nt%","non tabular%"),("?f","queryfTryIt"),("?ex","queryexTryIt"),("✔","✔")]:
                     if statsColumn in statsRow:
                         value=statsRow[statsColumn]
                         self.ttTable.updateCell(propertyId, column, value)
@@ -272,8 +277,7 @@ class WikiDataBrowser(App):
 #  'queryfTryIt': "<a href='https://query.wikidata.org//#%23%20This%20query%20was%20generated%20by%20Truly%20Tabular%0ASELECT%20%3Fcount%20%28COUNT%28%3Fcount%29%20AS%20%3Ffrequency%29%20WHERE%20%7B%7B%0A%0A%23%20Count%20all%20country%20%28Q6256%29%E2%98%9Edistinct%20territorial%20body%20or%20political%20entity%E2%86%92%20https%3A//www.wikidata.org/wiki/Q6256%20items%0A%23%20with%20the%20given%20instance%20of%28P31%29%20https%3A//www.wikidata.org/wiki/Property%3AP31%20%0ASELECT%20%3Fitem%20%3FitemLabel%20%28COUNT%20%28%3Fvalue%29%20AS%20%3Fcount%29%0AWHERE%0A%7B%0A%20%20%23%20instance%20of%20country%0A%20%20%3Fitem%20wdt%3AP31%20wd%3AQ6256.%0A%20%20%3Fitem%20rdfs%3Alabel%20%3FitemLabel.%0A%20%20filter%20%28lang%28%3FitemLabel%29%20%3D%20%22en%22%29.%0A%20%20%23%20instance%20of%0A%20%20%3Fitem%20wdt%3AP31%20%3Fvalue.%0A%7D%20GROUP%20by%20%3Fitem%20%3FitemLabel%0A%0A%7D%7D%0AGROUP%20BY%20%3Fcount%0AORDER%20BY%20DESC%20%28%3Ffrequency%29 title='try out with wikidata query service''>try it!</a>",
 #  'queryexTryIt': "<a href='https://query.wikidata.org//#%23%20This%20query%20was%20generated%20by%20Truly%20Tabular%0A%0A%23%20Count%20all%20country%20%28Q6256%29%E2%98%9Edistinct%20territorial%20body%20or%20political%20entity%E2%86%92%20https%3A//www.wikidata.org/wiki/Q6256%20items%0A%23%20with%20the%20given%20instance%20of%28P31%29%20https%3A//www.wikidata.org/wiki/Property%3AP31%20%0ASELECT%20%3Fitem%20%3FitemLabel%20%28COUNT%20%28%3Fvalue%29%20AS%20%3Fcount%29%0AWHERE%0A%7B%0A%20%20%23%20instance%20of%20country%0A%20%20%3Fitem%20wdt%3AP31%20wd%3AQ6256.%0A%20%20%3Fitem%20rdfs%3Alabel%20%3FitemLabel.%0A%20%20filter%20%28lang%28%3FitemLabel%29%20%3D%20%22en%22%29.%0A%20%20%23%20instance%20of%0A%20%20%3Fitem%20wdt%3AP31%20%3Fvalue.%0A%7D%20GROUP%20by%20%3Fitem%20%3FitemLabel%0A%0AHAVING%20%28COUNT%20%28%3Fvalue%29%20%3E%201%29%0AORDER%20BY%20DESC%28%3Fcount%29 title='try out with wikidata query service''>try it!</a>"
 #}              
-                
-            
+                      
     async def getMostFrequentlyUsedProperties(self,tt):
         '''
         get the most frequently used properties for the given truly tabular
@@ -295,6 +299,21 @@ class WikiDataBrowser(App):
             await self.wp.update()
         except Exception as ex:
             self.handleException(ex)
+            
+    def addSelectionColumn(self,table:jp.Table,column:str,checkedCondition:callable):
+        '''
+        add a selection column to the given table
+        
+        Args:
+            table(jp.Table): the table
+            column(the column): the column
+            checkedCondition(callable): set checked depending on the record content 
+        '''
+        for row in table.rows:
+            cell=row.cellsMap[column]
+            checked=checkedCondition(row.record)
+            checkbox=jp.Input(type='checkbox',a=cell,checked=checked)
+            cell.setControl(checkbox)
                 
     async def getPropertiesTable(self,tt,ttquery):
         try:
@@ -308,7 +327,11 @@ class WikiDataBrowser(App):
             self.propertySelection=PropertySelection(self.propertyList)
             self.propertySelection.prepare(total=self.ttcount,paretoLevels=self.paretoLevels,checkBoxName="propertyCheck")
             self.ttTable=Table(lod=self.propertySelection.propertyList,primaryKey='propertyId',allowInput=False,a=self.rowE)        
-            self.feedback.text="table created ..."
+            for aggregate in self.propertySelection.aggregates:
+                self.addSelectionColumn(self.ttTable, aggregate,lambda _record:True)
+            self.addSelectionColumn(self.ttTable,"select",lambda record:record["pareto"]<=self.paretoLevel)
+            self.addSelectionColumn(self.ttTable,"ignore",lambda _record:False)
+            self.feedback.text="table for propertySelection created ..."
             await self.wp.update()
         except (Exception,HTTPError) as ex:
             self.handleException(ex)
@@ -321,6 +344,10 @@ class WikiDataBrowser(App):
             itemId(str): the Wikidata Q - ID of the selected item
         '''
         try:
+            self.propertyList=None
+            # delete the Table
+            if self.ttTable is not None:
+                self.ttTable.a.remove_component(self.ttTable)
             self.feedback.text = f"item {itemId} selected"
             await self.wp.update()
             # create the Truly Tabular Analysis
@@ -328,7 +355,6 @@ class WikiDataBrowser(App):
             self.feedback.text = f"trulytabular {str(self.tt)} initiated"
             await self.wp.update()
             await self.getMostFrequentlyUsedProperties(self.tt)
-            self.propertyList=None
             await self.getPropertiesTable(self.tt,self.ttquery)
             await self.trulyTabularAnalysis(self.tt)
         except Exception as ex:
@@ -383,9 +409,9 @@ class WikiDataBrowser(App):
             pselect.add(jp.Option(value=pareto.level,text=pareto.asText(long=True)))
         return pselect
     
-    async def browse(self):
+    async def content(self):
         '''
-        browse
+        content
         '''
         head="""<link rel="stylesheet" href="/static/css/md_style_indigo.css">
 <link rel="stylesheet" href="/static/css/pygments.css">
@@ -408,9 +434,9 @@ class WikiDataBrowser(App):
         
         self.rowE=jp.Div(classes="row",a=self.contentbox)
         
-        
-        self.queryDiv=jp.Div(a=colA3)
-        self.queryTryIt=jp.Div(a=colA3)
+        self.queryHideShow=Collapsible("Query",a=colA3)
+        self.queryDiv=jp.Div(a=self.queryHideShow.body)
+        self.queryTryIt=jp.Div(a=self.queryHideShow.body)
         # self.itemcombo=ComboBox(a=colA1,placeholder='Please type here to search ...',change=self.onItemBoxChange)
         self.item=self.createInput(text="Wikidata item", a=colA1, placeholder='Please type here to search ...',change=self.onItemChange)
         # on enter use the currently selected item 
@@ -418,13 +444,13 @@ class WikiDataBrowser(App):
         self.itemSelect=jp.Select(classes="form-select",a=colA2,change=self.onItemSelect)
         
         self.countDiv=jp.Div(a=self.colD1)
-        
+        self.settingsCollapsible = Collapsible("Settings", a=rowB)
         self.endpointName=self.args.endpointName
-        self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=colB1,change=self.onChangeEndpoint)
+        self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.settingsCollapsible.body,change=self.onChangeEndpoint)
         for name in EndpointManager.getEndpointNames():
             self.endpointSelect.add(jp.Option(value=name, text=name))
         
-        self.languageSelect=self.createSelect("Language","en",a=colB2,change=self.onChangeLanguage)
+        self.languageSelect=self.createSelect("Language","en",a=self.settingsCollapsible.body,change=self.onChangeLanguage)
         for language in self.getLanguages():
             lang=language[0]
             desc=language[1]
@@ -437,19 +463,10 @@ class WikiDataBrowser(App):
         
         self.errors=jp.Span(a=rowC,style='color:red')
         return self.wp
-        
-def main(argv=None): # IGNORE:C0111
-    '''main program.'''
-
-    if argv is None:
-        argv=sys.argv[1:]
-        
-    wdBrowser=WikiDataBrowser(version.Version)
-    wdBrowser.cmdLine(argv,wdBrowser.browse)
-
     
 DEBUG = 0
 if __name__ == "__main__":
     if DEBUG:
         sys.argv.append("-d")
-    sys.exit(main())
+    wdBrowser=WikiDataBrowser(version.Version)    
+    sys.exit(wdBrowser.mainInstance())
