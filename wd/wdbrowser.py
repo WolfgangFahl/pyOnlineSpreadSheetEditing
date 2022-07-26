@@ -274,6 +274,8 @@ class WikiDataBrowser(App):
                         value=statsRow[statsColumn]
                         self.ttTable.updateCell(propertyId, column, value)
                 await self.wp.update()
+            self.feedback.text="done"
+            self.progressBar.updateProgress(0)
 #{
 #  'property': 'instance of',
 #  'max': 9,
@@ -366,6 +368,8 @@ class WikiDataBrowser(App):
             # create the Truly Tabular Analysis
             self.tt=TrulyTabular(itemId)
             self.feedback.text = f"trulytabular {str(self.tt)} initiated"
+            wdItem=self.tt.item
+            self.itemLinkDiv.inner_html=Link.create(f"{wdItem.url}",wdItem.qlabel, wdItem.description, target="_blank")
             await self.wp.update()
             await self.getMostFrequentlyUsedProperties(self.tt)
             await self.getPropertiesTable(self.tt,self.ttquery)
@@ -435,13 +439,15 @@ class WikiDataBrowser(App):
 <link rel="stylesheet" href="/static/css/pygments.css">
 """
         self.wp=self.getWp(head)
+        
         rowA=jp.Div(classes="row",a=self.contentbox)
         colA1=jp.Div(classes="col-3",a=rowA)
         colA2=jp.Div(classes="col-3",a=rowA)
         colA3=jp.Div(classes="col-6",a=rowA)
         
         self.rowB=jp.Div(classes="row",a=self.contentbox)
-        self.colB1=jp.Div(classes="col-3",a=self.rowB)
+        self.colB1=jp.Div(classes="col-2",a=self.rowB)
+        self.colB2=jp.Div(classes="col-1",a=self.rowB)
         
         self.rowC=jp.Div(classes="row",a=self.contentbox)
         self.colC1=jp.Div(classes="col-3",a=self.rowC)
@@ -450,16 +456,17 @@ class WikiDataBrowser(App):
         self.colD1=jp.Div(classes="col-3",a=self.rowD)
         
         self.rowE=jp.Div(classes="row",a=self.contentbox)
-        
-        self.queryHideShow=Collapsible("Query",a=colA3)
-        self.queryDiv=jp.Div(a=self.queryHideShow.body)
-        self.queryTryIt=jp.Div(a=self.queryHideShow.body)
         # self.itemcombo=ComboBox(a=colA1,placeholder='Please type here to search ...',change=self.onItemBoxChange)
         self.item=self.createInput(text="Wikidata item", a=colA1, placeholder='Please type here to search ...',value=self.itemQid,change=self.onItemChange)
         # on enter use the currently selected item 
         self.item.on('change', self.onItemInput)   
         self.itemSelect=jp.Select(classes="form-select",a=colA2,change=self.onItemSelect)
-        self.countDiv=jp.Div(a=self.colB1)
+        self.itemLinkDiv=jp.Div(a=self.colB1)
+        self.countDiv=jp.Div(a=self.colB2)
+        
+        self.queryHideShow=Collapsible("Query",a=colA3)
+        self.queryDiv=jp.Div(a=self.queryHideShow.body)
+        self.queryTryIt=jp.Div(a=self.queryHideShow.body)
         
         self.settingsCollapsible = Collapsible("Settings", a=self.rowC)
         self.endpointName=self.args.endpointName
