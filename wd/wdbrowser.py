@@ -79,6 +79,39 @@ class PropertySelection():
             prop["ignore"]=""
             prop["select"]=""
             self.propertyMap[itemId]=prop
+        
+class QueryDisplay():
+    
+    def __init__(self,name:str,a):
+        '''
+        Args:
+            name(str): the name of the display and query
+            a(jp.Component): an ancestor component
+        '''
+        self.name=name
+        self.queryHideShow=Collapsible(name,a=a)
+        self.queryDiv=jp.Div(a=self.queryHideShow.body)
+        self.queryTryIt=jp.Div(a=self.queryHideShow.body)
+        pass
+    
+    def showSyntaxHighlightedQuery(self,sparqlQuery): 
+        '''
+        show a syntax highlighted Query
+        
+        sparqQuery(str): the query to show
+        queryDiv(jp.Div): the div to use for displaying
+        queryTryIt(jp.Div): the div for the tryIt button
+        '''
+        qs=QuerySyntaxHighlight(sparqlQuery)
+        queryHigh=qs.highlight()
+        # TODO: configure via endpoint configuration
+        tryItUrl="https://query.wikidata.org/"
+        tryItUrlEncoded=sparqlQuery.getTryItUrl(tryItUrl)
+        self.queryDiv.inner_html=queryHigh
+        # clear div for try It
+        self.queryTryIt.delete_components()
+        self.tryItLink=jp.Link(href=tryItUrlEncoded,text="try it!",title="try out with wikidata query service",a=self.queryTryIt,target="_blank")
+
              
 class WikiDataBrowser(App):
     '''
@@ -188,9 +221,30 @@ class WikiDataBrowser(App):
     def showFeedback(self,html):
         self.feedback.inner_html=html
         
+    def getPropertyIdList(self):
+        '''
+        get the list of selected propery ids
+        '''
+        idList=[]
+        for row in self.ttTable.rows:
+            selectedCell=row.getCell("select")
+            selectedCellCheckbox=selectedCell.getControl()
+            if selectedCellCheckbox.checked:
+                propertyId=row.getCellValue("propertyId")
+                idList.append(propertyId)
+        return idList
+        
         
     def generateQuery(self):
-        Alert(a=self.rowC, text="SPARQL Query generation not implemented yet")
+        '''
+        generate and show the query
+        '''
+        
+        propertyIds=self.getPropertyIdList()
+        tt=TrulyTabular(self.itemQid,propertyIds=propertyIds)
+        sparqlQuery=tt.generateSparqlQuery(self.language, naive=True)
+        naiveSparqlQuery=Query(name="naive SPARQL Query",query=sparqlQuery)
+        self.naiveQueryDisplay.showSyntaxHighlightedQuery(naiveSparqlQuery)
         pass
         
     def onChangeEndpoint(self,msg:dict):
@@ -298,8 +352,7 @@ class WikiDataBrowser(App):
 #  'non tabular%': 100.0,
 #  'queryfTryIt': "<a href='https://query.wikidata.org//#%23%20This%20query%20was%20generated%20by%20Truly%20Tabular%0ASELECT%20%3Fcount%20%28COUNT%28%3Fcount%29%20AS%20%3Ffrequency%29%20WHERE%20%7B%7B%0A%0A%23%20Count%20all%20country%20%28Q6256%29%E2%98%9Edistinct%20territorial%20body%20or%20political%20entity%E2%86%92%20https%3A//www.wikidata.org/wiki/Q6256%20items%0A%23%20with%20the%20given%20instance%20of%28P31%29%20https%3A//www.wikidata.org/wiki/Property%3AP31%20%0ASELECT%20%3Fitem%20%3FitemLabel%20%28COUNT%20%28%3Fvalue%29%20AS%20%3Fcount%29%0AWHERE%0A%7B%0A%20%20%23%20instance%20of%20country%0A%20%20%3Fitem%20wdt%3AP31%20wd%3AQ6256.%0A%20%20%3Fitem%20rdfs%3Alabel%20%3FitemLabel.%0A%20%20filter%20%28lang%28%3FitemLabel%29%20%3D%20%22en%22%29.%0A%20%20%23%20instance%20of%0A%20%20%3Fitem%20wdt%3AP31%20%3Fvalue.%0A%7D%20GROUP%20by%20%3Fitem%20%3FitemLabel%0A%0A%7D%7D%0AGROUP%20BY%20%3Fcount%0AORDER%20BY%20DESC%20%28%3Ffrequency%29 title='try out with wikidata query service''>try it!</a>",
 #  'queryexTryIt': "<a href='https://query.wikidata.org//#%23%20This%20query%20was%20generated%20by%20Truly%20Tabular%0A%0A%23%20Count%20all%20country%20%28Q6256%29%E2%98%9Edistinct%20territorial%20body%20or%20political%20entity%E2%86%92%20https%3A//www.wikidata.org/wiki/Q6256%20items%0A%23%20with%20the%20given%20instance%20of%28P31%29%20https%3A//www.wikidata.org/wiki/Property%3AP31%20%0ASELECT%20%3Fitem%20%3FitemLabel%20%28COUNT%20%28%3Fvalue%29%20AS%20%3Fcount%29%0AWHERE%0A%7B%0A%20%20%23%20instance%20of%20country%0A%20%20%3Fitem%20wdt%3AP31%20wd%3AQ6256.%0A%20%20%3Fitem%20rdfs%3Alabel%20%3FitemLabel.%0A%20%20filter%20%28lang%28%3FitemLabel%29%20%3D%20%22en%22%29.%0A%20%20%23%20instance%20of%0A%20%20%3Fitem%20wdt%3AP31%20%3Fvalue.%0A%7D%20GROUP%20by%20%3Fitem%20%3FitemLabel%0A%0AHAVING%20%28COUNT%20%28%3Fvalue%29%20%3E%201%29%0AORDER%20BY%20DESC%28%3Fcount%29 title='try out with wikidata query service''>try it!</a>"
-#}              
-                      
+#}                                    
     async def getMostFrequentlyUsedProperties(self,tt):
         '''
         get the most frequently used properties for the given truly tabular
@@ -308,16 +361,8 @@ class WikiDataBrowser(App):
             tt(TrulyTabular): the truly tabular Wikidata Item Analysis 
         '''
         try:
-            self.ttquery=tt.mostFrequentPropertiesQuery()    
-            qs=QuerySyntaxHighlight(self.ttquery)
-            queryHigh=qs.highlight()
-            # TODO: configure via endpoint configuration
-            tryItUrl="https://query.wikidata.org/"
-            tryItUrlEncoded=self.ttquery.getTryItUrl(tryItUrl)
-            self.queryDiv.inner_html=queryHigh
-            # clear div for try It
-            self.queryTryIt.delete_components()
-            self.tryItLink=jp.Link(href=tryItUrlEncoded,text="try it!",title="try out with wikidata query service",a=self.queryTryIt,target="_blank")
+            self.ttquery=tt.mostFrequentPropertiesQuery()   
+            self.propertyQueryDisplay.showSyntaxHighlightedQuery(self.ttquery)  
             await self.wp.update()
         except Exception as ex:
             self.handleException(ex)
@@ -408,6 +453,7 @@ class WikiDataBrowser(App):
             self.generateQuery()
         except Exception as ex:
             self.handleException(ex)
+        await self.wp.update()
             
     async def onItemSelect(self,msg):
         '''
@@ -490,11 +536,12 @@ class WikiDataBrowser(App):
         rowA=jp.Div(classes="row",a=self.contentbox)
         colA1=jp.Div(classes="col-3",a=rowA)
         colA2=jp.Div(classes="col-3",a=rowA)
-        colA3=jp.Div(classes="col-6",a=rowA)
+        self.colA3=jp.Div(classes="col-6",a=rowA)
         
         self.rowB=jp.Div(classes="row",a=self.contentbox)
         self.colB1=jp.Div(classes="col-2",a=self.rowB)
-        self.colB2=jp.Div(classes="col-2",a=self.rowB)
+        self.colB2=jp.Div(classes="col-4",a=self.rowB)
+        self.colB3=jp.Div(classes="col-6",a=self.rowB)
         
         self.rowC=jp.Div(classes="row",a=self.contentbox)
         self.colC1=jp.Div(classes="col-3",a=self.rowC)
@@ -514,10 +561,9 @@ class WikiDataBrowser(App):
         self.itemLinkDiv=jp.Div(a=self.colB1,classes="h5")
         self.countDiv=jp.Div(a=self.colB2,classes="h5")
         
-        # Query
-        self.queryHideShow=Collapsible("Query",a=colA3)
-        self.queryDiv=jp.Div(a=self.queryHideShow.body)
-        self.queryTryIt=jp.Div(a=self.queryHideShow.body)
+        # Queries
+        self.propertyQueryDisplay=QueryDisplay("property Query",a=self.colA3)
+        self.naiveQueryDisplay=QueryDisplay("naive Query",a=self.colB3)
         
         # Settings
         self.settingsCollapsible = Collapsible("Settings", a=self.rowC)
