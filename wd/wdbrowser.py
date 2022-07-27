@@ -234,17 +234,18 @@ class WikiDataBrowser(App):
                 idList.append(propertyId)
         return idList
         
-        
     def generateQuery(self):
         '''
         generate and show the query
         '''
-        
         propertyIds=self.getPropertyIdList()
         tt=TrulyTabular(self.itemQid,propertyIds=propertyIds)
         sparqlQuery=tt.generateSparqlQuery(self.language, naive=True)
         naiveSparqlQuery=Query(name="naive SPARQL Query",query=sparqlQuery)
         self.naiveQueryDisplay.showSyntaxHighlightedQuery(naiveSparqlQuery)
+        sparqlQuery=tt.generateSparqlQuery(self.language, naive=False)
+        aggregateSparqlQuery=Query(name="aggregate SPARQL Query",query=sparqlQuery)
+        self.aggregateQueryDisplay.showSyntaxHighlightedQuery(aggregateSparqlQuery)
         pass
         
     def onChangeEndpoint(self,msg:dict):
@@ -545,6 +546,8 @@ class WikiDataBrowser(App):
         
         self.rowC=jp.Div(classes="row",a=self.contentbox)
         self.colC1=jp.Div(classes="col-3",a=self.rowC)
+        self.colC2=jp.Div(classes="col-3",a=self.rowC)
+        self.colC3=jp.Div(classes="col-6",a=self.rowC)
     
         self.rowD=jp.Div(classes="row",a=self.contentbox)
         self.colD1=jp.Div(classes="col-3",a=self.rowD)
@@ -564,6 +567,7 @@ class WikiDataBrowser(App):
         # Queries
         self.propertyQueryDisplay=QueryDisplay("property Query",a=self.colA3)
         self.naiveQueryDisplay=QueryDisplay("naive Query",a=self.colB3)
+        self.aggregateQueryDisplay=QueryDisplay("aggregate Query",a=self.colC3)
         
         # Settings
         self.settingsCollapsible = Collapsible("Settings", a=self.rowC)
