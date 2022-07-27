@@ -20,6 +20,8 @@ class PropertySelection():
     '''
     select properties
     '''
+    aggregates=["min","max","avg","sample","list","counter"]
+    
     def __init__(self,inputList,total:int,paretoLevels:list):
         '''
            Constructor
@@ -40,7 +42,6 @@ class PropertySelection():
             orecord=collections.OrderedDict(record.copy())
             self.propertyList.append(orecord)
         pass
-        self.aggregates=["min","max","avg","sample","list","counter"]
         
     def getParetoLevel(self,ratio):
         level=0
@@ -73,7 +74,7 @@ class PropertySelection():
             prop["?f"]=""
             prop["?ex"]=""
             prop["✔"]=""
-            for col in self.aggregates:
+            for col in PropertySelection.aggregates:
                 prop[col]=""
             prop["ignore"]=""
             prop["select"]=""
@@ -274,7 +275,7 @@ class WikiDataBrowser(App):
                         value=statsRow[statsColumn]
                         self.ttTable.updateCell(propertyId, column, value)
                 await self.wp.update()
-            self.feedback.text="done"
+            self.feedback.inner_html="done"
             self.progressBar.updateProgress(0)
 #{
 #  'property': 'instance of',
@@ -311,7 +312,14 @@ class WikiDataBrowser(App):
         except Exception as ex:
             self.handleException(ex)
             
-    def addSelectionColumn(self,table:jp.Table,column:str,checkedCondition:callable):
+    
+    async def noAction(self,_msg):
+        '''
+        placeholder action which has no effect
+        '''
+        pass
+            
+    def addSelectionColumn(self,table:jp.Table,column:str,checkedCondition:callable,onInput=None):
         '''
         add a selection column to the given table
         
@@ -319,11 +327,14 @@ class WikiDataBrowser(App):
             table(jp.Table): the table
             column(the column): the column
             checkedCondition(callable): set checked depending on the record content 
+            onInput(callable): an input handler - default is noAction
         '''
+        if onInput is None:
+            onInput=self.noAction
         for row in table.rows:
             cell=row.cellsMap[column]
             checked=checkedCondition(row.record)
-            checkbox=jp.Input(type='checkbox',a=cell,checked=checked)
+            checkbox=jp.Input(type='checkbox',a=cell,checked=checked,input=onInput)
             cell.setControl(checkbox)
                 
     async def getPropertiesTable(self,tt,ttquery):
@@ -331,17 +342,17 @@ class WikiDataBrowser(App):
             self.feedback.text="running count query ..."
             await self.wp.update()
             self.ttcount=tt.count()
-            self.countDiv.text=f"{self.ttcount}"
+            self.countDiv.text=f"{self.ttcount} instances found"
             self.feedback.text="running query for most frequently used properties ..."
             await self.wp.update()
             self.propertyList=tt.sparql.queryAsListOfDicts(ttquery.query)
             self.propertySelection=PropertySelection(self.propertyList,total=self.ttcount,paretoLevels=self.paretoLevels)
             self.propertySelection.prepare()
             self.ttTable=Table(lod=self.propertySelection.propertyList,primaryKey='propertyId',allowInput=False,a=self.rowE)        
-            for aggregate in self.propertySelection.aggregates:
+            for aggregate in PropertySelection.aggregates:
                 self.addSelectionColumn(self.ttTable, aggregate,lambda _record:True)
             self.addSelectionColumn(self.ttTable,"select",lambda record:record["pareto"]<=self.paretoLevel)
-            self.addSelectionColumn(self.ttTable,"ignore",lambda _record:False)
+            self.addSelectionColumn(self.ttTable,"ignore",lambda _record:False,self.onIgnoreSelect)
             self.feedback.text="table for propertySelection created ..."
             await self.wp.update()
         except (Exception,HTTPError) as ex:
@@ -394,8 +405,20 @@ class WikiDataBrowser(App):
             await self.selectItem(self.itemSelect.value)
         except Exception as ex:
             self.handleException(ex)
+            
+    async def onIgnoreSelect(self,msg):
+        try:
+            target=msg["target"]
+            cell=target.a
+            row=cell.row
+            for col in PropertySelection.aggregates:
+                colCell=row.getCell(col)
+                checkbox=colCell.getControl()
+                checkbox.checked=False
+        except Exception as ex:
+            self.handleException(ex)
         
-    def onChangeLanguage(self,msg):
+    async def onChangeLanguage(self,msg):
         '''
         react on language being changed via Select control
         '''
@@ -432,7 +455,7 @@ class WikiDataBrowser(App):
     
     async def content(self,request):
         '''
-        content
+        provide the justpy content by adding to the webpage provide by the App
         '''
         if "qid" in request.path_params:
             self.itemQid=request.path_params["qid"]
@@ -441,7 +464,10 @@ class WikiDataBrowser(App):
         head="""<link rel="stylesheet" href="/static/css/md_style_indigo.css">
 <link rel="stylesheet" href="/static/css/pygments.css">
 """
+        # extend the justpy Webpage with the given head parameters
         self.wp=self.getWp(head)
+        
+        # setup Bootstrap5 rows and columns
         
         rowA=jp.Div(classes="row",a=self.contentbox)
         colA1=jp.Div(classes="col-3",a=rowA)
@@ -450,7 +476,7 @@ class WikiDataBrowser(App):
         
         self.rowB=jp.Div(classes="row",a=self.contentbox)
         self.colB1=jp.Div(classes="col-2",a=self.rowB)
-        self.colB2=jp.Div(classes="col-1",a=self.rowB)
+        self.colB2=jp.Div(classes="col-2",a=self.rowB)
         
         self.rowC=jp.Div(classes="row",a=self.contentbox)
         self.colC1=jp.Div(classes="col-3",a=self.rowC)
@@ -459,18 +485,23 @@ class WikiDataBrowser(App):
         self.colD1=jp.Div(classes="col-3",a=self.rowD)
         
         self.rowE=jp.Div(classes="row",a=self.contentbox)
+        
         # self.itemcombo=ComboBox(a=colA1,placeholder='Please type here to search ...',change=self.onItemBoxChange)
         self.item=self.createInput(text="Wikidata item", a=colA1, placeholder='Please type here to search ...',value=self.itemQid,change=self.onItemChange)
         # on enter use the currently selected item 
         self.item.on('change', self.onItemInput)   
         self.itemSelect=jp.Select(classes="form-select",a=colA2,change=self.onItemSelect)
-        self.itemLinkDiv=jp.Div(a=self.colB1)
-        self.countDiv=jp.Div(a=self.colB2)
         
+        # link and count for the item
+        self.itemLinkDiv=jp.Div(a=self.colB1,classes="h5")
+        self.countDiv=jp.Div(a=self.colB2,classes="h5")
+        
+        # Query
         self.queryHideShow=Collapsible("Query",a=colA3)
         self.queryDiv=jp.Div(a=self.queryHideShow.body)
         self.queryTryIt=jp.Div(a=self.queryHideShow.body)
         
+        # Settings
         self.settingsCollapsible = Collapsible("Settings", a=self.rowC)
         self.endpointName=self.args.endpointName
         self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.settingsCollapsible.body,change=self.onChangeEndpoint)
@@ -484,10 +515,11 @@ class WikiDataBrowser(App):
             desc=html.unescape(desc)
             self.languageSelect.add(jp.Option(value=lang,text=desc))
             
+        # pareto selection
         self.paretoSelect=self.createParetoSelect(a=self.colD1)
+        # progressbar, feedback and errors
         self.progressBar = ProgressBar(a=self.rowD)                                
         self.feedback=jp.Div(a=self.rowD)
-        
         self.errors=jp.Span(a=self.rowD,style='color:red')
         return self.wp
         

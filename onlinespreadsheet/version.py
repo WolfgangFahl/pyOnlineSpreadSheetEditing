@@ -11,7 +11,7 @@ class Version(object):
     name="pyOnlineSpreadsheetEditing"
     version='0.0.10'
     date = '2021-12-11'
-    updated = '2022-07-26'
+    updated = '2022-07-27'
     description='python Online SpreadSheet Editing tool with configurable enhancer/importer and check phase'
     authors='Wolfgang Fahl/Tim Holzheim'
     license=f'''Copyright 2022 contributors. All rights reserved.
