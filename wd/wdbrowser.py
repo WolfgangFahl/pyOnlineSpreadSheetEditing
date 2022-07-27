@@ -185,7 +185,6 @@ class WikiDataBrowser(App):
             ]
         return languages
     
-    
     def showFeedback(self,html):
         self.feedback.inner_html=html
         
