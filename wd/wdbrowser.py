@@ -6,8 +6,9 @@ Created on 2022-07-24
 import collections
 import html
 import sys
+import time
 import justpy as jp
-from jpwidgets.jpTable import Table
+from jpwidgets.jpTable import Table, TableRow
 from jpwidgets.bt5widgets import App,Alert,Collapsible, ComboBox, Link, ProgressBar
 import onlinespreadsheet.version as version
 from lodstorage.query import Query,EndpointManager, QuerySyntaxHighlight
@@ -20,7 +21,7 @@ class PropertySelection():
     '''
     select properties
     '''
-    aggregates=["min","max","avg","sample","list","counter"]
+    aggregates=["min","max","avg","sample","list","count"]
     
     def __init__(self,inputList,total:int,paretoLevels:list):
         '''
@@ -77,6 +78,7 @@ class PropertySelection():
             for col in PropertySelection.aggregates:
                 prop[col]=""
             prop["ignore"]=""
+            prop["label"]=""
             prop["select"]=""
             self.propertyMap[itemId]=prop
         
@@ -127,14 +129,16 @@ class WikiDataBrowser(App):
         '''
         App.__init__(self, version,title="Wikidata browser")
         self.addMenuLink(text='Home',icon='home', href="/")
-        self.addMenuLink(text='github',icon='github', href="https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing")
-        self.addMenuLink(text='Documentation',icon='file-document',href="https://wiki.bitplan.com/index.php/PyOnlineSpreadSheetEditing")
+        self.addMenuLink(text='github',icon='github', href="https://github.com/WolfgangFahl/pyLoDStorage/issues/79")
+        self.addMenuLink(text='Documentation',icon='file-document',href="https://wiki.bitplan.com/index.php/Truly_Tabular_RDF")
         self.endpoints=EndpointManager.getEndpoints()
         self.language="en"
         self.wdSearch=WikidataSearch(self.language)
         self.paretoLevel=1
         self.ttTable=None
         jp.Route('/tt/{qid}', self.content)
+        self.starttime=time.time()
+        self.previousKeyStrokeTime=None
         
     def getParser(self):
         '''
@@ -221,44 +225,76 @@ class WikiDataBrowser(App):
     def showFeedback(self,html):
         self.feedback.inner_html=html
         
-    def getPropertyIdList(self):
+    def isSelected(self,row:TableRow,column:str)->bool:
         '''
-        get the list of selected propery ids
+        check whether the checkbox at the column of the given row is selected
+        
+        Args:
+            row(TableRow): the table row
+            columnn(str): the key of the column
+        Returns:
+            True if the checkbox in that column is selected
         '''
-        idList=[]
+        # TODO refactor to row
+        cell=row.getCell(column)
+        checkbox=cell.getControl()
+        return checkbox.checked
+        
+    def getPropertyIdMap(self):
+        '''
+        get the map of selected propery ids with generation hints
+        
+        Returns:
+            dict: a dict of list
+        '''
+        idMap={}
+        cols=PropertySelection.aggregates.copy()
+        cols.extend(["label","ignore"])
         for row in self.ttTable.rows:
-            selectedCell=row.getCell("select")
-            selectedCellCheckbox=selectedCell.getControl()
-            if selectedCellCheckbox.checked:
+            if self.isSelected(row,"select"):
                 propertyId=row.getCellValue("propertyId")
-                idList.append(propertyId)
-        return idList
+                genList=[]
+                for col in cols:
+                    if self.isSelected(row,col):
+                        genList.append(col)
+                idMap[propertyId]=genList
+        return idMap
         
     def generateQuery(self):
         '''
         generate and show the query
         '''
-        propertyIds=self.getPropertyIdList()
-        tt=TrulyTabular(self.itemQid,propertyIds=propertyIds)
-        sparqlQuery=tt.generateSparqlQuery(self.language, naive=True)
+        propertyIdMap=self.getPropertyIdMap()
+        tt=TrulyTabular(self.itemQid,propertyIds=list(propertyIdMap.keys()))
+        listSeparator="|"
+        sparqlQuery=tt.generateSparqlQuery(genMap=propertyIdMap,naive=True,lang=self.language,listSeparator=listSeparator)
         naiveSparqlQuery=Query(name="naive SPARQL Query",query=sparqlQuery)
         self.naiveQueryDisplay.showSyntaxHighlightedQuery(naiveSparqlQuery)
-        sparqlQuery=tt.generateSparqlQuery(self.language, naive=False)
+        sparqlQuery=tt.generateSparqlQuery(genMap=propertyIdMap,naive=False,lang=self.language,listSeparator=listSeparator)
         aggregateSparqlQuery=Query(name="aggregate SPARQL Query",query=sparqlQuery)
         self.aggregateQueryDisplay.showSyntaxHighlightedQuery(aggregateSparqlQuery)
         pass
+    
+    def selectEndPoint(self,endpointName:str):
+        '''
+        select an endpoint
+        '''
+        self.endpointName=endpointName
+        self.endpointConf=self.endpoints.get(endpointName)   
+        self.endpointUrl=self.endpointConf.endpoint
+        self.showFeedback(f"endpoint {self.endpointUrl} selected")
         
-    def onChangeEndpoint(self,msg:dict):
+    async def onChangeEndpoint(self,msg:dict):
         '''
         handle selection of a different endpoint
         
         Args:
             msg(dict): the justpy message
         '''
-       
-        if self.debug:
-            print(msg)
-        self.endPointName=msg.value
+        try:
+            self.selectEndPoint(msg.value)
+        except Exception as ex:
+            self.handleException(ex)
         
     def onItemBoxChange(self,msg:dict):
         searchFor=msg.value
@@ -269,21 +305,26 @@ class WikiDataBrowser(App):
         
     def onItemChange(self,msg:dict):
         '''
-        rect on changes in the item input
+        react on changes in the item input
         '''
         try:
-            searchFor=msg.value
-            self.showFeedback(f"searching wikidata for {searchFor}...")
-            # remove current Selection
-            firstQid=None
-            for qid,itemLabel,desc in self.wdSearch.searchOptions(searchFor):
-                if firstQid is None:
-                    self.itemSelect.delete_components()
-                    firstQid=qid
-                text=f"{itemLabel} ({qid}) {desc}"
-                self.itemSelect.add(jp.Option(value=qid,text=text))
-            if firstQid is not None:
-                self.itemSelect.value=firstQid
+            now=time.time()
+            if self.previousKeyStrokeTime is not None:
+                elapsed=now-self.previousKeyStrokeTime
+                if elapsed>0.6:
+                    searchFor=msg.value
+                    self.showFeedback(f"searching wikidata for {searchFor}...")
+                    # remove current Selection
+                    firstQid=None
+                    for qid,itemLabel,desc in self.wdSearch.searchOptions(searchFor):
+                        if firstQid is None:
+                            self.itemSelect.delete_components()
+                            firstQid=qid
+                        text=f"{itemLabel} ({qid}) {desc}"
+                        self.itemSelect.add(jp.Option(value=qid,text=text))
+                    if firstQid is not None:
+                        self.itemSelect.value=firstQid
+            self.previousKeyStrokeTime=now
         except Exception as ex:
             self.handleException(ex)
            
@@ -295,7 +336,7 @@ class WikiDataBrowser(App):
             itemId(str): the Wikidata item identifier
             propertyId(str): the property id
         '''        
-        tt=TrulyTabular(itemId,propertyIds=[propertyId])
+        tt=TrulyTabular(itemId,propertyIds=[propertyId],endpoint=self.endpointUrl)
         statsRow=next(tt.genPropertyStatistics())
         for key in ["queryf","queryex"]:
             queryText=statsRow[key]
@@ -406,9 +447,13 @@ class WikiDataBrowser(App):
             self.propertySelection.prepare()
             self.ttTable=Table(lod=self.propertySelection.propertyList,primaryKey='propertyId',allowInput=False,a=self.rowE)        
             for aggregate in PropertySelection.aggregates:
-                self.addSelectionColumn(self.ttTable, aggregate,lambda _record:True)
-            self.addSelectionColumn(self.ttTable,"select",lambda record:record["pareto"]<=self.paretoLevel)
+                checked=aggregate in ["sample","count","list"]
+                self.addSelectionColumn(self.ttTable, aggregate,lambda _record:checked)
             self.addSelectionColumn(self.ttTable,"ignore",lambda _record:False,self.onIgnoreSelect)
+            self.addSelectionColumn(self.ttTable,"label",lambda _record:False)
+            self.addSelectionColumn(self.ttTable,"select",lambda record:record["pareto"]<=self.paretoLevel)
+            
+           
             self.showFeedback(f"table for propertySelection of {str(self.tt)} created ...")
             await self.wp.update()
         except (Exception,HTTPError) as ex:
@@ -421,7 +466,7 @@ class WikiDataBrowser(App):
         Args:
             itemId(str): the Wikidata Q - ID of the selected item
         '''
-        if itemId is None:
+        if not itemId:
             return
         try:
             self.itemQid=itemId
@@ -437,7 +482,7 @@ class WikiDataBrowser(App):
             self.showFeedback(f"item {itemId} selected")
             await self.wp.update()
             # create the Truly Tabular Analysis
-            self.tt=TrulyTabular(itemId)
+            self.tt=TrulyTabular(itemId,endpoint=self.endpointUrl)
             self.showFeedback(f"trulytabular {str(self.tt)} initiated")
             wdItem=self.tt.item
             self.itemLinkDiv.inner_html=Link.create(f"{wdItem.url}",wdItem.qlabel, wdItem.description, target="_blank")
@@ -570,11 +615,7 @@ class WikiDataBrowser(App):
         self.aggregateQueryDisplay=QueryDisplay("aggregate Query",a=self.colC3)
         
         # Settings
-        self.settingsCollapsible = Collapsible("Settings", a=self.rowC)
-        self.endpointName=self.args.endpointName
-        self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.settingsCollapsible.body,change=self.onChangeEndpoint)
-        for name in EndpointManager.getEndpointNames():
-            self.endpointSelect.add(jp.Option(value=name, text=name))
+        self.settingsCollapsible = Collapsible("Settings", a=self.colC1)
         
         self.languageSelect=self.createSelect("Language","en",a=self.settingsCollapsible.body,change=self.onChangeLanguage)
         for language in self.getLanguages():
@@ -590,6 +631,13 @@ class WikiDataBrowser(App):
         self.progressBar = ProgressBar(a=self.rowD)                                
         self.feedback=jp.Div(a=self.rowD)
         self.errors=jp.Span(a=self.rowD,style='color:red')
+        
+        # need feedback before we can do this
+        self.selectEndPoint(self.args.endpointName)
+        self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.settingsCollapsible.body,change=self.onChangeEndpoint)
+        for name in EndpointManager.getEndpointNames():
+            self.endpointSelect.add(jp.Option(value=name, text=name))
+   
         return self.wp
         
 DEBUG = 0
