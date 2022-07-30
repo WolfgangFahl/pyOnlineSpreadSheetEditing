@@ -83,6 +83,9 @@ class PropertySelection():
             self.propertyMap[itemId]=prop
         
 class QueryDisplay():
+    '''
+    display queries
+    '''
     
     def __init__(self,name:str,a):
         '''
@@ -93,7 +96,7 @@ class QueryDisplay():
         self.name=name
         self.queryHideShow=Collapsible(name,a=a)
         self.queryDiv=jp.Div(a=self.queryHideShow.body)
-        self.queryTryIt=jp.Div(a=self.queryHideShow.body)
+        self.queryTryIt=jp.Div(a=a)
         pass
     
     def showSyntaxHighlightedQuery(self,sparqlQuery): 
@@ -485,7 +488,8 @@ class WikiDataBrowser(App):
             self.tt=TrulyTabular(itemId,endpoint=self.endpointUrl)
             self.showFeedback(f"trulytabular {str(self.tt)} initiated")
             wdItem=self.tt.item
-            self.itemLinkDiv.inner_html=Link.create(f"{wdItem.url}",wdItem.qlabel, wdItem.description, target="_blank")
+            itemText=str(self.tt) 
+            self.itemLinkDiv.inner_html=Link.create(f"{wdItem.url}",itemText, wdItem.description, target="_blank")
             await self.wp.update()
             await self.getMostFrequentlyUsedProperties(self.tt)
             await self.getPropertiesTable(self.tt,self.ttquery)
@@ -585,8 +589,8 @@ class WikiDataBrowser(App):
         self.colA3=jp.Div(classes="col-6",a=rowA)
         
         self.rowB=jp.Div(classes="row",a=self.contentbox)
-        self.colB1=jp.Div(classes="col-2",a=self.rowB)
-        self.colB2=jp.Div(classes="col-4",a=self.rowB)
+        self.colB1=jp.Div(classes="col-3",a=self.rowB)
+        self.colB2=jp.Div(classes="col-3",a=self.rowB)
         self.colB3=jp.Div(classes="col-6",a=self.rowB)
         
         self.rowC=jp.Div(classes="row",a=self.contentbox)
