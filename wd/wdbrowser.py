@@ -141,6 +141,10 @@ class WikiDataBrowser(App):
         self.language="en"
         self.wdSearch=WikidataSearch(self.language)
         self.paretoLevel=1
+        self.paretoLevels=[]
+        for level in range(1,10):
+            pareto=Pareto(level)
+            self.paretoLevels.append(pareto)
         self.ttTable=None
         jp.Route('/settings',self.settings)
         jp.Route('/tt/{qid}', self.content)
@@ -149,6 +153,7 @@ class WikiDataBrowser(App):
         self.propertyQueryDisplay=None
         self.naiveQueryDisplay=None
         self.aggregateQueryDisplay=None
+        self.generateQueryButton=None
         
     def getParser(self):
         '''
@@ -398,6 +403,8 @@ class WikiDataBrowser(App):
             #done
             self.showFeedback("")
             self.progressBar.updateProgress(0)
+            if self.generateQueryButton is None:
+                self.generateQueryButton=jp.Button(text="Generate SPARQL query",classes="btn btn-primary",a=self.colD1,click=self.onGenerateQueryButtonClick,disabled=True)
             self.generateQueryButton.disabled=False
 #{
 #  'property': 'instance of',
@@ -495,7 +502,8 @@ class WikiDataBrowser(App):
                 except Exception as ex:
                     pass
                 self.ttTable=None
-                self.generateQueryButton.disabled=True
+                if self.generateQueryButton is not None:
+                    self.generateQueryButton.disabled=True
             self.showFeedback(f"item {itemId} selected")
             await self.wp.update()
             # create the Truly Tabular Analysis
@@ -562,22 +570,18 @@ class WikiDataBrowser(App):
         await self.selectItem(self.itemQid)
         pass
             
-    def createParetoSelect(self,a,topLevel:int=9):
+    def createParetoSelect(self,a):
         '''
         create the pareto select
         
         Args:
-            topLevel(int): the maximum pareto Level
             a(object): the parent component
             
         Returns:
             jp.Select
         '''
         pselect=self.createSelect("Pareto",self.paretoLevel,change=self.onParetoSelect,a=a)
-        self.paretoLevels=[]
-        for level in range(1,topLevel+1):
-            pareto=Pareto(level)
-            self.paretoLevels.append(pareto)
+        for pareto in self.paretoLevels:
             pselect.add(jp.Option(value=pareto.level,text=pareto.asText(long=True)))
         return pselect
     
@@ -629,6 +633,9 @@ class WikiDataBrowser(App):
         self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.colC1,change=self.onChangeEndpoint)
         for name in EndpointManager.getEndpointNames():
             self.endpointSelect.add(jp.Option(value=name, text=name))
+        
+        # pareto selection
+        self.paretoSelect=self.createParetoSelect(a=self.colD1)
         return self.wp
     
     async def content(self,request):
@@ -650,14 +657,7 @@ class WikiDataBrowser(App):
         # link and count for the item
         self.itemLinkDiv=jp.Div(a=self.colB1,classes="h5")
         self.countDiv=jp.Div(a=self.colB2,classes="h5")
-        
-            
-        # pareto selection
-        self.paretoSelect=self.createParetoSelect(a=self.colD1)
-        self.generateQueryButton=jp.Button(text="Generate SPARQL query",classes="btn btn-primary",a=self.colD1,click=self.onGenerateQueryButtonClick,disabled=True)
-                                    
-      
-   
+           
         return self.wp
         
 DEBUG = 0
