@@ -137,6 +137,7 @@ class WikiDataBrowser(App):
         self.addMenuLink(text='github',icon='github', href="https://github.com/WolfgangFahl/pyLoDStorage/issues/79")
         self.addMenuLink(text='Documentation',icon='file-document',href="https://wiki.bitplan.com/index.php/Truly_Tabular_RDF")
         self.endpoints=EndpointManager.getEndpoints()
+        self.endpointName=None
         self.language="en"
         self.wdSearch=WikidataSearch(self.language)
         self.paretoLevel=1
@@ -146,6 +147,8 @@ class WikiDataBrowser(App):
         self.starttime=time.time()
         self.previousKeyStrokeTime=None
         self.propertyQueryDisplay=None
+        self.naiveQueryDisplay=None
+        self.aggregateQueryDisplay=None
         
     def getParser(self):
         '''
@@ -154,7 +157,6 @@ class WikiDataBrowser(App):
         parser=super().getParser()
         parser.add_argument('-en', '--endpointName', default="wikidata", help=f"Name of the endpoint to use for queries. Available by default: {EndpointManager.getEndpointNames()}")
         return parser
-    
             
     def getLanguages(self):
         # see https://github.com/sahajsk21/Anvesha/blob/master/src/components/topnav.js
@@ -274,6 +276,10 @@ class WikiDataBrowser(App):
         propertyIdMap=self.getPropertyIdMap()
         tt=TrulyTabular(self.itemQid,propertyIds=list(propertyIdMap.keys()))
         listSeparator="|"
+        if self.naiveQueryDisplay is None:
+            self.naiveQueryDisplay=QueryDisplay("naive Query",a=self.colB3)
+        if self.aggregateQueryDisplay is None:
+            self.aggregateQueryDisplay=QueryDisplay("aggregate Query",a=self.colC3)
         sparqlQuery=tt.generateSparqlQuery(genMap=propertyIdMap,naive=True,lang=self.language,listSeparator=listSeparator)
         naiveSparqlQuery=Query(name="naive SPARQL Query",query=sparqlQuery)
         self.naiveQueryDisplay.showSyntaxHighlightedQuery(naiveSparqlQuery)
@@ -282,16 +288,15 @@ class WikiDataBrowser(App):
         self.aggregateQueryDisplay.showSyntaxHighlightedQuery(aggregateSparqlQuery)
         pass
     
-    def selectEndPoint(self,endpointName:str):
+    def setEndPoint(self,endpointName:str):
         '''
-        select an endpoint
+        set an endpoint
         '''
         self.endpointName=endpointName
         self.endpointConf=self.endpoints.get(endpointName)   
         self.endpointUrl=self.endpointConf.endpoint
         self.endpointWebsite=self.endpointConf.website
         self.addMenuLink(text='Endpoint',icon='web',href=self.endpointWebsite,target="_blank")
-        self.showFeedback(f"endpoint {self.endpointName} selected")
         
     async def onChangeEndpoint(self,msg:dict):
         '''
@@ -301,7 +306,8 @@ class WikiDataBrowser(App):
             msg(dict): the justpy message
         '''
         try:
-            self.selectEndPoint(msg.value)
+            self.setEndPoint(msg.value)
+            self.showFeedback(f"endpoint {self.endpointName} selected")
         except Exception as ex:
             self.handleException(ex)
         await self.wp.update()
@@ -414,18 +420,12 @@ class WikiDataBrowser(App):
         '''
         try:
             self.ttquery=tt.mostFrequentPropertiesQuery()   
-            self.setUpQueryDisplays()
+            if self.propertyQueryDisplay is None:
+                self.propertyQueryDisplay=QueryDisplay("property Query",a=self.colA3)
             self.propertyQueryDisplay.showSyntaxHighlightedQuery(self.ttquery)  
             await self.wp.update()
         except Exception as ex:
-            self.handleException(ex)
-            
-    def setUpQueryDisplays(self):
-        # Display for Queries
-        if self.propertyQueryDisplay is None:
-            self.propertyQueryDisplay=QueryDisplay("property Query",a=self.colA3)
-            self.naiveQueryDisplay=QueryDisplay("naive Query",a=self.colB3)
-            self.aggregateQueryDisplay=QueryDisplay("aggregate Query",a=self.colC3)
+            self.handleException(ex)            
     
     async def noAction(self,_msg):
         '''
@@ -582,9 +582,12 @@ class WikiDataBrowser(App):
         return pselect
     
     def setupRowsAndCols(self):
+        # select endpoint
         head="""<link rel="stylesheet" href="/static/css/md_style_indigo.css">
 <link rel="stylesheet" href="/static/css/pygments.css">
 """
+        if self.endpointName is None:
+            self.setEndPoint(self.args.endpointName)
         # extend the justpy Webpage with the given head parameters
         self.wp=self.getWp(head)
         
@@ -614,8 +617,6 @@ class WikiDataBrowser(App):
         self.progressBar = ProgressBar(a=self.rowD)   
         self.feedback=jp.Div(a=self.rowD)
         self.errors=jp.Span(a=self.rowD,style='color:red')
-        # select endpoint
-        self.selectEndPoint(self.args.endpointName)
     
     async def settings(self):
         self.setupRowsAndCols()
