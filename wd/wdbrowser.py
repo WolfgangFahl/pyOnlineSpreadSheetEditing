@@ -150,10 +150,6 @@ class WikiDataBrowser(App):
         jp.Route('/tt/{qid}', self.content)
         self.starttime=time.time()
         self.previousKeyStrokeTime=None
-        self.propertyQueryDisplay=None
-        self.naiveQueryDisplay=None
-        self.aggregateQueryDisplay=None
-        self.generateQueryButton=None
         
     def getParser(self):
         '''
@@ -621,6 +617,10 @@ class WikiDataBrowser(App):
         self.progressBar = ProgressBar(a=self.rowD)   
         self.feedback=jp.Div(a=self.rowD)
         self.errors=jp.Span(a=self.rowD,style='color:red')
+        self.propertyQueryDisplay=None
+        self.naiveQueryDisplay=None
+        self.aggregateQueryDisplay=None
+        self.generateQueryButton=None
     
     async def settings(self):
         self.setupRowsAndCols()
