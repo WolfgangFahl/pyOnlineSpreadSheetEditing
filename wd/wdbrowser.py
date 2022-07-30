@@ -95,6 +95,7 @@ class QueryDisplay():
         '''
         self.name=name
         self.queryHideShow=Collapsible(name,a=a)
+        self.queryHideShow.btn.classes+="btn-sm col-3"
         self.queryDiv=jp.Div(a=self.queryHideShow.body)
         self.queryTryIt=jp.Div(a=a)
         pass
