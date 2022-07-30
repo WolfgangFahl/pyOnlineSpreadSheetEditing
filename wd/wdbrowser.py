@@ -133,6 +133,7 @@ class WikiDataBrowser(App):
         '''
         App.__init__(self, version,title="Wikidata browser")
         self.addMenuLink(text='Home',icon='home', href="/")
+        self.addMenuLink(text='Settings',icon='cog',href="/settings")
         self.addMenuLink(text='github',icon='github', href="https://github.com/WolfgangFahl/pyLoDStorage/issues/79")
         self.addMenuLink(text='Documentation',icon='file-document',href="https://wiki.bitplan.com/index.php/Truly_Tabular_RDF")
         self.endpoints=EndpointManager.getEndpoints()
@@ -140,9 +141,11 @@ class WikiDataBrowser(App):
         self.wdSearch=WikidataSearch(self.language)
         self.paretoLevel=1
         self.ttTable=None
+        jp.Route('/settings',self.settings)
         jp.Route('/tt/{qid}', self.content)
         self.starttime=time.time()
         self.previousKeyStrokeTime=None
+        self.propertyQueryDisplay=None
         
     def getParser(self):
         '''
@@ -286,7 +289,9 @@ class WikiDataBrowser(App):
         self.endpointName=endpointName
         self.endpointConf=self.endpoints.get(endpointName)   
         self.endpointUrl=self.endpointConf.endpoint
-        self.showFeedback(f"endpoint {self.endpointUrl} selected")
+        self.endpointWebsite=self.endpointConf.website
+        self.addMenuLink(text='Endpoint',icon='web',href=self.endpointWebsite,target="_blank")
+        self.showFeedback(f"endpoint {self.endpointName} selected")
         
     async def onChangeEndpoint(self,msg:dict):
         '''
@@ -299,6 +304,7 @@ class WikiDataBrowser(App):
             self.selectEndPoint(msg.value)
         except Exception as ex:
             self.handleException(ex)
+        await self.wp.update()
         
     def onItemBoxChange(self,msg:dict):
         searchFor=msg.value
@@ -408,11 +414,18 @@ class WikiDataBrowser(App):
         '''
         try:
             self.ttquery=tt.mostFrequentPropertiesQuery()   
+            self.setUpQueryDisplays()
             self.propertyQueryDisplay.showSyntaxHighlightedQuery(self.ttquery)  
             await self.wp.update()
         except Exception as ex:
             self.handleException(ex)
             
+    def setUpQueryDisplays(self):
+        # Display for Queries
+        if self.propertyQueryDisplay is None:
+            self.propertyQueryDisplay=QueryDisplay("property Query",a=self.colA3)
+            self.naiveQueryDisplay=QueryDisplay("naive Query",a=self.colB3)
+            self.aggregateQueryDisplay=QueryDisplay("aggregate Query",a=self.colC3)
     
     async def noAction(self,_msg):
         '''
@@ -568,14 +581,7 @@ class WikiDataBrowser(App):
             pselect.add(jp.Option(value=pareto.level,text=pareto.asText(long=True)))
         return pselect
     
-    async def content(self,request):
-        '''
-        provide the justpy content by adding to the webpage provide by the App
-        '''
-        if "qid" in request.path_params:
-            self.itemQid=request.path_params["qid"]
-        else:
-            self.itemQid=""
+    def setupRowsAndCols(self):
         head="""<link rel="stylesheet" href="/static/css/md_style_indigo.css">
 <link rel="stylesheet" href="/static/css/pygments.css">
 """
@@ -585,8 +591,8 @@ class WikiDataBrowser(App):
         # setup Bootstrap5 rows and columns
         
         rowA=jp.Div(classes="row",a=self.contentbox)
-        colA1=jp.Div(classes="col-3",a=rowA)
-        colA2=jp.Div(classes="col-3",a=rowA)
+        self.colA1=jp.Div(classes="col-3",a=rowA)
+        self.colA2=jp.Div(classes="col-3",a=rowA)
         self.colA3=jp.Div(classes="col-6",a=rowA)
         
         self.rowB=jp.Div(classes="row",a=self.contentbox)
@@ -603,45 +609,53 @@ class WikiDataBrowser(App):
         self.colD1=jp.Div(classes="col-3",a=self.rowD)
         
         self.rowE=jp.Div(classes="row",a=self.contentbox)
-        
-        # self.itemcombo=ComboBox(a=colA1,placeholder='Please type here to search ...',change=self.onItemBoxChange)
-        self.item=self.createInput(text="Wikidata item", a=colA1, placeholder='Please type here to search ...',value=self.itemQid,change=self.onItemChange)
-        # on enter use the currently selected item 
-        self.item.on('change', self.onItemInput)   
-        self.itemSelect=jp.Select(classes="form-select",a=colA2,change=self.onItemSelect)
-        
-        # link and count for the item
-        self.itemLinkDiv=jp.Div(a=self.colB1,classes="h5")
-        self.countDiv=jp.Div(a=self.colB2,classes="h5")
-        
-        # Queries
-        self.propertyQueryDisplay=QueryDisplay("property Query",a=self.colA3)
-        self.naiveQueryDisplay=QueryDisplay("naive Query",a=self.colB3)
-        self.aggregateQueryDisplay=QueryDisplay("aggregate Query",a=self.colC3)
-        
-        # Settings
-        self.settingsCollapsible = Collapsible("Settings", a=self.colC1)
-        
-        self.languageSelect=self.createSelect("Language","en",a=self.settingsCollapsible.body,change=self.onChangeLanguage)
+        # mandatory UI parts
+        # progressbar, feedback and errors
+        self.progressBar = ProgressBar(a=self.rowD)   
+        self.feedback=jp.Div(a=self.rowD)
+        self.errors=jp.Span(a=self.rowD,style='color:red')
+        # select endpoint
+        self.selectEndPoint(self.args.endpointName)
+    
+    async def settings(self):
+        self.setupRowsAndCols()
+        self.languageSelect=self.createSelect("Language","en",a=self.colC1,change=self.onChangeLanguage)
         for language in self.getLanguages():
             lang=language[0]
             desc=language[1]
             desc=html.unescape(desc)
             self.languageSelect.add(jp.Option(value=lang,text=desc))
+        self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.colC1,change=self.onChangeEndpoint)
+        for name in EndpointManager.getEndpointNames():
+            self.endpointSelect.add(jp.Option(value=name, text=name))
+        return self.wp
+    
+    async def content(self,request):
+        '''
+        provide the justpy content by adding to the webpage provide by the App
+        '''
+        if "qid" in request.path_params:
+            self.itemQid=request.path_params["qid"]
+        else:
+            self.itemQid=""
+       
+        self.setupRowsAndCols()
+        # self.itemcombo=ComboBox(a=colA1,placeholder='Please type here to search ...',change=self.onItemBoxChange)
+        self.item=self.createInput(text="Wikidata item", a=self.colA1, placeholder='Please type here to search ...',value=self.itemQid,change=self.onItemChange)
+        # on enter use the currently selected item 
+        self.item.on('change', self.onItemInput)   
+        self.itemSelect=jp.Select(classes="form-select",a=self.colA2,change=self.onItemSelect)
+        
+        # link and count for the item
+        self.itemLinkDiv=jp.Div(a=self.colB1,classes="h5")
+        self.countDiv=jp.Div(a=self.colB2,classes="h5")
+        
             
         # pareto selection
         self.paretoSelect=self.createParetoSelect(a=self.colD1)
         self.generateQueryButton=jp.Button(text="Generate SPARQL query",classes="btn btn-primary",a=self.colD1,click=self.onGenerateQueryButtonClick,disabled=True)
-        # progressbar, feedback and errors
-        self.progressBar = ProgressBar(a=self.rowD)                                
-        self.feedback=jp.Div(a=self.rowD)
-        self.errors=jp.Span(a=self.rowD,style='color:red')
-        
-        # need feedback before we can do this
-        self.selectEndPoint(self.args.endpointName)
-        self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.settingsCollapsible.body,change=self.onChangeEndpoint)
-        for name in EndpointManager.getEndpointNames():
-            self.endpointSelect.add(jp.Option(value=name, text=name))
+                                    
+      
    
         return self.wp
         
