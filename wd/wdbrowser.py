@@ -269,13 +269,25 @@ class WikiDataBrowser(App):
                         genList.append(col)
                 idMap[propertyId]=genList
         return idMap
+    
+    def createTrulyTabular(self,itemQid,propertyIds=[]):
+        '''
+        create a Truly Tabular configuration for my configure endpoint and the given itemQid and
+        propertyIds
         
+        Args:
+            itemQid(str): e.g. Q5 human
+            propertyIds(list): list of property Ids (if any) such as P17 country
+        '''
+        tt=TrulyTabular(itemQid=itemQid,propertyIds=propertyIds,endpointConf=self.endpointConf)
+        return tt
+    
     def generateQuery(self):
         '''
         generate and show the query
         '''
         propertyIdMap=self.getPropertyIdMap()
-        tt=TrulyTabular(self.itemQid,propertyIds=list(propertyIdMap.keys()))
+        tt=self.createTrulyTabular(itemQid=self.itemQid,propertyIds=list(propertyIdMap.keys()))
         listSeparator="|"
         if self.naiveQueryDisplay is None:
             self.naiveQueryDisplay=QueryDisplay("naive Query",a=self.colB3)
@@ -294,10 +306,9 @@ class WikiDataBrowser(App):
         set an endpoint
         '''
         self.endpointName=endpointName
+        # get the endpoint Configuration
         self.endpointConf=self.endpoints.get(endpointName)   
-        self.endpointUrl=self.endpointConf.endpoint
-        self.endpointWebsite=self.endpointConf.website
-        self.addMenuLink(text='Endpoint',icon='web',href=self.endpointWebsite,target="_blank")
+        self.addMenuLink(text='Endpoint',icon='web',href=self.endpointConf.website,target="_blank")
         
     async def onChangeEndpoint(self,msg:dict):
         '''
@@ -308,7 +319,7 @@ class WikiDataBrowser(App):
         '''
         try:
             self.setEndPoint(msg.value)
-            self.showFeedback(f"endpoint {self.endpointName} selected")
+            self.showFeedback(f"endpoint {self.endpointName} ({self.endpointConf.database}) selected")
         except Exception as ex:
             self.handleException(ex)
         await self.wp.update()
@@ -353,7 +364,7 @@ class WikiDataBrowser(App):
             itemId(str): the Wikidata item identifier
             propertyId(str): the property id
         '''        
-        tt=TrulyTabular(itemId,propertyIds=[propertyId],endpoint=self.endpointUrl)
+        tt=self.createTrulyTabular(itemId,propertyIds=[propertyId])
         statsRow=next(tt.genPropertyStatistics())
         for key in ["queryf","queryex"]:
             queryText=statsRow[key]
@@ -503,7 +514,7 @@ class WikiDataBrowser(App):
             self.showFeedback(f"item {itemId} selected")
             await self.wp.update()
             # create the Truly Tabular Analysis
-            self.tt=TrulyTabular(itemId,endpoint=self.endpointUrl)
+            self.tt=self.createTrulyTabular(itemId)
             self.showFeedback(f"trulytabular {str(self.tt)} initiated")
             wdItem=self.tt.item
             itemText=str(self.tt) 
@@ -642,12 +653,14 @@ class WikiDataBrowser(App):
         '''
         provide the justpy content by adding to the webpage provide by the App
         '''
+        
         if "qid" in request.path_params:
             self.itemQid=request.path_params["qid"]
         else:
             self.itemQid=""
        
         self.setupRowsAndCols()
+    
         # self.itemcombo=ComboBox(a=colA1,placeholder='Please type here to search ...',change=self.onItemBoxChange)
         self.item=self.createInput(text="Wikidata item", a=self.colA1, placeholder='Please type here to search ...',value=self.itemQid,change=self.onItemChange)
         # on enter use the currently selected item 
@@ -657,7 +670,7 @@ class WikiDataBrowser(App):
         # link and count for the item
         self.itemLinkDiv=jp.Div(a=self.colB1,classes="h5")
         self.countDiv=jp.Div(a=self.colB2,classes="h5")
-           
+        
         return self.wp
         
 DEBUG = 0
