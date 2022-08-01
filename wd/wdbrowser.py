@@ -3,6 +3,7 @@ Created on 2022-07-24
 
 @author: wf
 '''
+import asyncio
 import collections
 import html
 import sys
@@ -151,7 +152,7 @@ class WikiDataBrowser(App):
             self.paretoLevels.append(pareto)
         self.ttTable=None
         jp.Route('/settings',self.settings)
-        jp.Route('/tt/{qid}', self.content)
+        jp.Route('/tt/{qid}',self.ttcontent)
         self.starttime=time.time()
         self.previousKeyStrokeTime=None
         
@@ -625,6 +626,7 @@ class WikiDataBrowser(App):
 """
         if self.endpointName is None:
             self.setEndPoint(self.args.endpointName)
+        self.itemQid=""
         # extend the justpy Webpage with the given head parameters
         self.wp=self.getWp(head)
         
@@ -676,15 +678,21 @@ class WikiDataBrowser(App):
         self.paretoSelect=self.createParetoSelect(a=self.colD1)
         return self.wp
     
-    async def content(self,request):
+    async def ttcontent(self,request):
+        '''
+        RESTful access
+        '''
+        if "qid" in request.path_params:
+            qid=request.path_params["qid"]
+        content=await self.content()
+        await self.wp.update()
+        await self.selectItem(qid)
+        return content
+    
+    async def content(self):
         '''
         provide the justpy content by adding to the webpage provide by the App
         '''
-        
-        if "qid" in request.path_params:
-            self.itemQid=request.path_params["qid"]
-        else:
-            self.itemQid=""
        
         self.setupRowsAndCols()
     
