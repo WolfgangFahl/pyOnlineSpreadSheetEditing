@@ -296,7 +296,7 @@ class WikiDataBrowser(App):
             itemQid(str): e.g. Q5 human
             propertyIds(list): list of property Ids (if any) such as P17 country
         '''
-        tt=TrulyTabular(itemQid=itemQid,propertyIds=propertyIds,endpointConf=self.endpointConf)
+        tt=TrulyTabular(itemQid=itemQid,propertyIds=propertyIds,endpointConf=self.endpointConf,debug=self.debug)
         return tt
     
     def generateQuery(self):
@@ -392,7 +392,7 @@ class WikiDataBrowser(App):
                 tryItLink=Link.create(url=tryItUrlEncoded,text="try it!",tooltip=f"try out with {self.endpointConf.name}",target="_blank")
                 statsRow[f"{key}TryIt"]=tryItLink
             return statsRow
-        except BaseException as ex:
+        except (BaseException,HTTPError) as ex:
             self.handleException(ex)
             return None
             
@@ -437,7 +437,7 @@ class WikiDataBrowser(App):
                 if self.paretoSelect is None:
                     self.paretoSelect=self.createParetoSelect(a=self.colD1)    
                 self.generateQueryButton.disabled=False
-        except BaseException as ex:
+        except (BaseException,HTTPError) as ex:
             self.handleException(ex)  
 #{
 #  'property': 'instance of',
@@ -459,12 +459,16 @@ class WikiDataBrowser(App):
             tt(TrulyTabular): the truly tabular Wikidata Item Analysis 
         '''
         try:
-            self.ttquery=tt.mostFrequentPropertiesQuery()   
+            total=self.ttcount
+            pareto=self.paretoLevels[self.paretoLevel]
+            
+            minCount=round(total/pareto.oneOutOf)
+            self.ttquery=tt.mostFrequentPropertiesQuery(minCount=minCount)   
             if self.propertyQueryDisplay is None:
                 self.propertyQueryDisplay=self.createQueryDisplay("property Query",a=self.colA3)
             self.propertyQueryDisplay.showSyntaxHighlightedQuery(self.ttquery)  
             await self.wp.update()
-        except BaseException as ex:
+        except (BaseException,HTTPError) as ex:
             self.handleException(ex)            
     
     async def noAction(self,_msg):
@@ -490,13 +494,23 @@ class WikiDataBrowser(App):
             checked=checkedCondition(row.record)
             checkbox=jp.Input(type='checkbox',a=cell,checked=checked,input=onInput)
             cell.setControl(checkbox)
-                
-    async def getPropertiesTable(self,tt,ttquery):
+            
+    async def getCountQuery(self,tt):
         try:
             self.showFeedback(f"running count query for {str(self.tt)} ...")
             await self.wp.update()
-            self.ttcount=tt.count()
+            self.ttcount,countQuery=tt.count()
             self.countDiv.text=f"{self.ttcount} instances found"
+            if self.countQueryDisplay is None:
+                self.countQueryDisplay=self.createQueryDisplay("count Query",a=self.colA3)
+            countSparqlQuery=Query(name="count Query",query=countQuery)
+            self.countQueryDisplay.showSyntaxHighlightedQuery(countSparqlQuery)
+            await self.wp.update()
+        except (BaseException,HTTPError) as ex:
+            self.handleException(ex)
+                
+    async def getPropertiesTable(self,tt,ttquery):
+        try:
             self.showFeedback(f"running query for most frequently used properties of {str(self.tt)} ...")
             await self.wp.update()
             self.propertyList=tt.sparql.queryAsListOfDicts(ttquery.query)
@@ -513,7 +527,7 @@ class WikiDataBrowser(App):
            
             self.showFeedback(f"table for propertySelection of {str(self.tt)} created ...")
             await self.wp.update()
-        except (Exception,HTTPError) as ex:
+        except (BaseException,HTTPError) as ex:
             self.handleException(ex)
                               
     async def selectItem(self,itemId):
@@ -546,8 +560,9 @@ class WikiDataBrowser(App):
             itemText=str(self.tt) 
             self.itemLinkDiv.inner_html=Link.create(f"{wdItem.url}",itemText, wdItem.description, target="_blank")
             await self.wp.update()
-            await self.getMostFrequentlyUsedProperties(self.tt)
-            await self.getPropertiesTable(self.tt,self.ttquery)
+            await self.getCountQuery(self.tt),
+            await self.getMostFrequentlyUsedProperties(self.tt),
+            await self.getPropertiesTable(self.tt,self.ttquery),
             await self.trulyTabularAnalysis(self.tt)
         except BaseException as ex:
             self.handleException(ex)
@@ -656,6 +671,7 @@ class WikiDataBrowser(App):
         self.progressBar = ProgressBar(a=self.rowD)   
         self.feedback=jp.Div(a=self.rowD)
         self.errors=jp.Span(a=self.rowD,style='color:red')
+        self.countQueryDisplay=None
         self.propertyQueryDisplay=None
         self.naiveQueryDisplay=None
         self.aggregateQueryDisplay=None
@@ -663,6 +679,9 @@ class WikiDataBrowser(App):
         self.paretoSelect=None
     
     async def settings(self):
+        '''
+        settings
+        '''
         self.setupRowsAndCols()
         self.languageSelect=self.createSelect("Language","en",a=self.colC1,change=self.onChangeLanguage)
         for language in self.getLanguages():
@@ -671,8 +690,10 @@ class WikiDataBrowser(App):
             desc=html.unescape(desc)
             self.languageSelect.add(jp.Option(value=lang,text=desc))
         self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.colC1,change=self.onChangeEndpoint)
-        for name in EndpointManager.getEndpointNames():
-            self.endpointSelect.add(jp.Option(value=name, text=name))
+        for endpointName in EndpointManager.getEndpointNames():
+            self.endpointConf=self.endpoints.get(endpointName)
+            if self.endpointConf.lang=="sparql":
+                self.endpointSelect.add(jp.Option(value=endpointName, text=endpointName))
         
         # pareto selection
         self.paretoSelect=self.createParetoSelect(a=self.colD1)
