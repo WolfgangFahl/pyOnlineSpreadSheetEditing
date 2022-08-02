@@ -141,7 +141,7 @@ class WikiDataBrowser(App):
         self.addMenuLink(text='Settings',icon='cog',href="/settings")
         self.addMenuLink(text='github',icon='github', href="https://github.com/WolfgangFahl/pyLoDStorage/issues/79")
         self.addMenuLink(text='Documentation',icon='file-document',href="https://wiki.bitplan.com/index.php/Truly_Tabular_RDF")
-        self.endpoints=EndpointManager.getEndpoints()
+        self.endpoints=EndpointManager.getEndpoints(lang="sparql")
         self.endpointName=None
         self.language="en"
         self.wdSearch=WikidataSearch(self.language)
@@ -692,8 +692,7 @@ class WikiDataBrowser(App):
         self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.colC1,change=self.onChangeEndpoint)
         for endpointName in EndpointManager.getEndpointNames():
             self.endpointConf=self.endpoints.get(endpointName)
-            if self.endpointConf.lang=="sparql":
-                self.endpointSelect.add(jp.Option(value=endpointName, text=endpointName))
+            self.endpointSelect.add(jp.Option(value=endpointName, text=endpointName))
         
         # pareto selection
         self.paretoSelect=self.createParetoSelect(a=self.colD1)
