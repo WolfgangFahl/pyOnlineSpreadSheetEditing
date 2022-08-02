@@ -32,6 +32,7 @@ class PropertySelection():
             propertyList(list): the list of properties to show
         '''
         self.propertyMap={}
+        self.headerMap={}
         self.propertyList=[]
         self.total=total
         self.paretoLevels=paretoLevels
@@ -52,6 +53,11 @@ class PropertySelection():
                 level=pareto.level
         return level
 
+    def getInfoHeaderColumn(self,col):
+        href=f"https://wiki.bitplan.com/index.php/Truly_Tabular_RDF/Info#{col}"
+        info=f"{col}<br><a href='{href}'style='color:white' target='_blank'>ⓘ</a>"
+        return info
+        
     def prepare(self):
         '''
         prepare the propertyList
@@ -60,6 +66,13 @@ class PropertySelection():
             total(int): the total number of records
             paretoLevels(list): the pareto Levels to use
         '''
+        
+        self.headerMap={}
+        cols=["#","%","pareto","property","propertyId","1","maxf","nt","nt%","?f","?ex","✔"]
+        cols.extend(PropertySelection.aggregates)
+        cols.extend(["ignore","label","select"])
+        for col in cols:
+            self.headerMap[col]=self.getInfoHeaderColumn(col)
         for i,prop in enumerate(self.propertyList):
             # add index as first column
             prop["#"]=i+1
@@ -510,13 +523,16 @@ class WikiDataBrowser(App):
             self.handleException(ex)
                 
     async def getPropertiesTable(self,tt,ttquery):
+        '''
+        get the properties table
+        '''
         try:
             self.showFeedback(f"running query for most frequently used properties of {str(self.tt)} ...")
             await self.wp.update()
             self.propertyList=tt.sparql.queryAsListOfDicts(ttquery.query)
             self.propertySelection=PropertySelection(self.propertyList,total=self.ttcount,paretoLevels=self.paretoLevels)
             self.propertySelection.prepare()
-            self.ttTable=Table(lod=self.propertySelection.propertyList,primaryKey='propertyId',allowInput=False,a=self.rowE)        
+            self.ttTable=Table(lod=self.propertySelection.propertyList,headerMap=self.propertySelection.headerMap,primaryKey='propertyId',allowInput=False,a=self.rowE)        
             for aggregate in PropertySelection.aggregates:
                 checked=aggregate in ["sample","count","list"]
                 self.addSelectionColumn(self.ttTable, aggregate,lambda _record:checked)

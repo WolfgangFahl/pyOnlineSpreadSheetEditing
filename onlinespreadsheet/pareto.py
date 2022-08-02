@@ -4,6 +4,7 @@ Created on 2022-03-21
 @author: wf
 '''
 import math
+import fractions
 
 class Pareto(object):
     '''
@@ -44,5 +45,12 @@ class Pareto(object):
         if long:
             text=f"level {self.level}={text} (1 out of {self.oneOutOf})"
         return text
+    
+    def asDict(self):
+        d={}
+        d["level"]=self.level
+        d["ratio"]=self.asText()
+        d["1 out of"]=self.oneOutOf
+        return d
         
         

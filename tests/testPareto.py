@@ -5,6 +5,7 @@ Created on 2022-03-21
 '''
 from tests.basetest import BaseTest
 from onlinespreadsheet.pareto import Pareto
+from tabulate import tabulate
 
 class TestPareto(BaseTest):
     '''
@@ -28,6 +29,20 @@ class TestPareto(BaseTest):
                 print(pareto.asText(long=True))
         ratioTests=[(0.5,1),(0.05,2)]
         for ratio,level in ratioTests:
-            self.assertTrue(Pareto(level).ratioInLevel(ratio))        
+            self.assertTrue(Pareto(level).ratioInLevel(ratio))   
+            
+    def testParetoTabular(self):
+        '''
+        test getting a table with the pareto definition
+        '''
+        paretoLod=[]
+        for level in range(1,10):
+            d=Pareto(level).asDict()
+            print(d)
+            paretoLod.append(d)
+        for tablefmt in ["mediawiki","latex"]:
+            markup=tabulate(paretoLod,headers="keys",tablefmt=tablefmt)
+            print(markup)
+                 
                 
     
