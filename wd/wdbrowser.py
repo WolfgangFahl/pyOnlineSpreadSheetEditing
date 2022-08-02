@@ -690,8 +690,8 @@ class WikiDataBrowser(App):
             desc=html.unescape(desc)
             self.languageSelect.add(jp.Option(value=lang,text=desc))
         self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.colC1,change=self.onChangeEndpoint)
-        for endpointConf in self.endpoints:
-            self.endpointSelect.add(jp.Option(value=endpointConf.name, text=endpointConf.name))
+        for endpointName in self.endpoints:
+            self.endpointSelect.add(jp.Option(value=endpointName, text=endpointName))
         
         # pareto selection
         self.paretoSelect=self.createParetoSelect(a=self.colD1)
