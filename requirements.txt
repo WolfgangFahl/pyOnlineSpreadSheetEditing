@@ -1,6 +1,6 @@
 # required dependencies for https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing
 # web server with Flask and Bootstrap4
-pyFlaskBootstrap4~=0.4.6
+pyFlaskBootstrap4~=0.4.7
 #flask-dropzone
 # https://github.com/WolfgangFahl/py-3rdparty-mediawiki
 py-3rdparty-mediawiki~=0.6.2
@@ -21,4 +21,4 @@ python-dateutil
 # https://pypi.org/project/pyGenericSpreadSheet/
 pyGenericSpreadSheet~=0.1.12
 # https://pypi.org/project/pyJustpyWidgets/
-pyJustpyWidgets~=0.0.16
+pyJustpyWidgets~=0.0.17

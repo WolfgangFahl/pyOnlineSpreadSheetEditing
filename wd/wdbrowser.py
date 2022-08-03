@@ -157,6 +157,7 @@ class WikiDataBrowser(App):
         self.endpoints=EndpointManager.getEndpoints(lang="sparql")
         self.endpointName=None
         self.language="en"
+        self.listSeparator="|"
         self.wdSearch=WikidataSearch(self.language)
         self.paretoLevel=1
         self.paretoLevels=[]
@@ -318,15 +319,14 @@ class WikiDataBrowser(App):
         '''
         propertyIdMap=self.getPropertyIdMap()
         tt=self.createTrulyTabular(itemQid=self.itemQid,propertyIds=list(propertyIdMap.keys()))
-        listSeparator="|"
         if self.naiveQueryDisplay is None:
             self.naiveQueryDisplay=self.createQueryDisplay("naive Query",a=self.colB3)
         if self.aggregateQueryDisplay is None:
             self.aggregateQueryDisplay=self.createQueryDisplay("aggregate Query",a=self.colC3)
-        sparqlQuery=tt.generateSparqlQuery(genMap=propertyIdMap,naive=True,lang=self.language,listSeparator=listSeparator)
+        sparqlQuery=tt.generateSparqlQuery(genMap=propertyIdMap,naive=True,lang=self.language,listSeparator=self.listSeparator)
         naiveSparqlQuery=Query(name="naive SPARQL Query",query=sparqlQuery)
         self.naiveQueryDisplay.showSyntaxHighlightedQuery(naiveSparqlQuery)
-        sparqlQuery=tt.generateSparqlQuery(genMap=propertyIdMap,naive=False,lang=self.language,listSeparator=listSeparator)
+        sparqlQuery=tt.generateSparqlQuery(genMap=propertyIdMap,naive=False,lang=self.language,listSeparator=self.listSeparator)
         aggregateSparqlQuery=Query(name="aggregate SPARQL Query",query=sparqlQuery)
         self.aggregateQueryDisplay.showSyntaxHighlightedQuery(aggregateSparqlQuery)
         pass
@@ -625,6 +625,9 @@ class WikiDataBrowser(App):
         self.language=msg.value
         self.wdSearch.language=self.language
         
+    async def onChangeListSeparator(self,msg):
+        self.listSeparator=msg.value
+        
     async def onParetoSelect(self,msg):
         '''
         change pareto selection
@@ -708,7 +711,9 @@ class WikiDataBrowser(App):
         self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.colC1,change=self.onChangeEndpoint)
         for endpointName in self.endpoints:
             self.endpointSelect.add(jp.Option(value=endpointName, text=endpointName))
-        
+        self.listSeparatorSelect=self.createSelect("List separator",self.listSeparator,a=self.colC1,change=self.onChangeListSeparator)
+        for value,text in [("|","|"),(",",","),(";",";"),(":",":"),(chr(28),"FS - ASCII(28)"),(chr(29),"GS - ASCII(29)"),(chr(30),"RS - ASCII(30)"),(chr(31),"US - ASCII(31)")]:
+            self.listSeparatorSelect.add(jp.Option(value=value,text=text))
         # pareto selection
         self.paretoSelect=self.createParetoSelect(a=self.colD1)
         return self.wp
