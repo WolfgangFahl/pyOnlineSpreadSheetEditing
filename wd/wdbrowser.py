@@ -4,11 +4,11 @@ Created on 2022-07-24
 @author: wf
 '''
 import asyncio
+import concurrent.futures
 import collections
 import html
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 import justpy as jp
 from jpwidgets.jpTable import Table, TableRow
 from jpwidgets.bt5widgets import App,Alert,Collapsible, ComboBox, Link, ProgressBar
@@ -429,7 +429,7 @@ class WikiDataBrowser(App):
             # start property tabular analysis
             analysisTasks = []
             completedTasks = 0
-            executor = ThreadPoolExecutor(5)
+            executor = concurrent.futures.ThreadPoolExecutor(5)
             for i, (propertyId,propRecord) in enumerate(selectedItems):
                 prop = propRecord.get("property")
                 future = executor.submit(self.wikiTrulyTabularPropertyStatsAndUpdateTable, tt, propertyId)
@@ -644,14 +644,11 @@ class WikiDataBrowser(App):
         '''
         self.language=msg.value
         self.wdSearch.language=self.language
-<<<<<<< HEAD
         
     async def onChangeListSeparator(self,msg):
         self.listSeparator=msg.value
         
-=======
 
->>>>>>> 55b734cb3a42b7aa00134483a04c870be7f47bcf
     async def onParetoSelect(self,msg):
         '''
         change pareto selection
@@ -735,13 +732,9 @@ class WikiDataBrowser(App):
         self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.colC1,change=self.onChangeEndpoint)
         for endpointName in self.endpoints:
             self.endpointSelect.add(jp.Option(value=endpointName, text=endpointName))
-<<<<<<< HEAD
         self.listSeparatorSelect=self.createSelect("List separator",self.listSeparator,a=self.colC1,change=self.onChangeListSeparator)
         for value,text in [("|","|"),(",",","),(";",";"),(":",":"),(chr(28),"FS - ASCII(28)"),(chr(29),"GS - ASCII(29)"),(chr(30),"RS - ASCII(30)"),(chr(31),"US - ASCII(31)")]:
             self.listSeparatorSelect.add(jp.Option(value=value,text=text))
-=======
-
->>>>>>> 55b734cb3a42b7aa00134483a04c870be7f47bcf
         # pareto selection
         self.paretoSelect=self.createParetoSelect(a=self.colD1)
         return self.wp
