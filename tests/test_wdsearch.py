@@ -31,4 +31,15 @@ class TestWikidataSearch(BaseTest):
                 if j<limit and debug:
                     print(f"{j+1}:{qid} {qlabel}-{desc}")
             self.assertEqual(expected[i],sr[0][0])
+            
+    def testWikidataProperties(self):
+        '''
+        test getting wikidata Properties
+        '''
+        wds=WikidataSearch()
+        debug=True
+        props=wds.getProperties()
+        if debug:
+            print(f"found {len(props)} wikidata properties")
+        self.assertTrue(len(props)>10000)
                     

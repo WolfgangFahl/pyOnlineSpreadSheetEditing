@@ -14,7 +14,7 @@ from jpwidgets.jpTable import Table, TableRow
 from jpwidgets.bt5widgets import App,Alert,Collapsible, ComboBox, Link, ProgressBar
 import onlinespreadsheet.version as version
 from lodstorage.query import Query,EndpointManager, QuerySyntaxHighlight, Endpoint
-from lodstorage.trulytabular import TrulyTabular
+from lodstorage.trulytabular import TrulyTabular, WikidataProperty
 from onlinespreadsheet.pareto import Pareto
 from wd.wdsearch import WikidataSearch
 from urllib.error import HTTPError
@@ -170,6 +170,7 @@ class WikiDataBrowser(App):
         jp.Route('/tt/{qid}',self.ttcontent)
         self.starttime=time.time()
         self.previousKeyStrokeTime=None
+        self.wdProperty=WikidataProperty("P31")
 
     def getParser(self):
         '''
@@ -498,7 +499,7 @@ class WikiDataBrowser(App):
             minCount=round(total/pareto.oneOutOf)
             self.ttquery=tt.mostFrequentPropertiesQuery(minCount=minCount)
             if self.propertyQueryDisplay is None:
-                self.propertyQueryDisplay=self.createQueryDisplay("property Query",a=self.colA3)
+                self.propertyQueryDisplay=self.createQueryDisplay("property Query",a=self.colA4)
             self.propertyQueryDisplay.showSyntaxHighlightedQuery(self.ttquery)
             await self.wp.update()
         except (BaseException,HTTPError) as ex:
@@ -535,7 +536,7 @@ class WikiDataBrowser(App):
             self.ttcount,countQuery=tt.count()
             self.countDiv.text=f"{self.ttcount} instances found"
             if self.countQueryDisplay is None:
-                self.countQueryDisplay=self.createQueryDisplay("count Query",a=self.colA3)
+                self.countQueryDisplay=self.createQueryDisplay("count Query",a=self.colA4)
             countSparqlQuery=Query(name="count Query",query=countQuery)
             self.countQueryDisplay.showSyntaxHighlightedQuery(countSparqlQuery)
             await self.wp.update()
@@ -554,9 +555,9 @@ class WikiDataBrowser(App):
             self.propertySelection.prepare()
             self.ttTable=Table(lod=self.propertySelection.propertyList,headerMap=self.propertySelection.headerMap,primaryKey='propertyId',allowInput=False,a=self.rowE)
             for aggregate in PropertySelection.aggregates:
-                checked=aggregate in ["sample","count","list"]
+                checked=False #aggregate in ["sample","count","list"]
                 self.addSelectionColumn(self.ttTable, aggregate,lambda _record:checked)
-            self.addSelectionColumn(self.ttTable,"ignore",lambda _record:False,self.onIgnoreSelect)
+            self.addSelectionColumn(self.ttTable,"ignore",lambda record:record["pareto"]<=self.paretoLevel,self.onIgnoreSelect)
             self.addSelectionColumn(self.ttTable,"label",lambda _record:False)
             self.addSelectionColumn(self.ttTable,"select",lambda record:record["pareto"]<=self.paretoLevel)
 
@@ -565,6 +566,12 @@ class WikiDataBrowser(App):
             await self.wp.update()
         except (BaseException,HTTPError) as ex:
             self.handleException(ex)
+            
+    async def selectProperty(self,propertySelection):
+        '''
+        select a wikidata Property for analysis
+        '''
+        
 
     async def selectItem(self,itemId):
         '''
@@ -576,6 +583,7 @@ class WikiDataBrowser(App):
         if not itemId:
             return
         try:
+            self.clearErrors()
             self.itemQid=itemId
             self.propertyList=None
             # delete the Table
@@ -616,6 +624,9 @@ class WikiDataBrowser(App):
         react on item being selected via Select control
         '''
         await self.selectItem(msg.value)
+        
+    async def onPropertySelect(self,msg):
+        await self.selectProperty(msg.value)
 
     async def onItemInput(self,_msg):
         '''
@@ -688,9 +699,10 @@ class WikiDataBrowser(App):
         # setup Bootstrap5 rows and columns
 
         rowA=jp.Div(classes="row",a=self.contentbox)
-        self.colA1=jp.Div(classes="col-3",a=rowA)
-        self.colA2=jp.Div(classes="col-3",a=rowA)
-        self.colA3=jp.Div(classes="col-6",a=rowA)
+        self.colA1=jp.Div(classes="col-2",a=rowA)
+        self.colA2=jp.Div(classes="col-2",a=rowA)
+        self.colA3=jp.Div(classes="col-2",a=rowA)
+        self.colA4=jp.Div(classes="col-6",a=rowA)
 
         self.rowB=jp.Div(classes="row",a=self.contentbox)
         self.colB1=jp.Div(classes="col-3",a=self.rowB)
@@ -717,6 +729,7 @@ class WikiDataBrowser(App):
         self.aggregateQueryDisplay=None
         self.generateQueryButton=None
         self.paretoSelect=None
+        self.wdProperty=WikidataProperty("P31")
 
     async def settings(self):
         '''
@@ -758,11 +771,15 @@ class WikiDataBrowser(App):
         self.setupRowsAndCols()
 
         # self.itemcombo=ComboBox(a=colA1,placeholder='Please type here to search ...',change=self.onItemBoxChange)
-        self.item=self.createInput(text="Wikidata item", a=self.colA1, placeholder='Please type here to search ...',value=self.itemQid,change=self.onItemChange)
+        self.item=self.createInput(labelText="Wikidata item", a=self.colA1, placeholder='Please type here to search ...',value=self.itemQid,change=self.onItemChange)
         # on enter use the currently selected item 
         self.item.on('change', self.onItemInput)
         self.itemSelect=jp.Select(classes="form-select",a=self.colA2,change=self.onItemSelect)
-
+        self.propertyCombo=self.createComboBox("property", a=self.colA3,value=str(self.wdProperty),size=40,change=self.onPropertySelect)
+        wds=WikidataSearch()
+        props=wds.getProperties()
+        for propId,propName in props.items():
+            self.propertyCombo.dataList.addOption(value=f"{propName}:({propId})",text=propName)
         # link and count for the item
         self.itemLinkDiv=jp.Div(a=self.colB1,classes="h5")
         self.countDiv=jp.Div(a=self.colB2,classes="h5")
