@@ -69,7 +69,7 @@ class PropertySelection():
         '''
 
         self.headerMap={}
-        cols=["#","%","pareto","property","propertyId","1","maxf","nt","nt%","?f","?ex","✔"]
+        cols=["#","%","pareto","property","propertyId","type","1","maxf","nt","nt%","?f","?ex","✔"]
         cols.extend(PropertySelection.aggregates)
         cols.extend(["ignore","label","select"])
         for col in cols:
@@ -83,6 +83,7 @@ class PropertySelection():
             itemId=url.replace("http://www.wikidata.org/entity/","")
             prop["propertyId"]=itemId
             prop["property"]=Link.create(url, propLabel)
+            prop["type"]=prop.pop("wbType").replace("http://wikiba.se/ontology#","")
             prop["1"]=""
             prop["maxf"]=""
             prop["nt"]=""
@@ -558,7 +559,7 @@ class WikiDataBrowser(App):
                 checked=False #aggregate in ["sample","count","list"]
                 self.addSelectionColumn(self.ttTable, aggregate,lambda _record:checked)
             self.addSelectionColumn(self.ttTable,"ignore",lambda record:record["pareto"]<=self.paretoLevel,self.onIgnoreSelect)
-            self.addSelectionColumn(self.ttTable,"label",lambda _record:False)
+            self.addSelectionColumn(self.ttTable,"label",lambda record:record["type"]=="WikibaseItem" and record["pareto"]<=self.paretoLevel)
             self.addSelectionColumn(self.ttTable,"select",lambda record:record["pareto"]<=self.paretoLevel)
 
 
@@ -699,9 +700,9 @@ class WikiDataBrowser(App):
         # setup Bootstrap5 rows and columns
 
         rowA=jp.Div(classes="row",a=self.contentbox)
-        self.colA1=jp.Div(classes="col-2",a=rowA)
-        self.colA2=jp.Div(classes="col-2",a=rowA)
-        self.colA3=jp.Div(classes="col-2",a=rowA)
+        self.colA1=jp.Div(classes="col-3",a=rowA)
+        self.colA2=jp.Div(classes="col-3",a=rowA)
+        #self.colA3=jp.Div(classes="col-2",a=rowA)
         self.colA4=jp.Div(classes="col-6",a=rowA)
 
         self.rowB=jp.Div(classes="row",a=self.contentbox)
@@ -775,11 +776,11 @@ class WikiDataBrowser(App):
         # on enter use the currently selected item 
         self.item.on('change', self.onItemInput)
         self.itemSelect=jp.Select(classes="form-select",a=self.colA2,change=self.onItemSelect)
-        self.propertyCombo=self.createComboBox("property", a=self.colA3,value=str(self.wdProperty),size=40,change=self.onPropertySelect)
-        wds=WikidataSearch()
-        props=wds.getProperties()
-        for propId,propName in props.items():
-            self.propertyCombo.dataList.addOption(value=f"{propName}:({propId})",text=propName)
+        #self.propertyCombo=self.createComboBox("property", a=self.colA3,value=str(self.wdProperty),size=40,change=self.onPropertySelect)
+        #wds=WikidataSearch()
+        #props=wds.getProperties()
+        #for propId,propName in props.items():
+        #    self.propertyCombo.dataList.addOption(value=f"{propName}:({propId})",text=propName)
         # link and count for the item
         self.itemLinkDiv=jp.Div(a=self.colB1,classes="h5")
         self.countDiv=jp.Div(a=self.colB2,classes="h5")
