@@ -320,6 +320,7 @@ class WikiDataBrowser(App):
         '''
         generate and show the query
         '''
+        self.clearErrors()
         propertyIdMap=self.getPropertyIdMap()
         tt=self.createTrulyTabular(itemQid=self.itemQid,propertyIds=list(propertyIdMap.keys()))
         if self.naiveQueryDisplay is None:
@@ -332,6 +333,7 @@ class WikiDataBrowser(App):
         sparqlQuery=tt.generateSparqlQuery(genMap=propertyIdMap,naive=False,lang=self.language,listSeparator=self.listSeparator)
         aggregateSparqlQuery=Query(name="aggregate SPARQL Query",query=sparqlQuery)
         self.aggregateQueryDisplay.showSyntaxHighlightedQuery(aggregateSparqlQuery)
+        self.showFeedback("SPARQL queries generated")
         pass
 
     def setEndPoint(self,endpointName:str):
@@ -356,6 +358,9 @@ class WikiDataBrowser(App):
         except BaseException as ex:
             self.handleException(ex)
         await self.wp.update()
+        
+    async def onChangeDownloadFormat(self,msg:dict):
+        self.downloadFormat=msg.value
 
     def onItemBoxChange(self,msg:dict):
         searchFor=msg.value
@@ -560,7 +565,7 @@ class WikiDataBrowser(App):
                 self.addSelectionColumn(self.ttTable, aggregate,lambda _record:checked)
             self.addSelectionColumn(self.ttTable,"ignore",lambda record:record["pareto"]<=self.paretoLevel,self.onIgnoreSelect)
             self.addSelectionColumn(self.ttTable,"label",lambda record:record["type"]=="WikibaseItem" and record["pareto"]<=self.paretoLevel)
-            self.addSelectionColumn(self.ttTable,"select",lambda record:record["pareto"]<=self.paretoLevel)
+            self.addSelectionColumn(self.ttTable,"select",lambda record:record["pareto"]<=self.paretoLevel and record["propertyId"]!="P31")
 
 
             self.showFeedback(f"table for propertySelection of {str(self.tt)} created ...")
@@ -616,7 +621,19 @@ class WikiDataBrowser(App):
         try:
             self.showFeedback(f"generating SPARQL query for {str(self.tt)}")
             self.generateQuery()
+            if self.downloadButton is None:
+                self.downloadButton=jp.Button(text="Download",classes="btn btn-primary",a=self.colD3,click=self.onDownloadButtonClick,disabled=True)    
+                self.downloadFormatSelect=self.createSelect("format", value=self.downloadFormat, change=self.onChangeDownloadFormat, a=self.colD4)
+                for downloadFormat in ["excel","csv","json"]:
+                    self.downloadFormatSelect.add(jp.Option(value=downloadFormat,text=downloadFormat))
         except BaseException as ex:
+            self.handleException(ex)
+        await self.wp.update()
+        
+    async def onDownloadButtonClick(self,msg):
+        try:
+            pass
+        except (BaseException,HTTPError) as ex:
             self.handleException(ex)
         await self.wp.update()
 
@@ -717,6 +734,9 @@ class WikiDataBrowser(App):
 
         self.rowD=jp.Div(classes="row",a=self.contentbox)
         self.colD1=jp.Div(classes="col-3",a=self.rowD)
+        self.colD2=jp.Div(classes="col-3",a=self.rowD)
+        self.colD3=jp.Div(classes="col-2",a=self.rowD)
+        self.colD4=jp.Div(classes="col-2",a=self.rowD)
 
         self.rowE=jp.Div(classes="row",a=self.contentbox)
         # mandatory UI parts
@@ -731,6 +751,7 @@ class WikiDataBrowser(App):
         self.generateQueryButton=None
         self.paretoSelect=None
         self.wdProperty=WikidataProperty("P31")
+        self.downloadFormat="excel"
 
     async def settings(self):
         '''
