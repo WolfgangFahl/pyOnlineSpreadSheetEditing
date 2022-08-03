@@ -7,6 +7,7 @@ import asyncio
 import concurrent.futures
 import collections
 import html
+import os
 import sys
 import time
 import justpy as jp
@@ -18,6 +19,8 @@ from lodstorage.trulytabular import TrulyTabular, WikidataProperty
 from onlinespreadsheet.pareto import Pareto
 from wd.wdsearch import WikidataSearch
 from urllib.error import HTTPError
+from spreadsheet.spreadsheet import SpreadSheetType, Format, SpreadSheet
+
 
 class PropertySelection():
     '''
@@ -172,6 +175,7 @@ class WikiDataBrowser(App):
         self.starttime=time.time()
         self.previousKeyStrokeTime=None
         self.wdProperty=WikidataProperty("P31")
+        self.downloadFormat:SpreadSheetType=None
 
     def getParser(self):
         '''
@@ -331,8 +335,8 @@ class WikiDataBrowser(App):
         naiveSparqlQuery=Query(name="naive SPARQL Query",query=sparqlQuery)
         self.naiveQueryDisplay.showSyntaxHighlightedQuery(naiveSparqlQuery)
         sparqlQuery=tt.generateSparqlQuery(genMap=propertyIdMap,naive=False,lang=self.language,listSeparator=self.listSeparator)
-        aggregateSparqlQuery=Query(name="aggregate SPARQL Query",query=sparqlQuery)
-        self.aggregateQueryDisplay.showSyntaxHighlightedQuery(aggregateSparqlQuery)
+        self.aggregateSparqlQuery=Query(name="aggregate SPARQL Query",query=sparqlQuery)
+        self.aggregateQueryDisplay.showSyntaxHighlightedQuery(self.aggregateSparqlQuery)
         self.showFeedback("SPARQL queries generated")
         pass
 
@@ -360,7 +364,11 @@ class WikiDataBrowser(App):
         await self.wp.update()
         
     async def onChangeDownloadFormat(self,msg:dict):
-        self.downloadFormat=msg.value
+        value = getattr(msg, "value")
+        if value is not None and isinstance(value, str):
+            selectedFormat = value.upper()
+            if selectedFormat in SpreadSheetType: # Format.formatMap:
+                self.downloadFormat = SpreadSheetType[selectedFormat]
 
     def onItemBoxChange(self,msg:dict):
         searchFor=msg.value
@@ -621,21 +629,56 @@ class WikiDataBrowser(App):
         try:
             self.showFeedback(f"generating SPARQL query for {str(self.tt)}")
             self.generateQuery()
-            if self.downloadButton is None:
-                self.downloadButton=jp.Button(text="Download",classes="btn btn-primary",a=self.colD3,click=self.onDownloadButtonClick,disabled=True)    
-                self.downloadFormatSelect=self.createSelect("format", value=self.downloadFormat, change=self.onChangeDownloadFormat, a=self.colD4)
-                for downloadFormat in ["excel","csv","json"]:
-                    self.downloadFormatSelect.add(jp.Option(value=downloadFormat,text=downloadFormat))
+            if getattr(self, "downloadButton", None) is None:
+                self.downloadButton = jp.Button(text="Download",
+                                                classes="btn btn-primary",
+                                                a=self.colD3,
+                                                click=self.onDownloadButtonClick,
+                                                disabled=False)
+                self.downloadFormatSelect = self.createSelect("format",
+                                                              value=self.downloadFormat.value,
+                                                              change=self.onChangeDownloadFormat,
+                                                              a=self.colD4)
+                for downloadFormat in SpreadSheetType:
+                    self.downloadFormatSelect.add(jp.Option(value=downloadFormat.value,text=downloadFormat.getName()))
         except BaseException as ex:
             self.handleException(ex)
         await self.wp.update()
-        
+
     async def onDownloadButtonClick(self,msg):
         try:
-            pass
+            alert = Alert(a=self.rowC, text="Download of query started. Executing the query might take a few seconds ...")
+            await self.wp.update()
+            filename = self.generateSpreadSheet()
+            setattr(alert, "text", "Query finished!")
+            jp.A(text="Download now",
+                      classes="btn btn-primary",
+                      a=alert,
+                      href=f"/static/qres/{filename}",
+                      download=filename,
+                      disabled=True)
         except (BaseException,HTTPError) as ex:
             self.handleException(ex)
         await self.wp.update()
+
+    def generateSpreadSheet(self) -> str:
+        """
+        Execute aggregate query and return query result in requested format
+        """
+        # execute query
+        query = getattr(self, "aggregateSparqlQuery")
+        if isinstance(query, Query):
+            lod = self.tt.sparql.queryAsListOfDicts(query.query)
+            # convert qres to requested format
+            spreadsheet = SpreadSheet.create(self.downloadFormat, "TrulyTabularAggregateQueryResult")
+            item = self.itemSelect.value
+            filename = f"{item}{spreadsheet.FILE_TYPE}"
+            dir = os.path.dirname(os.path.realpath(__file__))
+            qres_dir = f"{dir}/qres"
+            spreadsheet.addTable(name=item, lod=lod)
+            os.makedirs(qres_dir, exist_ok=True)
+            spreadsheet.saveToFile(dir_name=qres_dir, fileName=filename)
+            return filename
 
     async def onItemSelect(self,msg):
         '''
@@ -751,7 +794,7 @@ class WikiDataBrowser(App):
         self.generateQueryButton=None
         self.paretoSelect=None
         self.wdProperty=WikidataProperty("P31")
-        self.downloadFormat="excel"
+        self.downloadFormat:SpreadSheetType = SpreadSheetType.EXCEL
 
     async def settings(self):
         '''
