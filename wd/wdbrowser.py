@@ -570,7 +570,7 @@ class WikiDataBrowser(App):
             self.ttTable=Table(lod=self.propertySelection.propertyList,headerMap=self.propertySelection.headerMap,primaryKey='propertyId',allowInput=False,a=self.rowE)
             for aggregate in PropertySelection.aggregates:
                 checked=False #aggregate in ["sample","count","list"]
-                self.addSelectionColumn(self.ttTable, aggregate,lambda _record:checked)
+                self.addSelectionColumn(self.ttTable, aggregate, lambda _checked=checked: _checked)
             self.addSelectionColumn(self.ttTable,"ignore",lambda record:record["pareto"]<=self.paretoLevel,self.onIgnoreSelect)
             self.addSelectionColumn(self.ttTable,"label",lambda record:record["type"]=="WikibaseItem" and record["pareto"]<=self.paretoLevel)
             self.addSelectionColumn(self.ttTable,"select",lambda record:record["pareto"]<=self.paretoLevel and record["propertyId"]!="P31")
@@ -673,8 +673,8 @@ class WikiDataBrowser(App):
             spreadsheet = SpreadSheet.create(self.downloadFormat, "TrulyTabularAggregateQueryResult")
             item = self.itemSelect.value
             filename = f"{item}{spreadsheet.FILE_TYPE}"
-            dir = os.path.dirname(os.path.realpath(__file__))
-            qres_dir = f"{dir}/qres"
+            static_dir = os.path.dirname(os.path.realpath(__file__))
+            qres_dir = f"{static_dir}/qres"
             spreadsheet.addTable(name=item, lod=lod)
             os.makedirs(qres_dir, exist_ok=True)
             spreadsheet.saveToFile(dir_name=qres_dir, fileName=filename)
