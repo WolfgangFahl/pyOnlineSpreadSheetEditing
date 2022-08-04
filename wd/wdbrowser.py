@@ -165,6 +165,7 @@ class WikiDataBrowser(App):
         self.listSeparator="|"
         self.wdSearch=WikidataSearch(self.language)
         self.paretoLevel=1
+        self.minPropertyFrequency=20
         self.paretoLevels=[]
         for level in range(1,10):
             pareto=Pareto(level)
@@ -376,6 +377,12 @@ class WikiDataBrowser(App):
         for qid,itemLabel,desc in self.wdSearch.searchOptions(searchFor):
             text=f"{itemLabel} ({qid}) {desc}"
             self.itemcombo.addOption(text)
+            
+    def onMinPropertyFrequencyChange(self,msg):
+        try:
+            self.minPropertyFrequency=float(msg.value)
+        except Exception as ex:
+            self.handleException(ex)
 
     def onItemChange(self,msg:dict):
         '''
@@ -466,7 +473,7 @@ class WikiDataBrowser(App):
             if self.generateQueryButton is None:
                 self.generateQueryButton=jp.Button(text="Generate SPARQL query",classes="btn btn-primary",a=self.colD1,click=self.onGenerateQueryButtonClick,disabled=True)
             if self.paretoSelect is None:
-                self.paretoSelect=self.createParetoSelect(a=self.colD1)
+                self.paretoSelect=self.createParetoSelect(a=self.colE1,ai=self.colE2)
             self.generateQueryButton.disabled=False
         except (BaseException,HTTPError) as ex:
             self.handleException(ex)
@@ -569,7 +576,7 @@ class WikiDataBrowser(App):
             self.propertyList=tt.sparql.queryAsListOfDicts(ttquery.query)
             self.propertySelection=PropertySelection(self.propertyList,total=self.ttcount,paretoLevels=self.paretoLevels)
             self.propertySelection.prepare()
-            self.ttTable=Table(lod=self.propertySelection.propertyList,headerMap=self.propertySelection.headerMap,primaryKey='propertyId',allowInput=False,a=self.colE1)
+            self.ttTable=Table(lod=self.propertySelection.propertyList,headerMap=self.propertySelection.headerMap,primaryKey='propertyId',allowInput=False,a=self.colF1)
             for aggregate in PropertySelection.aggregates:
                 checked=False #aggregate in ["sample","count","list"]
                 self.addSelectionColumn(self.ttTable, aggregate, lambda _record:checked)
@@ -719,19 +726,22 @@ class WikiDataBrowser(App):
         
     async def onChangeListSeparator(self,msg):
         self.listSeparator=msg.value
-        
 
     async def onParetoSelect(self,msg):
         '''
         change pareto selection
         '''
         self.paretoLevel=int(msg.value)
-        self.feedback.text=f"pareto level {self.paretoLevel} selected"
+        pareto=self.paretoLevels[self.paretoLevel]
+        self.minPropertyFrequency=pareto.bad*100
+        minPropertyFrequencyStr=f"{self.minPropertyFrequency:.2f}"
+        self.minPropertyFrequencyInput.value=minPropertyFrequencyStr
+        self.feedback.text=f"pareto level {self.paretoLevel} (>={minPropertyFrequencyStr}% )selected"
         if self.generateQueryButton is not None:
             await self.selectItem(self.itemQid)
         pass
 
-    def createParetoSelect(self,a):
+    def createParetoSelect(self,a,ai):
         '''
         create the pareto select
         
@@ -744,6 +754,7 @@ class WikiDataBrowser(App):
         pselect=self.createSelect("Pareto",self.paretoLevel,change=self.onParetoSelect,a=a)
         for pareto in self.paretoLevels:
             pselect.add(jp.Option(value=pareto.level,text=pareto.asText(long=True)))
+        self.minPropertyFrequencyInput=self.createInput("min%", placeholder="e.g. 90", value=str(self.minPropertyFrequency),change=self.onMinPropertyFrequencyChange, a=ai, size=10)
         return pselect
 
     def setupRowsAndCols(self):
@@ -782,7 +793,11 @@ class WikiDataBrowser(App):
         self.colD4=jp.Div(classes="col-2",a=self.rowD)
 
         self.rowE=jp.Div(classes="row",a=self.contentbox)
-        self.colE1=jp.Div(classes="col-12",a=self.rowE)
+        self.colE1=jp.Div(classes="col-3",a=self.rowE)
+        self.colE2=jp.Div(classes="col-3",a=self.rowE)
+        
+        self.rowF=jp.Div(classes="row",a=self.contentbox)
+        self.colF1=jp.Div(classes="col-12",a=self.rowF)
         # mandatory UI parts
         # progressbar, feedback and errors
         self.progressBar = ProgressBar(a=self.rowD)
@@ -815,7 +830,7 @@ class WikiDataBrowser(App):
         for value,text in [("|","|"),(",",","),(";",";"),(":",":"),(chr(28),"FS - ASCII(28)"),(chr(29),"GS - ASCII(29)"),(chr(30),"RS - ASCII(30)"),(chr(31),"US - ASCII(31)")]:
             self.listSeparatorSelect.add(jp.Option(value=value,text=text))
         # pareto selection
-        self.paretoSelect=self.createParetoSelect(a=self.colD1)
+        self.paretoSelect=self.createParetoSelect(a=self.colD1,ai=self.colE2)
         return self.wp
 
     async def ttcontent(self,request):

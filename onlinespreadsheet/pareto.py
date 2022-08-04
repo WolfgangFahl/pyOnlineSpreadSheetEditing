@@ -4,7 +4,6 @@ Created on 2022-03-21
 @author: wf
 '''
 import math
-import fractions
 
 class Pareto(object):
     '''
@@ -35,6 +34,10 @@ class Pareto(object):
         '''
         inLevel=ratio>=1/self.oneOutOf
         return inLevel
+    
+    def asPercent(self):
+        percent=100.0-100.0/self.oneOutOf
+        return percent
             
     def __str__(self):
         text=self.asText(long=False)
@@ -46,7 +49,13 @@ class Pareto(object):
             text=f"level {self.level}={text} (1 out of {self.oneOutOf})"
         return text
     
-    def asDict(self):
+    def asDict(self)->dict:
+        '''
+        return me as a dict
+        
+        Returns:
+            dict: my values as a dict
+        '''
         d={}
         d["level"]=self.level
         d["ratio"]=self.asText()
