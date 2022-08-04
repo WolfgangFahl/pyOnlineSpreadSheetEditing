@@ -569,7 +569,7 @@ class WikiDataBrowser(App):
             self.propertyList=tt.sparql.queryAsListOfDicts(ttquery.query)
             self.propertySelection=PropertySelection(self.propertyList,total=self.ttcount,paretoLevels=self.paretoLevels)
             self.propertySelection.prepare()
-            self.ttTable=Table(lod=self.propertySelection.propertyList,headerMap=self.propertySelection.headerMap,primaryKey='propertyId',allowInput=False,a=self.rowE)
+            self.ttTable=Table(lod=self.propertySelection.propertyList,headerMap=self.propertySelection.headerMap,primaryKey='propertyId',allowInput=False,a=self.colE1)
             for aggregate in PropertySelection.aggregates:
                 checked=False #aggregate in ["sample","count","list"]
                 self.addSelectionColumn(self.ttTable, aggregate, lambda _record:checked)
@@ -782,6 +782,7 @@ class WikiDataBrowser(App):
         self.colD4=jp.Div(classes="col-2",a=self.rowD)
 
         self.rowE=jp.Div(classes="row",a=self.contentbox)
+        self.colE1=jp.Div(classes="col-12",a=self.rowE)
         # mandatory UI parts
         # progressbar, feedback and errors
         self.progressBar = ProgressBar(a=self.rowD)
