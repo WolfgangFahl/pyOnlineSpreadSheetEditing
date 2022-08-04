@@ -28,18 +28,22 @@ class PropertySelection():
     '''
     aggregates=["min","max","avg","sample","list","count"]
 
-    def __init__(self,inputList,total:int,paretoLevels:list):
+    def __init__(self,inputList,total:int,paretoLevels:list,minFrequency:float):
         '''
            Constructor
 
         Args:
             propertyList(list): the list of properties to show
+            total(int): total number of properties
+            paretolLevels: a list of paretoLevels
+            minFrequency(float): the minimum frequency of the properties to select in percent
         '''
         self.propertyMap={}
         self.headerMap={}
         self.propertyList=[]
         self.total=total
         self.paretoLevels=paretoLevels
+        self.minFrequency=minFrequency
         for record in inputList:
             ratio=int(record["count"])/self.total
             level=self.getParetoLevel(ratio)
@@ -52,7 +56,7 @@ class PropertySelection():
 
     def getParetoLevel(self,ratio):
         level=0
-        for pareto in reversed(self.paretoLevels):
+        for pareto in reversed(self.paretoLevels.values()):
             if pareto.ratioInLevel(ratio):
                 level=pareto.level
         return level
@@ -61,6 +65,17 @@ class PropertySelection():
         href=f"https://wiki.bitplan.com/index.php/Truly_Tabular_RDF/Info#{col}"
         info=f"{col}<br><a href='{href}'style='color:white' target='_blank'>ⓘ</a>"
         return info
+    
+    def hasMinFrequency(self,record):
+        ok = float(record.get("%",0)) >= self.minFrequency
+        return ok
+    
+    def select(self):
+        selected=[]
+        for propertyId,propRecord in self.propertyMap.items():
+            if self.hasMinFrequency(propRecord):
+                selected.append((propertyId,propRecord))
+        return selected
 
     def prepare(self):
         '''
@@ -166,10 +181,10 @@ class WikiDataBrowser(App):
         self.wdSearch=WikidataSearch(self.language)
         self.paretoLevel=1
         self.minPropertyFrequency=20
-        self.paretoLevels=[]
+        self.paretoLevels={}
         for level in range(1,10):
             pareto=Pareto(level)
-            self.paretoLevels.append(pareto)
+            self.paretoLevels[level]=pareto
         self.ttTable=None
         jp.Route('/settings',self.settings)
         jp.Route('/tt/{qid}',self.ttcontent)
@@ -438,15 +453,13 @@ class WikiDataBrowser(App):
             await self.wp.update()
             return
         try:
-            selectedItems = [(propertyId,propRecord)
-                             for propertyId,propRecord in self.propertySelection.propertyMap.items()
-                             if propRecord.get("pareto") <= self.paretoLevel]
+            selectedItems = self.propertySelection.select()
             propertyCount = len(selectedItems)
             # start property tabular analysis
             analysisTasks = []
             completedTasks = 0
             executor = concurrent.futures.ThreadPoolExecutor(5)
-            for i, (propertyId,propRecord) in enumerate(selectedItems):
+            for _i, (propertyId,propRecord) in enumerate(selectedItems):
                 prop = propRecord.get("property")
                 future = executor.submit(self.wikiTrulyTabularPropertyStatsAndUpdateTable, tt, propertyId)
                 analysisTasks.append((future, propertyId, prop))
@@ -559,9 +572,6 @@ class WikiDataBrowser(App):
         except (BaseException,HTTPError) as ex:
             self.handleException(ex)
 
-    def hasMinFrequency(self,record):
-        ok = float(record.get("%",0)) >= self.minPropertyFrequency
-        return ok
 
     async def getPropertiesTable(self,tt,ttquery):
         '''
@@ -573,7 +583,7 @@ class WikiDataBrowser(App):
             if self.debug:
                 logging.info(ttquery.query)
             self.propertyList=tt.sparql.queryAsListOfDicts(ttquery.query)
-            self.propertySelection=PropertySelection(self.propertyList,total=self.ttcount,paretoLevels=self.paretoLevels)
+            self.propertySelection=PropertySelection(self.propertyList,total=self.ttcount,paretoLevels=self.paretoLevels,minFrequency=self.minPropertyFrequency)
             self.propertySelection.prepare()
             self.ttTable=Table(a=self.colF1,
                                lod=self.propertySelection.propertyList,
@@ -583,9 +593,9 @@ class WikiDataBrowser(App):
             for aggregate in PropertySelection.aggregates:
                 checked=False #aggregate in ["sample","count","list"]
                 self.addSelectionColumn(self.ttTable, aggregate, lambda _record:checked)
-            self.addSelectionColumn(self.ttTable,"ignore",lambda record:self.hasMinFrequency(record),self.onIgnoreSelect)
-            self.addSelectionColumn(self.ttTable,"label",lambda record:record["type"]=="WikibaseItem" and self.hasMinFrequency(record))
-            self.addSelectionColumn(self.ttTable,"select",lambda record:self.hasMinFrequency(record) and record["propertyId"]!="P31")
+            self.addSelectionColumn(self.ttTable,"ignore",lambda record:self.propertySelection.hasMinFrequency(record),self.onIgnoreSelect)
+            self.addSelectionColumn(self.ttTable,"label",lambda record:record["type"]=="WikibaseItem" and self.propertySelection.hasMinFrequency(record))
+            self.addSelectionColumn(self.ttTable,"select",lambda record:self.propertySelection.hasMinFrequency(record) and record["propertyId"]!="P31")
             self.showFeedback(f"table for propertySelection of {str(self.tt)} created ...")
             await self.wp.update()
         except (BaseException,HTTPError) as ex:
@@ -780,7 +790,7 @@ class WikiDataBrowser(App):
             jp.Select
         '''
         pselect=self.createSelect("Pareto",str(self.paretoLevel),change=self.onParetoSelect,a=a)
-        for pareto in self.paretoLevels:
+        for pareto in self.paretoLevels.values():
             pselect.add(jp.Option(value=pareto.level,text=pareto.asText(long=True)))
         self.minPropertyFrequencyInput=self.createInput("min%", placeholder="e.g. 90", value=str(self.minPropertyFrequency),change=self.onMinPropertyFrequencyChange, a=ai, size=10)
         return pselect
@@ -859,7 +869,7 @@ class WikiDataBrowser(App):
         for value,text in [("|","|"),(",",","),(";",";"),(":",":"),(chr(28),"FS - ASCII(28)"),(chr(29),"GS - ASCII(29)"),(chr(30),"RS - ASCII(30)"),(chr(31),"US - ASCII(31)")]:
             self.listSeparatorSelect.add(jp.Option(value=value,text=text))
         # pareto selection
-        self.paretoSelect=self.createParetoSelect(a=self.colD1,ai=self.colE2)
+        self.paretoSelect=self.createParetoSelect(a=self.colE1,ai=self.colE2)
         return self.wp
 
     async def ttcontent(self,request):
