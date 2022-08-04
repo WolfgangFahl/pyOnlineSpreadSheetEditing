@@ -36,7 +36,7 @@ class Pareto(object):
         return inLevel
     
     def asPercent(self):
-        percent=100.0-100.0/self.oneOutOf
+        percent=100.0/self.oneOutOf
         return percent
             
     def __str__(self):
