@@ -6,10 +6,15 @@ Created on 2022-07-24
 import asyncio
 import concurrent.futures
 import collections
+import functools
 import html
+import logging
 import os
 import sys
 import time
+from concurrent.futures import Future
+from typing import List
+
 import justpy as jp
 from jpwidgets.jpTable import Table, TableRow
 from jpwidgets.bt5widgets import App,Alert,Collapsible, ComboBox, Link, ProgressBar
@@ -564,13 +569,15 @@ class WikiDataBrowser(App):
         try:
             self.showFeedback(f"running query for most frequently used properties of {str(self.tt)} ...")
             await self.wp.update()
+            if self.debug:
+                logging.info(ttquery.query)
             self.propertyList=tt.sparql.queryAsListOfDicts(ttquery.query)
             self.propertySelection=PropertySelection(self.propertyList,total=self.ttcount,paretoLevels=self.paretoLevels)
             self.propertySelection.prepare()
             self.ttTable=Table(lod=self.propertySelection.propertyList,headerMap=self.propertySelection.headerMap,primaryKey='propertyId',allowInput=False,a=self.rowE)
             for aggregate in PropertySelection.aggregates:
                 checked=False #aggregate in ["sample","count","list"]
-                self.addSelectionColumn(self.ttTable, aggregate, lambda _record: checked)
+                self.addSelectionColumn(self.ttTable, aggregate, lambda _record:checked)
             self.addSelectionColumn(self.ttTable,"ignore",lambda record:record["pareto"]<=self.paretoLevel,self.onIgnoreSelect)
             self.addSelectionColumn(self.ttTable,"label",lambda record:record["type"]=="WikibaseItem" and record["pareto"]<=self.paretoLevel)
             self.addSelectionColumn(self.ttTable,"select",lambda record:record["pareto"]<=self.paretoLevel and record["propertyId"]!="P31")
