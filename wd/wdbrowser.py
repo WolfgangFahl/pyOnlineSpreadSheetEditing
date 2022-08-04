@@ -7,6 +7,7 @@ import asyncio
 import concurrent.futures
 import collections
 import html
+import logging
 import os
 import sys
 import time
@@ -20,7 +21,6 @@ from onlinespreadsheet.pareto import Pareto
 from wd.wdsearch import WikidataSearch
 from urllib.error import HTTPError
 from spreadsheet.spreadsheet import SpreadSheetType, Format, SpreadSheet
-
 
 class PropertySelection():
     '''
@@ -564,6 +564,8 @@ class WikiDataBrowser(App):
         try:
             self.showFeedback(f"running query for most frequently used properties of {str(self.tt)} ...")
             await self.wp.update()
+            if self.debug:
+                logging.info(ttquery.query)
             self.propertyList=tt.sparql.queryAsListOfDicts(ttquery.query)
             self.propertySelection=PropertySelection(self.propertyList,total=self.ttcount,paretoLevels=self.paretoLevels)
             self.propertySelection.prepare()
