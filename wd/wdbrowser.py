@@ -570,7 +570,7 @@ class WikiDataBrowser(App):
             self.ttTable=Table(lod=self.propertySelection.propertyList,headerMap=self.propertySelection.headerMap,primaryKey='propertyId',allowInput=False,a=self.rowE)
             for aggregate in PropertySelection.aggregates:
                 checked=False #aggregate in ["sample","count","list"]
-                self.addSelectionColumn(self.ttTable, aggregate, lambda _checked=checked: _checked)
+                self.addSelectionColumn(self.ttTable, aggregate, lambda _record: checked)
             self.addSelectionColumn(self.ttTable,"ignore",lambda record:record["pareto"]<=self.paretoLevel,self.onIgnoreSelect)
             self.addSelectionColumn(self.ttTable,"label",lambda record:record["type"]=="WikibaseItem" and record["pareto"]<=self.paretoLevel)
             self.addSelectionColumn(self.ttTable,"select",lambda record:record["pareto"]<=self.paretoLevel and record["propertyId"]!="P31")
@@ -649,14 +649,17 @@ class WikiDataBrowser(App):
         try:
             alert = Alert(a=self.rowC, text="Download of query started. Executing the query might take a few seconds ...")
             await self.wp.update()
-            filename = self.generateSpreadSheet()
-            setattr(alert, "text", "Query finished!")
-            jp.A(text="Download now",
-                      classes="btn btn-primary",
-                      a=alert,
-                      href=f"/static/qres/{filename}",
-                      download=filename,
-                      disabled=True)
+            try:
+                filename = self.generateSpreadSheet()
+                setattr(alert, "text", "Query finished!")
+                jp.A(text="Download now",
+                          classes="btn btn-primary",
+                          a=alert,
+                          href=f"/static/qres/{filename}",
+                          download=filename,
+                          disabled=True)
+            except Exception as ex:
+                setattr(alert, "text", "Exception in query execution! → Result for download could not be generated.")
         except (BaseException,HTTPError) as ex:
             self.handleException(ex)
         await self.wp.update()
