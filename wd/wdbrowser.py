@@ -469,7 +469,6 @@ class WikiDataBrowser(App):
             if self.paretoSelect is None:
                 self.createParetoSelect(a=self.colD1)
             self.generateQueryButton.disabled=False
-            await self.wp.update()
         except (BaseException,HTTPError) as ex:
             self.handleException(ex)
 
