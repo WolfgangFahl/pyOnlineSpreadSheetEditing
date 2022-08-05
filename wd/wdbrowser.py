@@ -13,7 +13,7 @@ import sys
 import time
 import justpy as jp
 from jpwidgets.jpTable import Table, TableRow
-from jpwidgets.bt5widgets import App,Alert,Collapsible, ComboBox, Link, ProgressBar
+from jpwidgets.bt5widgets import App,Alert,Collapsible, ComboBox, IconButton,Link, ProgressBar
 import onlinespreadsheet.version as version
 from lodstorage.query import Query,EndpointManager, QuerySyntaxHighlight, Endpoint
 from lodstorage.trulytabular import TrulyTabular, WikidataProperty
@@ -142,7 +142,7 @@ class QueryDisplay():
         self.queryHideShow=Collapsible(name,a=a)
         self.queryHideShow.btn.classes+="btn-sm col-3"
         self.queryDiv=jp.Div(a=self.queryHideShow.body)
-        self.queryBar=jp.Div(a=a)
+        self.queryBar=jp.Div(a=a,classes="row",name=f"{self.name}QuerBar")
         self.queryTryIt=jp.Div(a=self.queryBar,classes="col-1")
         self.downloadFormat="excel"
         pass
@@ -193,7 +193,7 @@ class QueryDisplay():
                 filename = self.generateDownloadFromLod(lod,self.name)
                 setattr(alert, "text", "Query finished!")
                 jp.A(text="Download now",
-                      classes="btn btn-primary",
+                      classes="btn btn-primary btn-sm",
                       a=alert,
                       href=f"/static/qres/{filename}",
                       download=filename,
@@ -204,15 +204,16 @@ class QueryDisplay():
     
     def showDownload(self):
         if getattr(self, "downloadButton", None) is None:
-            self.downloadButton = jp.Button(text="Download",
-                                                classes="btn btn-primary col-1",
+            self.downloadButton = IconButton(iconName="download",
+                                                classes="btn btn-primary btn-sm col-1",
                                                 a=self.queryBar,
                                                 click=self.onDownloadButtonClick,
                                                 disabled=False)
+            self.selectContainer=jp.Div(a=self.queryBar,classes="col-3")
             self.downloadFormatSelect = self.app.createSelect("format",
                                                               value=self.downloadFormat,
                                                               change=self.onChangeDownloadFormat,
-                                                              a=self.queryBar,classes="col-4")
+                                                              a=self.selectContainer)
             for downloadFormat in ["csv","excel","github","html","json","latex","mediawiki","ods"]:
                 self.downloadFormatSelect.add(jp.Option(value=downloadFormat,text=downloadFormat))
 
