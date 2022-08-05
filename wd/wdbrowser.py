@@ -120,7 +120,7 @@ class PropertySelection():
             prop["select"]=""
 
             self.propertyMap[itemId]=prop
-
+            
 class QueryDisplay():
     '''
     display queries
