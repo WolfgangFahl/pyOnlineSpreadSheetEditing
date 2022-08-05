@@ -120,13 +120,13 @@ class PropertySelection():
             prop["select"]=""
 
             self.propertyMap[itemId]=prop
-            
+        
 class QueryDisplay():
     '''
     display queries
     '''
 
-    def __init__(self,name:str,a,endpointConf:Endpoint):
+    def __init__(self,app,name:str,a,sparql,endpointConf:Endpoint):
         '''
         Args:
             name(str): the name of the display and query
@@ -134,15 +134,89 @@ class QueryDisplay():
             endpointConf(Endpoint): SPARQL endpoint configuration to use
 
         '''
+        self.app=app
         self.name=name
+        self.a=a
+        self.sparql=sparql
         self.endpointConf=endpointConf
         self.queryHideShow=Collapsible(name,a=a)
         self.queryHideShow.btn.classes+="btn-sm col-3"
         self.queryDiv=jp.Div(a=self.queryHideShow.body)
         self.queryTryIt=jp.Div(a=a)
+        self.downloadFormat="excel"
         pass
+    
+    def generateDownloadFromLod(self,lod,name) -> str:
+        """
+        generate a download from the given List of Dicts
+        
+        Args:
+            lod(list): the list of Dicts
+            name(str): the name of the download
+        """  
+        # prepare static are of webserver to allow uploading files
+        static_dir = os.path.dirname(os.path.realpath(__file__))
+        qres_dir = f"{static_dir}/qres"
+        os.makedirs(qres_dir, exist_ok=True)
+        if self.downloadFormat in ["excel","ods","json","csv"]:
+            # convert qres to requested format
+            spreadsheetFormat=SpreadSheetType[self.downloadFormat.upper()]
+            spreadsheet = SpreadSheet.create(spreadsheetFormat, "TrulyTabularAggregateQueryResult")        
+            filename = f"{name}{spreadsheet.FILE_TYPE}"
+            spreadsheet.addTable(name=name, lod=lod)
+            spreadsheet.saveToFile(dir_name=qres_dir, fileName=filename)
+        else:
+            # tabulate 
+            tablefmt=self.downloadFormat
+            tableResult=tabulate(lod,headers="keys",tablefmt=tablefmt)
+            filepath = f"{qres_dir}/{name}.{tablefmt}"
+            print(tableResult,  file=open(filepath, 'w'))
+        return filename
+    
+    async def onChangeDownloadFormat(self,msg:dict):
+        '''
+        handle the download format change
+        '''
+        self.downloadFormat = msg.value
+    
+    async def onDownloadButtonClick(self,_msg):
+        '''
+        handle the clicking of the download button
+        '''
+        try:
+            alert = Alert(a=self.a, text="Download of query started. Executing the query might take a few seconds ...")
+            await self.app.wp.update()
+            query = getattr(self, "sparqlQuery")
+            if isinstance(query, Query):
+                lod = self.sparql.queryAsListOfDicts(query.query)
+                filename = self.generateDownloadFromLod(lod,self.name)
+                setattr(alert, "text", "Query finished!")
+                jp.A(text="Download now",
+                      classes="btn btn-primary",
+                      a=alert,
+                      href=f"/static/qres/{filename}",
+                      download=filename,
+                      disabled=True)
+        except (BaseException,HTTPError) as ex:
+            self.app.handleException(ex)
+        await self.app.wp.update()
+    
+    def showDownload(self):
+        if getattr(self, "downloadButton", None) is None:
+            self.downloadButton = jp.Button(text="Download",
+                                                classes="btn btn-primary",
+                                                a=self.a,
+                                                click=self.onDownloadButtonClick,
+                                                disabled=False)
+            self.downloadFormatSelect = self.app.createSelect("format",
+                                                              value=self.downloadFormat,
+                                                              change=self.onChangeDownloadFormat,
+                                                              a=self.a)
+            for downloadFormat in ["csv","excel","github","html","json","latex","mediawiki","ods"]:
+                self.downloadFormatSelect.add(jp.Option(value=downloadFormat,text=downloadFormat))
 
-    def showSyntaxHighlightedQuery(self,sparqlQuery):
+
+    def showSyntaxHighlightedQuery(self,sparqlQuery,withDownload:bool=True):
         '''
         show a syntax highlighted Query
 
@@ -150,6 +224,9 @@ class QueryDisplay():
         queryDiv(jp.Div): the div to use for displaying
         queryTryIt(jp.Div): the div for the tryIt button
         '''
+        self.sparqlQuery=sparqlQuery
+        if withDownload:
+            self.showDownload()
         qs=QuerySyntaxHighlight(sparqlQuery)
         queryHigh=qs.highlight()
         tryItUrlEncoded=sparqlQuery.getTryItUrl(baseurl=self.endpointConf.website,database=self.endpointConf.database)
@@ -193,7 +270,6 @@ class WikiDataBrowser(App):
         self.starttime=time.time()
         self.previousKeyStrokeTime=None
         self.wdProperty=WikidataProperty("P31")
-        self.downloadFormat:SpreadSheetType=None
 
     def getParser(self):
         '''
@@ -323,7 +399,7 @@ class WikiDataBrowser(App):
         Returns:
             QueryDisplay: the created QueryDisplay
         '''
-        qd=QueryDisplay(name=name,a=a,endpointConf=self.endpointConf)
+        qd=QueryDisplay(app=self,name=name,a=a,sparql=self.tt.sparql,endpointConf=self.endpointConf)
         return qd
 
     def createTrulyTabular(self,itemQid,propertyIds=[]):
@@ -380,16 +456,6 @@ class WikiDataBrowser(App):
         except BaseException as ex:
             self.handleException(ex)
         await self.wp.update()
-
-    async def onChangeDownloadFormat(self,msg:dict):
-        '''
-        handle the download format change
-        '''
-        value = getattr(msg, "value")
-        if value is not None and isinstance(value, str):
-            selectedFormat = value.upper()
-            if selectedFormat in SpreadSheetType: # Format.formatMap:
-                self.downloadFormat = SpreadSheetType[selectedFormat]
 
     def onItemBoxChange(self,msg:dict):
         searchFor=msg.value
@@ -610,8 +676,7 @@ class WikiDataBrowser(App):
         '''
         select a wikidata Property for analysis
         '''
-
-
+        
     async def selectItem(self,itemId):
         '''
         select a Wikidata Item for analysis
@@ -654,73 +719,10 @@ class WikiDataBrowser(App):
         try:
             self.showFeedback(f"generating SPARQL query for {str(self.tt)}")
             self.generateQuery()
-            if getattr(self, "downloadButton", None) is None:
-                self.downloadButton = jp.Button(text="Download",
-                                                classes="btn btn-primary",
-                                                a=self.colD3,
-                                                click=self.onDownloadButtonClick,
-                                                disabled=False)
-                self.downloadFormatSelect = self.createSelect("format",
-                                                              value=self.downloadFormat.value,
-                                                              change=self.onChangeDownloadFormat,
-                                                              a=self.colD4)
-                for downloadFormat in ["csv","excel","github","html","json","latex","mediawiki","ods"]:
-                    self.downloadFormatSelect.add(jp.Option(value=downloadFormat,text=downloadFormat))
         except BaseException as ex:
             self.handleException(ex)
         await self.wp.update()
 
-    async def onDownloadButtonClick(self,_msg):
-        '''
-        handle the clicking of the download button
-        '''
-        try:
-            alert = Alert(a=self.rowC, text="Download of query started. Executing the query might take a few seconds ...")
-            await self.wp.update()
-            try:
-                query = getattr(self, "aggregateSparqlQuery")
-                if isinstance(query, Query):
-                    lod = self.tt.sparql.queryAsListOfDicts(query.query)
-                    filename = self.generateDownloadFromLod(lod)
-                    setattr(alert, "text", "Query finished!")
-                    jp.A(text="Download now",
-                          classes="btn btn-primary",
-                          a=alert,
-                          href=f"/static/qres/{filename}",
-                          download=filename,
-                          disabled=True)
-            except Exception as ex:
-                setattr(alert, "text", "Exception in query execution! → Result for download could not be generated.")
-        except (BaseException,HTTPError) as ex:
-            self.handleException(ex)
-        await self.wp.update()
-
-    def generateDownloadFromLod(self,lod) -> str:
-        """
-        generate a download from the given List of Dicts
-        
-        Args:
-            lod(list): the list of Dicts
-        """  
-        # prepare static are of webserver to allow uploading files
-        static_dir = os.path.dirname(os.path.realpath(__file__))
-        qres_dir = f"{static_dir}/qres"
-        os.makedirs(qres_dir, exist_ok=True)
-        if self.downloadFormat in ["excel","ods","json","csv"]:
-            # convert qres to requested format
-            spreadsheetFormat=SpreadSheetType[self.downloadFormat.upper()]
-            spreadsheet = SpreadSheet.create(spreadsheetFormat, "TrulyTabularAggregateQueryResult")        
-            item = self.itemSelect.value
-            filename = f"{item}{spreadsheet.FILE_TYPE}"
-            spreadsheet.addTable(name=item, lod=lod)
-            spreadsheet.saveToFile(dir_name=qres_dir, fileName=filename)
-        else:
-            # tabulate 
-            tablefmt=self.downloadFormat
-            tableResult=tabulate(lod,headers="keys",tablefmt=tablefmt)
-            filepath = f"{qres_dir}/{item}.{tablefmt}"
-            print(tableResult,  file=open(filepath, 'w'))
-        return filename
 
     async def onItemSelect(self,msg):
         '''
