@@ -142,7 +142,8 @@ class QueryDisplay():
         self.queryHideShow=Collapsible(name,a=a)
         self.queryHideShow.btn.classes+="btn-sm col-3"
         self.queryDiv=jp.Div(a=self.queryHideShow.body)
-        self.queryTryIt=jp.Div(a=a)
+        self.queryBar=jp.Div(a=a)
+        self.queryTryIt=jp.Div(a=self.queryBar,classes="col-1")
         self.downloadFormat="excel"
         pass
     
@@ -184,7 +185,7 @@ class QueryDisplay():
         handle the clicking of the download button
         '''
         try:
-            alert = Alert(a=self.a, text="Download of query started. Executing the query might take a few seconds ...")
+            alert = Alert(a=self.queryBar, text="Download of query started. Executing the query might take a few seconds ...")
             await self.app.wp.update()
             query = getattr(self, "sparqlQuery")
             if isinstance(query, Query):
@@ -204,14 +205,14 @@ class QueryDisplay():
     def showDownload(self):
         if getattr(self, "downloadButton", None) is None:
             self.downloadButton = jp.Button(text="Download",
-                                                classes="btn btn-primary",
-                                                a=self.a,
+                                                classes="btn btn-primary col-1",
+                                                a=self.queryBar,
                                                 click=self.onDownloadButtonClick,
                                                 disabled=False)
             self.downloadFormatSelect = self.app.createSelect("format",
                                                               value=self.downloadFormat,
                                                               change=self.onChangeDownloadFormat,
-                                                              a=self.a)
+                                                              a=self.queryBar,classes="col-4")
             for downloadFormat in ["csv","excel","github","html","json","latex","mediawiki","ods"]:
                 self.downloadFormatSelect.add(jp.Option(value=downloadFormat,text=downloadFormat))
 
@@ -234,7 +235,6 @@ class QueryDisplay():
         # clear div for try It
         self.queryTryIt.delete_components()
         self.tryItLink=jp.Link(href=tryItUrlEncoded,text="try it!",title="try out with wikidata query service",a=self.queryTryIt,target="_blank")
-
 
 class WikiDataBrowser(App):
     '''
