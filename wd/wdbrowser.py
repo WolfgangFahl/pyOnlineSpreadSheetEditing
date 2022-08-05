@@ -21,6 +21,8 @@ from onlinespreadsheet.pareto import Pareto
 from wd.wdsearch import WikidataSearch
 from urllib.error import HTTPError
 from spreadsheet.spreadsheet import SpreadSheetType, Format, SpreadSheet
+import spreadsheet
+from tabulate import tabulate
 
 class PropertySelection():
     '''
@@ -380,6 +382,9 @@ class WikiDataBrowser(App):
         await self.wp.update()
 
     async def onChangeDownloadFormat(self,msg:dict):
+        '''
+        handle the download format change
+        '''
         value = getattr(msg, "value")
         if value is not None and isinstance(value, str):
             selectedFormat = value.upper()
@@ -474,7 +479,7 @@ class WikiDataBrowser(App):
                 self.showFeedback(f"{completedTasks }/{propertyCount}: querying statistics - (completed statistics for {props})...")
                 self.progressBar.updateProgress(int((completedTasks) * 100 / propertyCount))
                 await self.wp.update()
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(2.0)
             self.showFeedback("")
             self.progressBar.updateProgress(0)
             if self.generateQueryButton is None:
@@ -659,20 +664,26 @@ class WikiDataBrowser(App):
                                                               value=self.downloadFormat.value,
                                                               change=self.onChangeDownloadFormat,
                                                               a=self.colD4)
-                for downloadFormat in SpreadSheetType:
-                    self.downloadFormatSelect.add(jp.Option(value=downloadFormat.value,text=downloadFormat.getName()))
+                for downloadFormat in ["csv","excel","github","html","json","latex","mediawiki","ods"]:
+                    self.downloadFormatSelect.add(jp.Option(value=downloadFormat,text=downloadFormat))
         except BaseException as ex:
             self.handleException(ex)
         await self.wp.update()
 
-    async def onDownloadButtonClick(self,msg):
+    async def onDownloadButtonClick(self,_msg):
+        '''
+        handle the clicking of the download button
+        '''
         try:
             alert = Alert(a=self.rowC, text="Download of query started. Executing the query might take a few seconds ...")
             await self.wp.update()
             try:
-                filename = self.generateSpreadSheet()
-                setattr(alert, "text", "Query finished!")
-                jp.A(text="Download now",
+                query = getattr(self, "aggregateSparqlQuery")
+                if isinstance(query, Query):
+                    lod = self.tt.sparql.queryAsListOfDicts(query.query)
+                    filename = self.generateDownloadFromLod(lod)
+                    setattr(alert, "text", "Query finished!")
+                    jp.A(text="Download now",
                           classes="btn btn-primary",
                           a=alert,
                           href=f"/static/qres/{filename}",
@@ -684,24 +695,32 @@ class WikiDataBrowser(App):
             self.handleException(ex)
         await self.wp.update()
 
-    def generateSpreadSheet(self) -> str:
+    def generateDownloadFromLod(self,lod) -> str:
         """
-        Execute aggregate query and return query result in requested format
-        """
-        # execute query
-        query = getattr(self, "aggregateSparqlQuery")
-        if isinstance(query, Query):
-            lod = self.tt.sparql.queryAsListOfDicts(query.query)
+        generate a download from the given List of Dicts
+        
+        Args:
+            lod(list): the list of Dicts
+        """  
+        # prepare static are of webserver to allow uploading files
+        static_dir = os.path.dirname(os.path.realpath(__file__))
+        qres_dir = f"{static_dir}/qres"
+        os.makedirs(qres_dir, exist_ok=True)
+        if self.downloadFormat in ["excel","ods","json","csv"]:
             # convert qres to requested format
-            spreadsheet = SpreadSheet.create(self.downloadFormat, "TrulyTabularAggregateQueryResult")
+            spreadsheetFormat=SpreadSheetType[self.downloadFormat.upper()]
+            spreadsheet = SpreadSheet.create(spreadsheetFormat, "TrulyTabularAggregateQueryResult")        
             item = self.itemSelect.value
             filename = f"{item}{spreadsheet.FILE_TYPE}"
-            static_dir = os.path.dirname(os.path.realpath(__file__))
-            qres_dir = f"{static_dir}/qres"
             spreadsheet.addTable(name=item, lod=lod)
-            os.makedirs(qres_dir, exist_ok=True)
             spreadsheet.saveToFile(dir_name=qres_dir, fileName=filename)
-            return filename
+        else:
+            # tabulate 
+            tablefmt=self.downloadFormat
+            tableResult=tabulate(lod,headers="keys",tablefmt=tablefmt)
+            filepath = f"{qres_dir}/{item}.{tablefmt}"
+            print(tableResult,  file=open(filepath, 'w'))
+        return filename
 
     async def onItemSelect(self,msg):
         '''
