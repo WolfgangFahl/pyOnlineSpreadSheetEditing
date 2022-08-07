@@ -7,6 +7,7 @@ import asyncio
 import concurrent.futures
 import collections
 import html
+import json
 import logging
 import os
 import sys
@@ -161,7 +162,7 @@ class QueryDisplay():
         qres_dir = f"{static_dir}/qres"
         filenameprefix=f"{self.wdItem.qid}{self.name}"
         os.makedirs(qres_dir, exist_ok=True)
-        if self.downloadFormat in ["excel","ods","json","csv"]:
+        if self.downloadFormat in ["excel","ods","csv"]:
             # convert qres to requested format
             spreadsheetFormat=SpreadSheetType[self.downloadFormat.upper()]
             spreadsheet = SpreadSheet.create(spreadsheetFormat, filenameprefix)        
@@ -171,7 +172,10 @@ class QueryDisplay():
         else:
             # tabulate 
             tablefmt=self.downloadFormat
-            tableResult=tabulate(lod,headers="keys",tablefmt=tablefmt)
+            if self.downloadFormat=="json":
+                tableResult=json.dumps(lod)
+            else:
+                tableResult=tabulate(lod,headers="keys",tablefmt=tablefmt)
             filename= f"{filenameprefix}.{tablefmt}"
             filepath = f"{qres_dir}/{filename}"
             print(tableResult,  file=open(filepath, 'w'))
