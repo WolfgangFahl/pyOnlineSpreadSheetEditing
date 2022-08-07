@@ -126,16 +126,18 @@ class QueryDisplay():
     display queries
     '''
 
-    def __init__(self,app,name:str,a,sparql,endpointConf:Endpoint):
+    def __init__(self,app,name:str,a,wdItem,sparql,endpointConf:Endpoint):
         '''
         Args:
             name(str): the name of the display and query
             a(jp.Component): an ancestor component
+            wdItem(WikiDataItem): the WikidataItem referenced
             endpointConf(Endpoint): SPARQL endpoint configuration to use
 
         '''
         self.app=app
         self.name=name
+        self.wdItem=wdItem
         self.a=a
         self.sparql=sparql
         self.endpointConf=endpointConf
@@ -147,30 +149,31 @@ class QueryDisplay():
         self.downloadFormat="excel"
         pass
     
-    def generateDownloadFromLod(self,lod,name) -> str:
+    def generateDownloadFromLod(self,lod) -> str:
         """
         generate a download from the given List of Dicts
         
         Args:
             lod(list): the list of Dicts
-            name(str): the name of the download
         """  
         # prepare static are of webserver to allow uploading files
         static_dir = os.path.dirname(os.path.realpath(__file__))
         qres_dir = f"{static_dir}/qres"
+        filenameprefix=f"{self.wdItem.qid}{self.name}"
         os.makedirs(qres_dir, exist_ok=True)
         if self.downloadFormat in ["excel","ods","json","csv"]:
             # convert qres to requested format
             spreadsheetFormat=SpreadSheetType[self.downloadFormat.upper()]
-            spreadsheet = SpreadSheet.create(spreadsheetFormat, "TrulyTabularAggregateQueryResult")        
-            filename = f"{name}{spreadsheet.FILE_TYPE}"
-            spreadsheet.addTable(name=name, lod=lod)
+            spreadsheet = SpreadSheet.create(spreadsheetFormat, filenameprefix)        
+            filename = f"{filenameprefix}{spreadsheet.FILE_TYPE}"
+            spreadsheet.addTable(name=self.name, lod=lod)
             spreadsheet.saveToFile(dir_name=qres_dir, fileName=filename)
         else:
             # tabulate 
             tablefmt=self.downloadFormat
             tableResult=tabulate(lod,headers="keys",tablefmt=tablefmt)
-            filepath = f"{qres_dir}/{name}.{tablefmt}"
+            filename= f"{filenameprefix}.{tablefmt}"
+            filepath = f"{qres_dir}/{filename}"
             print(tableResult,  file=open(filepath, 'w'))
         return filename
     
@@ -185,15 +188,15 @@ class QueryDisplay():
         handle the clicking of the download button
         '''
         try:
-            alert = Alert(a=self.queryBar, text="Download of query started. Executing the query might take a few seconds ...")
+            alert = Alert(a=self.queryBar, text=f"Query {self.name} for {self.wdItem.asText()} started ... please wait a few seconds")
             await self.app.wp.update()
             query = getattr(self, "sparqlQuery")
             if isinstance(query, Query):
                 lod = self.sparql.queryAsListOfDicts(query.query)
-                filename = self.generateDownloadFromLod(lod,self.name)
-                setattr(alert, "text", "Query finished!")
-                jp.A(text="Download now",
-                      classes="btn btn-primary btn-sm",
+                filename = self.generateDownloadFromLod(lod)
+                setattr(alert, "text", "Download:")
+                jp.A(text=f"{filename}",
+                      classes="",
                       a=alert,
                       href=f"/static/qres/{filename}",
                       download=filename,
@@ -359,6 +362,8 @@ class WikiDataBrowser(App):
         self.listSeparator="|"
         self.paretoLevel=1
         self.minPropertyFrequency=20
+        self.withSubclasses=False
+        self.subclassPredicate="wdt:P31"
         self.paretoLevels={}
         for level in range(1,10):
             pareto=Pareto(level)
@@ -490,16 +495,17 @@ class WikiDataBrowser(App):
                 idMap[propertyId]=genList
         return idMap
 
-    def createQueryDisplay(self,name,a)->QueryDisplay:
+    def createQueryDisplay(self,name,a,wdItem)->QueryDisplay:
         '''
         Args:
             name(str): the name of the query
             a(jp.Component): the ancestor
+            wdItem(WikiDataItem): the wikidata item referenced
 
         Returns:
             QueryDisplay: the created QueryDisplay
         '''
-        qd=QueryDisplay(app=self,name=name,a=a,sparql=self.tt.sparql,endpointConf=self.endpointConf)
+        qd=QueryDisplay(app=self,name=name,a=a,wdItem=wdItem,sparql=self.tt.sparql,endpointConf=self.endpointConf)
         return qd
 
     def createTrulyTabular(self,itemQid,propertyIds=[]):
@@ -511,7 +517,7 @@ class WikiDataBrowser(App):
             itemQid(str): e.g. Q5 human
             propertyIds(list): list of property Ids (if any) such as P17 country
         '''
-        tt=TrulyTabular(itemQid=itemQid,propertyIds=propertyIds,endpointConf=self.endpointConf,debug=self.debug)
+        tt=TrulyTabular(itemQid=itemQid,propertyIds=propertyIds,subclassPredicate=self.subclassPredicate,endpointConf=self.endpointConf,debug=self.debug)
         return tt
 
     def generateQuery(self):
@@ -522,9 +528,9 @@ class WikiDataBrowser(App):
         propertyIdMap=self.getPropertyIdMap()
         tt=self.createTrulyTabular(itemQid=self.itemQid,propertyIds=list(propertyIdMap.keys()))
         if self.naiveQueryDisplay is None:
-            self.naiveQueryDisplay=self.createQueryDisplay("naive Query",a=self.colB3)
+            self.naiveQueryDisplay=self.createQueryDisplay("naive Query",a=self.colB3,wdItem=tt.item)
         if self.aggregateQueryDisplay is None:
-            self.aggregateQueryDisplay=self.createQueryDisplay("aggregate Query",a=self.colC3)
+            self.aggregateQueryDisplay=self.createQueryDisplay("aggregate Query",a=self.colC3,wdItem=tt.item)
         sparqlQuery=tt.generateSparqlQuery(genMap=propertyIdMap,naive=True,lang=self.language,listSeparator=self.listSeparator)
         naiveSparqlQuery=Query(name="naive SPARQL Query",query=sparqlQuery)
         self.naiveQueryDisplay.showSyntaxHighlightedQuery(naiveSparqlQuery)
@@ -556,6 +562,10 @@ class WikiDataBrowser(App):
         except BaseException as ex:
             self.handleException(ex)
         await self.wp.update()
+        
+    async def onSubclassChange(self,msg):
+        self.withSubclasses=msg["checked"]
+        self.subclassPredicate="wdt:P279*/wdt:P31*" if self.withSubclasses else "wdt:P31"
 
     def wikiTrulyTabularPropertyStats(self,itemId:str,propertyId:str):
         '''
@@ -667,7 +677,7 @@ class WikiDataBrowser(App):
             minCount=round(total/pareto.oneOutOf)
             self.ttquery=tt.mostFrequentPropertiesQuery(minCount=minCount)
             if self.propertyQueryDisplay is None:
-                self.propertyQueryDisplay=self.createQueryDisplay("property Query",a=self.colA4)
+                self.propertyQueryDisplay=self.createQueryDisplay("property Query",a=self.colA4,wdItem=tt.item)
             self.propertyQueryDisplay.showSyntaxHighlightedQuery(self.ttquery)
             await self.wp.update()
         except (BaseException,HTTPError) as ex:
@@ -704,7 +714,7 @@ class WikiDataBrowser(App):
             self.ttcount,countQuery=tt.count()
             self.countDiv.text=f"{self.ttcount} instances found"
             if self.countQueryDisplay is None:
-                self.countQueryDisplay=self.createQueryDisplay("count Query",a=self.colA4)
+                self.countQueryDisplay=self.createQueryDisplay("count Query",a=self.colA4,wdItem=tt.item)
             countSparqlQuery=Query(name="count Query",query=countQuery)
             self.countQueryDisplay.showSyntaxHighlightedQuery(countSparqlQuery)
             await self.wp.update()
@@ -875,8 +885,8 @@ class WikiDataBrowser(App):
         # setup Bootstrap5 rows and columns
 
         rowA=jp.Div(classes="row",a=self.contentbox)
-        self.colA1=jp.Div(classes="col-4",a=rowA)
-        self.colA2=jp.Div(classes="col-2",a=rowA)
+        self.colA1=jp.Div(classes="col-3",a=rowA)
+        self.colA2=jp.Div(classes="col-3",a=rowA)
         #self.colA3=jp.Div(classes="col-2",a=rowA)
         self.colA4=jp.Div(classes="col-6",a=rowA)
 
@@ -963,6 +973,8 @@ class WikiDataBrowser(App):
         '''
         self.setupRowsAndCols()
         self.wdItemSearch=WikidataItemSearch(self,a1=self.colA1,a2=self.colA2,a3=self.colB1,useComboBox=True)
+        self.subclassCheckbox=self.createCheckbox("subclasses",a=self.colA2,checked=self.withSubclasses,input=self.onSubclassChange)
+         
         self.countDiv=jp.Div(a=self.colB2,classes="h5")
         return self.wp
 
