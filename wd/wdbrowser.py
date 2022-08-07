@@ -236,6 +236,89 @@ class QueryDisplay():
         # clear div for try It
         self.queryTryIt.delete_components()
         self.tryItLink=jp.Link(href=tryItUrlEncoded,text="try it!",title="try out with wikidata query service",a=self.queryTryIt,target="_blank")
+        
+class WikidataItemSearch():
+    '''
+    wikidata item search with selector or a combobox
+    '''
+    
+    def __init__(self,app,a1,a2,a3,useComboBox:bool=False,keyStrokeTime:float=0.65):
+        '''
+        constructor
+        
+        Args:
+            a1(jp.HtmlComponent): ancestor component for input
+            a2(jp.HtmlComponent): ancestor component for select
+            a3(jp.HtmlComponent): ancestor component for Link result
+            useComboBox(bool): if True use a combobox
+            keyStrokeTime(float): minimum time between keystrokes to start Wikidata Ajax Search
+        '''
+        self.app=app
+        self.wdSearch=WikidataSearch(self.app.language)
+        self.keyStrokeTime=keyStrokeTime
+        self.previousKeyStrokeTime=None
+        if useComboBox:
+            self.itemcombo=ComboBox(a=a1,placeholder='Please type here to search ...',change=self.onItemBoxChange)
+        else:
+            self.item=self.app.createInput(labelText="Wikidata item", a=a1, placeholder='Please type here to search ...',value=self.app.itemQid,change=self.onItemChange)
+            # on enter use the currently selected item 
+            self.item.on('change', self.onItemInput)
+            self.itemSelect=jp.Select(classes="form-select",a=a2,change=self.onItemSelect)
+        self.itemLinkDiv=jp.Div(a=a3,classes="h5")
+    
+    def updateItemLink(self,wdItem):
+        itemText=wdItem.asText()
+        self.itemLinkDiv.inner_html=Link.create(f"{wdItem.url}",itemText, wdItem.description, target="_blank")
+         
+    def onItemChange(self,msg:dict):
+        '''
+        react on changes in the item input
+        '''
+        try:
+            now=time.time()
+            if self.previousKeyStrokeTime is not None:
+                elapsed=now-self.previousKeyStrokeTime
+                if elapsed>=self.keyStrokeTime:
+                    searchFor=msg.value
+                    self.app.showFeedback(f"searching wikidata for {searchFor}...")
+                    # remove current Selection
+                    firstQid=None
+                    for qid,itemLabel,desc in self.wdSearch.searchOptions(searchFor):
+                        if firstQid is None:
+                            self.itemSelect.delete_components()
+                            firstQid=qid
+                        text=f"{itemLabel} ({qid}) {desc}"
+                        self.itemSelect.add(jp.Option(value=qid,text=text))
+                    if firstQid is not None:
+                        self.itemSelect.value=firstQid
+            self.previousKeyStrokeTime=now
+        except BaseException as ex:
+            self.app.handleException(ex)
+        
+    def onItemBoxChange(self,msg:dict):
+        searchFor=msg.value
+        self.showFeedback(f"searching wikidata for {searchFor}...")
+        for qid,itemLabel,desc in self.wdSearch.searchOptions(searchFor):
+            text=f"{itemLabel} ({qid}) {desc}"
+            self.itemcombo.addOption(text)
+            
+    async def onItemInput(self,_msg):
+        '''
+        react on item being selected via enter key in input
+        '''
+        try:
+            await self.app.selectItem(self.itemSelect.value)
+        except BaseException as ex:
+            self.app.handleException(ex)
+            
+    async def onItemSelect(self,msg):
+        '''
+        react on item being selected via Select control
+        '''
+        try:
+            await self.selectItem(msg.value)
+        except Exception as ex:
+            self.app.handleException(ex)
 
 class WikiDataBrowser(App):
     '''
@@ -258,7 +341,6 @@ class WikiDataBrowser(App):
         self.endpointName=None
         self.language="en"
         self.listSeparator="|"
-        self.wdSearch=WikidataSearch(self.language)
         self.paretoLevel=1
         self.minPropertyFrequency=20
         self.paretoLevels={}
@@ -266,10 +348,11 @@ class WikiDataBrowser(App):
             pareto=Pareto(level)
             self.paretoLevels[level]=pareto
         self.ttTable=None
+        # Routes
         jp.Route('/settings',self.settings)
+        jp.Route('/itemsearch',self.itemsearch)
         jp.Route('/tt/{qid}',self.ttcontent)
         self.starttime=time.time()
-        self.previousKeyStrokeTime=None
         self.wdProperty=WikidataProperty("P31")
 
     def getParser(self):
@@ -457,38 +540,6 @@ class WikiDataBrowser(App):
         except BaseException as ex:
             self.handleException(ex)
         await self.wp.update()
-
-    def onItemBoxChange(self,msg:dict):
-        searchFor=msg.value
-        self.showFeedback(f"searching wikidata for {searchFor}...")
-        for qid,itemLabel,desc in self.wdSearch.searchOptions(searchFor):
-            text=f"{itemLabel} ({qid}) {desc}"
-            self.itemcombo.addOption(text)
-
-    def onItemChange(self,msg:dict):
-        '''
-        react on changes in the item input
-        '''
-        try:
-            now=time.time()
-            if self.previousKeyStrokeTime is not None:
-                elapsed=now-self.previousKeyStrokeTime
-                if elapsed>0.6:
-                    searchFor=msg.value
-                    self.showFeedback(f"searching wikidata for {searchFor}...")
-                    # remove current Selection
-                    firstQid=None
-                    for qid,itemLabel,desc in self.wdSearch.searchOptions(searchFor):
-                        if firstQid is None:
-                            self.itemSelect.delete_components()
-                            firstQid=qid
-                        text=f"{itemLabel} ({qid}) {desc}"
-                        self.itemSelect.add(jp.Option(value=qid,text=text))
-                    if firstQid is not None:
-                        self.itemSelect.value=firstQid
-            self.previousKeyStrokeTime=now
-        except BaseException as ex:
-            self.handleException(ex)
 
     def wikiTrulyTabularPropertyStats(self,itemId:str,propertyId:str):
         '''
@@ -705,9 +756,7 @@ class WikiDataBrowser(App):
             # create the Truly Tabular Analysis
             self.tt=self.createTrulyTabular(itemId)
             self.showFeedback(f"trulytabular {str(self.tt)} initiated")
-            wdItem=self.tt.item
-            itemText=str(self.tt)
-            self.itemLinkDiv.inner_html=Link.create(f"{wdItem.url}",itemText, wdItem.description, target="_blank")
+            self.wdItemSearch.updateItemLink(self.tt.item)
             await self.wp.update()
             await self.getCountQuery(self.tt),
             await self.getMostFrequentlyUsedProperties(self.tt),
@@ -723,30 +772,9 @@ class WikiDataBrowser(App):
         except BaseException as ex:
             self.handleException(ex)
         await self.wp.update()
-
-
-    async def onItemSelect(self,msg):
-        '''
-        react on item being selected via Select control
-        '''
-        try:
-            await self.selectItem(msg.value)
-        except Exception as ex:
-            print(ex)
         
     async def onPropertySelect(self,msg):
         await self.selectProperty(msg.value)
-
-    async def onItemInput(self,_msg):
-        '''
-        react on item being selected via enter key in input
-        '''
-        try:
-            await self.selectItem(self.itemSelect.value)
-        except BaseException as ex:
-            self.handleException(ex)
-        except Exception as ex:
-            print(ex)
 
     async def onIgnoreSelect(self,msg):
         try:
@@ -872,6 +900,14 @@ class WikiDataBrowser(App):
         self.paretoSelect=None
         self.wdProperty=WikidataProperty("P31")
         self.downloadFormat:SpreadSheetType = SpreadSheetType.EXCEL
+        
+    async def itemsearch(self):
+        '''
+        try combobox itemsearch
+        '''
+        self.setupRowsAndCols()
+        self.wdItemSearch=WikidataItemSearch(self,self.colA1,self.colA2,self.colB1,useComboBox=True)
+        return self.wp
 
     async def settings(self):
         '''
@@ -909,23 +945,9 @@ class WikiDataBrowser(App):
         '''
         provide the justpy content by adding to the webpage provide by the App
         '''
-
         self.setupRowsAndCols()
-
-        # self.itemcombo=ComboBox(a=colA1,placeholder='Please type here to search ...',change=self.onItemBoxChange)
-        self.item=self.createInput(labelText="Wikidata item", a=self.colA1, placeholder='Please type here to search ...',value=self.itemQid,change=self.onItemChange)
-        # on enter use the currently selected item 
-        self.item.on('change', self.onItemInput)
-        self.itemSelect=jp.Select(classes="form-select",a=self.colA2,change=self.onItemSelect)
-        #self.propertyCombo=self.createComboBox("property", a=self.colA3,value=str(self.wdProperty),size=40,change=self.onPropertySelect)
-        #wds=WikidataSearch()
-        #props=wds.getProperties()
-        #for propId,propName in props.items():
-        #    self.propertyCombo.dataList.addOption(value=f"{propName}:({propId})",text=propName)
-        # link and count for the item
-        self.itemLinkDiv=jp.Div(a=self.colB1,classes="h5")
+        self.wdItemSearch=WikidataItemSearch(self,a1=self.colA1,a2=self.colA2,a3=self.colB1)
         self.countDiv=jp.Div(a=self.colB2,classes="h5")
-
         return self.wp
 
 DEBUG = 0
