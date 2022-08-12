@@ -7,20 +7,16 @@ from markupsafe import Markup
 import copy
 import datetime
 import re
-import os
 import pprint
 import sys
 import traceback
-
+import onlinespreadsheet.version as version
 from jpwidgets.widgets import LodGrid,MenuButton, MenuLink, QAlert,QPasswordDialog
+from jpwidgets.bt5widgets import App, IconButton
 
 from spreadsheet.version import Version
 from spreadsheet.wikidata import Wikidata
 from spreadsheet.wbquery import WikibaseQuery
-
-DEBUG = 0
-from argparse import ArgumentParser
-from argparse import RawDescriptionHelpFormatter
 
 class WikidataGrid():
     '''
@@ -226,11 +222,12 @@ class GridSync():
                         if column in lodRow:
                             self.checkCell(viewLodRow,column,value,propVarname,propType,propLabel,propUrl)   
 
-class GoogleSheetWikidataImport():
+class GoogleSheetWikidataImport(App):
     '''
     reactive google sheet display to be used for wikidata import of the content
     '''
-    def __init__(self,url,sheetNames:list,pk:str,endpoint:str,lang:str="en",debug:bool=False):
+    
+    def __init__(self,version):
         '''
         constructor
         
@@ -242,14 +239,8 @@ class GoogleSheetWikidataImport():
             lang(str): the languate to use for labels
             debug(bool): if True show debug information
         '''
-        self.debug=debug
-        self.url=url
-        self.sheetNames=sheetNames
-        self.sheetName=sheetNames[0]
-        self.pk=pk
-        self.endpoint=endpoint
-        self.sparql=SPARQL(self.endpoint)
-        self.lang=lang
+        App.__init__(self, version,title="Google Spreadsheet Wikidata Import")
+        # url,sheetNames:list,pk:str,endpoint:str,lang:str="en",debug:bool=False
         # @TODO make configurable
         self.metaDataSheetName="WikidataMetadata"
         self.wd=Wikidata("https://www.wikidata.org",debug=True)
@@ -257,29 +248,10 @@ class GoogleSheetWikidataImport():
         self.wdgrid=None
         self.dryRun=True
         self.ignoreErrors=False
-        
-    def clearErrors(self):
-        '''
-        clear the error display
-        '''
-        self.errors.inner_html=""
-        
-    def handleException(self,ex):
-        '''
-        handle the given exception
-        
-        Args:
-            ex(Exception): the exception to handle
-        '''
-        errorMsg=str(ex)
-        trace=""
-        if self.debug:
-            trace=traceback.format_exc()
-        errorMsgHtml=f"{errorMsg}<pre>{trace}</pre>"
-        self.errors.inner_html=errorMsgHtml
-        print(errorMsg)
-        if self.debug:
-            print(trace)
+        self.addMenuLink(text='Home',icon='home', href="/")
+        self.addMenuLink(text="docs",icon="file-document",href='https://wiki.bitplan.com/index.php/PyOnlineSpreadSheetEditing')
+        self.addMenuLink(text='github',icon='github', href="https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing")
+    
             
     def load(self,url:str,sheetName:str,metaDataSheetName="WikidataMetadata"):
         '''
@@ -349,7 +321,7 @@ class GoogleSheetWikidataImport():
         self.load(self.url,self.sheetName,self.metaDataSheetName)
         # is there already agrid?
         if self.agGrid is None:
-            self.agGrid = LodGrid(a=self.container)
+            self.agGrid = LodGrid(a=self.rowC)
         viewLod=self.wdgrid.viewLod
         self.wdgrid.linkWikidataItems(viewLod)
         self.reloadAgGrid(viewLod)
@@ -485,6 +457,9 @@ class GoogleSheetWikidataImport():
             label=msg.data["label"]
             try:
                 mapDict=self.wdgrid.wbQueries[self.sheetName].propertiesById
+                rowData=msg.data
+                # remove index
+                rowData.pop("lodRowIndex")
                 qid,errors=self.wd.addDict(msg.data, mapDict,write=write,ignoreErrors=self.ignoreErrors)
                 if qid is not None:
                     # set item link
@@ -505,20 +480,37 @@ class GoogleSheetWikidataImport():
             except Exception as ex:
                 self.handleException(ex)
 
-    def gridForDataFrame(self):
+    def setup(self):
+        self.url=self.args.url
+        self.sheetNames=self.args.sheets
+        self.sheetName=self.sheetNames[0]
+        self.pk=self.args.pk
+        self.endpoint=self.args.endpoint
+        self.sparql=SPARQL(self.endpoint)
+        self.lang="en" # @TODO Make configurable self.args.lang
+        
+    def content(self):
         '''
         show aggrid for the given data frame
         '''
-        self.wp = jp.QuasarPage()
-        self.container=jp.Div(a=self.wp)
-        self.header=jp.Div(a=self.container)
-        self.toolbar=jp.QToolbar(a=self.header)
+        self.setup()
+        # select endpoint
+        head="""<link rel="stylesheet" href="/static/css/md_style_indigo.css">
+<link rel="stylesheet" href="/static/css/pygments.css">
+"""
+        # extend the justpy Webpage with the given head parameters
+        self.wp=self.getWp(head)
+        self.rowA=jp.Div(classes="row",a=self.contentbox)
+        self.rowB=jp.Div(classes="row",a=self.contentbox)
+        self.rowC=jp.Div(classes="row",a=self.contentbox)
+        self.rowD=jp.Div(classes="row",a=self.contentbox)
+        self.errors=jp.Span(a=self.rowD,style='color:red')
+        self.header=jp.Div(a=self.rowA)
+        self.toolbar=jp.QToolbar(a=self.rowB)
         # for icons see  https://quasar.dev/vue-components/icon
         # see justpy/templates/local/materialdesignicons/iconfont/codepoints for available icons    
-        self.reloadButton=MenuButton(a=self.toolbar,text='reload',icon="refresh",click=self.reload)
+        self.reloadButton=IconButton(a=self.toolbar,text='refresh-circle',iconName="refresh",click=self.reload)
         self.checkButton=MenuButton(a=self.toolbar,text='check',icon='check_box',click=self.onCheckWikidata)
-        MenuLink(a=self.toolbar,text="docs",icon="description",href='https://wiki.bitplan.com/index.php/PyOnlineSpreadSheetEditing')
-        MenuLink(a=self.toolbar,text='github',icon='forum', href="https://github.com/WolfgangFahl/pyOnlineSpreadSheetEditing")
         self.loginButton=MenuButton(a=self.toolbar,icon='chevron_right',text="login",click=self.onLogin)
         self.passwordDialog=QPasswordDialog(a=self.wp)
         self.alertDialog=QAlert(a=self.wp)
@@ -544,73 +536,27 @@ class GoogleSheetWikidataImport():
         self.pkSelect=jp.Select(classes=selectorClasses,a=self.header,value=self.pk,
             change=self.onChangePk)
         jp.Br(a=self.header)
-        self.errors=jp.Span(a=self.container,style='color:red')
         try:
             self.reload()
         except Exception as ex:
             self.handleException(ex)
         return self.wp
-    
-    def start(self):
-        '''
-        start the reactive justpy webserver
-        '''
-        jp.justpy(self.gridForDataFrame)
-
-# command line call
-def main(argv=None): # IGNORE:C0111
-    '''main program.'''
-
-    if argv is None:
-        argv=sys.argv[1:]
         
-    program_name = os.path.basename(__file__)
-    program_version = "v%s" % Version.version
-    program_build_date = str(Version.updated)
-    program_version_message = '%%(prog)s %s (%s)' % (program_version, program_build_date)
-    program_shortdesc = "Wikidata Import from google spreadsheet"
-    user_name="Wolfgang Fahl"
-    program_license = '''%s
-
-  Created by %s on %s.
-  Copyright 2022 contributors. All rights reserved.
-
-  Licensed under the Apache License 2.0
-  http://www.apache.org/licenses/LICENSE-2.0
-
-  Distributed on an "AS IS" basis without warranties
-  or conditions of any kind, either express or implied.
-
-USAGE
-''' % (program_shortdesc,user_name, str(Version.date))
-
-    try:
-        # Setup argument parser
-        parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
-        parser.add_argument("-d", "--debug", dest="debug",   action="store_true", help="set debug [default: %(default)s]")
-        parser.add_argument('-V', '--version', action='version', version=program_version_message)
+    def getParser(self):
+        '''
+        get the argument parser
+        '''
+        parser=App.getParser(self)
         parser.add_argument('--endpoint',help="the endpoint to use [default: %(default)s]",default="https://query.wikidata.org/sparql")
         #parser.add_argument('--dryrun', action="store_true", dest='dryrun', help="dry run only")
         parser.add_argument('--url')
         parser.add_argument('--sheets',nargs="+",required=True)
         parser.add_argument('--pk')
-        args = parser.parse_args(argv)
-        gswdi=GoogleSheetWikidataImport(args.url,args.sheets,pk=args.pk,endpoint=args.endpoint,debug=args.debug)
-        gswdi.start()
+        return parser
      
-    except KeyboardInterrupt:
-        ### handle keyboard interrupt ###
-        return 1
-    except Exception as e:
-        if DEBUG:
-            raise(e)
-        indent = len(program_name) * " "
-        sys.stderr.write(program_name + ": " + repr(e) + "\n")
-        sys.stderr.write(indent + "  for help use --help")
-        print(traceback.format_exc())
-        return 2     
-
+DEBUG = 1
 if __name__ == "__main__":
     if DEBUG:
         sys.argv.append("-d")
-    sys.exit(main())
+    gsimport=GoogleSheetWikidataImport(version.Version)
+    sys.exit(gsimport.mainInstance())
