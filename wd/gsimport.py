@@ -1,6 +1,5 @@
 import justpy as jp
 from spreadsheet.googlesheet import GoogleSheet
-
 from lodstorage.lod import LOD
 from lodstorage.sparql import SPARQL
 from markupsafe import Markup
@@ -9,12 +8,9 @@ import datetime
 import re
 import pprint
 import sys
-import traceback
 import onlinespreadsheet.version as version
-from jpwidgets.widgets import LodGrid,MenuButton, MenuLink, QAlert,QPasswordDialog
-from jpwidgets.bt5widgets import App, IconButton
-
-from spreadsheet.version import Version
+from jpwidgets.widgets import LodGrid, QPasswordDialog
+from jpwidgets.bt5widgets import App, Alert, IconButton, Switch
 from spreadsheet.wikidata import Wikidata
 from spreadsheet.wbquery import WikibaseQuery
 
@@ -401,8 +397,8 @@ class GoogleSheetWikidataImport(App):
         self.ignoreErrors=msg.value    
             
     def loginUser(self,user):
-        self.loginButton.text=f"logout {user}"
-        self.loginButton.icon="chevron_left"
+        self.loginButton.text=f"{user}"
+        self.loginButton.iconName="logout"
         self.dryRunButton.disable=False
         
     def onloginViaDialog(self,_msg):
@@ -437,7 +433,7 @@ class GoogleSheetWikidataImport(App):
                 self.dryRunButton.value=True
                 self.dryRunButton.disable=True
                 self.loginButton.text="login"
-                self.loginButton.icon="chevron_right"
+                self.loginButton.iconName   ="chevron_right"
         except Exception as ex:
                 self.handleException(ex)
      
@@ -473,9 +469,7 @@ class GoogleSheetWikidataImport(App):
                 if self.dryRun:
                     prettyData=pprint.pformat(msg.data)
                     html=Markup(f"<pre>{prettyData}</pre>")
-                    self.alertDialog.alertContent.inner_html=html
-                    self.alertDialog.alertTitle.text=f"Dry Run for {label}"
-                    self.alertDialog.value=True
+                    alert=Alert(text=html)
                     
             except Exception as ex:
                 self.handleException(ex)
@@ -489,7 +483,7 @@ class GoogleSheetWikidataImport(App):
         self.sparql=SPARQL(self.endpoint)
         self.lang="en" # @TODO Make configurable self.args.lang
         
-    def content(self):
+    async def content(self):
         '''
         show aggrid for the given data frame
         '''
@@ -509,20 +503,19 @@ class GoogleSheetWikidataImport(App):
         self.toolbar=jp.QToolbar(a=self.rowB)
         # for icons see  https://quasar.dev/vue-components/icon
         # see justpy/templates/local/materialdesignicons/iconfont/codepoints for available icons    
-        self.reloadButton=IconButton(a=self.toolbar,text='refresh-circle',iconName="refresh",click=self.reload)
-        self.checkButton=MenuButton(a=self.toolbar,text='check',icon='check_box',click=self.onCheckWikidata)
-        self.loginButton=MenuButton(a=self.toolbar,icon='chevron_right',text="login",click=self.onLogin)
+        self.reloadButton=IconButton(a=self.toolbar,text='',iconName="refresh-circle",click=self.reload,classes="btn btn-primary btn-sm col-1")
+        self.checkButton=IconButton(a=self.toolbar,text='',iconName='check',click=self.onCheckWikidata,classes="btn btn-primary btn-sm col-1")
+        self.loginButton=IconButton(a=self.toolbar,iconName='login',text="",click=self.onLogin,classes="btn btn-primary btn-sm col-1")
         self.passwordDialog=QPasswordDialog(a=self.wp)
-        self.alertDialog=QAlert(a=self.wp)
         #jp.Br(a=self.header)
         # url
         urlLabelText="Google Spreadsheet Url"
         self.gsheetUrl=jp.A(a=self.header,href=self.url,target="_blank",title=urlLabelText)
         self.linkIcon=jp.QIcon(a=self.gsheetUrl,name="link",size="md")
         self.urlInput=jp.Input(a=self.header,placeholder=urlLabelText,size=80,value=self.url,change=self.onChangeUrl)
-        self.dryRunButton=jp.QToggle(a=self.header,text="dry run",value=True,disable=True)
+        self.dryRunButton=Switch(a=self.header,labelText="dry run",checked=True,disable=True)
         self.dryRunButton.on("input",self.onChangeDryRun)
-        self.ignoreErrorsButton=jp.QToggle(a=self.header,text="ignore errors",value=self.ignoreErrors)
+        self.ignoreErrorsButton=Switch(a=self.header,labelText="ignore errors",checked=self.ignoreErrors)
         self.ignoreErrorsButton.on("input",self.onChangeIgnoreErrors)
         jp.Br(a=self.header)
         # link to the wikidata item currently imported

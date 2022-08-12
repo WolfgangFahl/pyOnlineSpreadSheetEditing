@@ -21,4 +21,4 @@ python-dateutil
 # https://pypi.org/project/pyGenericSpreadSheet/
 pyGenericSpreadSheet~=0.1.18
 # https://pypi.org/project/pyJustpyWidgets/
-pyJustpyWidgets~=0.0.22
+pyJustpyWidgets~=0.0.23
