@@ -12,12 +12,14 @@ import sys
 import time
 import justpy as jp
 from jpwidgets.jpTable import Table, TableRow
-from jpwidgets.bt5widgets import App,Alert,Collapsible, ComboBox, IconButton,Link, ProgressBar
+from jpwidgets.bt5widgets import App,Link, ProgressBar
 import onlinespreadsheet.version as version
+from spreadsheet.spreadsheet import SpreadSheetType
 from lodstorage.query import Query,EndpointManager
 from lodstorage.trulytabular import TrulyTabular, WikidataProperty
 from onlinespreadsheet.pareto import Pareto
 from wd.wdsearch import WikidataSearch
+from wd.querydisplay import QueryDisplay
 from urllib.error import HTTPError
 
 
