@@ -13,18 +13,20 @@ class QueryDisplay():
     display queries
     '''
 
-    def __init__(self,app,name:str,a,wdItem,sparql,endpointConf:Endpoint):
+    def __init__(self,app,name:str,a,filenameprefix,text,sparql,endpointConf:Endpoint):
         '''
         Args:
             name(str): the name of the display and query
             a(jp.Component): an ancestor component
-            wdItem(WikiDataItem): the WikidataItem referenced
+            filenameprefix(str): the filename prefix to use
+            text(str)=the text to display
             endpointConf(Endpoint): SPARQL endpoint configuration to use
 
         '''
         self.app=app
         self.name=name
-        self.wdItem=wdItem
+        self.filenameprefix=filenameprefix
+        self.text=text
         self.a=a
         self.sparql=sparql
         self.endpointConf=endpointConf
@@ -46,13 +48,13 @@ class QueryDisplay():
         # prepare static are of webserver to allow uploading files
         static_dir = os.path.dirname(os.path.realpath(__file__))
         qres_dir = f"{static_dir}/qres"
-        filenameprefix=f"{self.wdItem.qid}{self.name}"
+        
         os.makedirs(qres_dir, exist_ok=True)
         if self.downloadFormat in ["excel","ods","csv"]:
             # convert qres to requested format
             spreadsheetFormat=SpreadSheetType[self.downloadFormat.upper()]
-            spreadsheet = SpreadSheet.create(spreadsheetFormat, filenameprefix)        
-            filename = f"{filenameprefix}{spreadsheet.FILE_TYPE}"
+            spreadsheet = SpreadSheet.create(spreadsheetFormat, self.filenameprefix)        
+            filename = f"{self.filenameprefix}{spreadsheet.FILE_TYPE}"
             spreadsheet.addTable(name=self.name, lod=lod)
             spreadsheet.saveToFile(dir_name=qres_dir, fileName=filename)
         else:
@@ -62,7 +64,7 @@ class QueryDisplay():
                 tableResult=json.dumps(lod)
             else:
                 tableResult=tabulate(lod,headers="keys",tablefmt=tablefmt)
-            filename= f"{filenameprefix}.{tablefmt}"
+            filename= f"{self.filenameprefix}.{tablefmt}"
             filepath = f"{qres_dir}/{filename}"
             print(tableResult,  file=open(filepath, 'w'))
         return filename
@@ -78,7 +80,7 @@ class QueryDisplay():
         handle the clicking of the download button
         '''
         try:
-            alert = Alert(a=self.queryBar, text=f"Query {self.name} for {self.wdItem.asText()} started ... please wait a few seconds")
+            alert = Alert(a=self.queryBar, text=f"Query {self.name} for {self.text} started ... please wait a few seconds")
             await self.app.wp.update()
             query = getattr(self, "sparqlQuery")
             if isinstance(query, Query):

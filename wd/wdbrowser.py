@@ -385,7 +385,8 @@ class WikiDataBrowser(App):
         Returns:
             QueryDisplay: the created QueryDisplay
         '''
-        qd=QueryDisplay(app=self,name=name,a=a,wdItem=wdItem,sparql=self.tt.sparql,endpointConf=self.endpointConf)
+        filenameprefix=f"{wdItem.qid}{name}"
+        qd=QueryDisplay(app=self,name=name,a=a,filenameprefix=filenameprefix,text=wdItem.asText(),sparql=self.tt.sparql,endpointConf=self.endpointConf)
         return qd
 
     def createTrulyTabular(self,itemQid,propertyIds=[]):
