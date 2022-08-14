@@ -22,7 +22,6 @@ from wd.wdsearch import WikidataSearch
 from wd.querydisplay import QueryDisplay
 from urllib.error import HTTPError
 
-
 class PropertySelection():
     '''
     select properties
