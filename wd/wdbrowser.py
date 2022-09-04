@@ -249,9 +249,9 @@ class WikiDataBrowser(App):
             self.paretoLevels[level]=pareto
         self.ttTable=None
         # Routes
-        jp.Route('/settings',self.settings)
+        jp.JpRoute('/settings',self.settings)
         #jp.Route('/itemsearch',self.itemsearch)
-        jp.Route('/tt/{qid}',self.ttcontent)
+        jp.JpRoute('/tt/{qid}',self.ttcontent)
         self.starttime=time.time()
         self.wdProperty=WikidataProperty("P31")
 
