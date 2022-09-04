@@ -14,3 +14,4 @@ python Online SpreadSheet Editing tool with configurable enhancer/importer and c
 ### Authors
 * [Tim Holzheim](https://www.semantic-mediawiki.org/wiki/Tim_Holzheim)
 * [Wolfgang Fahl](http://www.bitplan.com/Wolfgang_Fahl)
+
