@@ -15,10 +15,10 @@ flask-cors
 # https://github.com/PablocFonseca/streamlit-aggrid
 # streamlit-aggrid
 # https://pypi.org/project/justpy/
-justpy~=0.5.6
+justpy~=0.9.1
 # https://pypi.org/project/python-dateutil/
 python-dateutil
 # https://pypi.org/project/pyGenericSpreadSheet/
 pyGenericSpreadSheet~=0.1.18
 # https://pypi.org/project/pyJustpyWidgets/
-pyJustpyWidgets~=0.0.27
+pyJustpyWidgets~=0.0.28
