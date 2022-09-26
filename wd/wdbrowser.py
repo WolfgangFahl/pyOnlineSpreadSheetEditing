@@ -10,9 +10,13 @@ import html
 import logging
 import sys
 import time
+import typing
+
 import justpy as jp
 from jpwidgets.jpTable import Table, TableRow
 from jpwidgets.bt5widgets import App,Link, ProgressBar
+from SPARQLWrapper.SPARQLExceptions import EndPointInternalError
+
 import onlinespreadsheet.version as version
 from spreadsheet.spreadsheet import SpreadSheetType
 from lodstorage.query import Query,EndpointManager
@@ -28,17 +32,17 @@ class PropertySelection():
     '''
     aggregates=["min","max","avg","sample","list","count"]
 
-    def __init__(self,inputList,total:int,paretoLevels:list,minFrequency:float):
+    def __init__(self, inputList, total: int, paretoLevels: typing.Dict[int, Pareto], minFrequency: float):
         '''
            Constructor
 
         Args:
             propertyList(list): the list of properties to show
             total(int): total number of properties
-            paretolLevels: a list of paretoLevels
+            paretolLevels: a dict of paretoLevels with the key corresponding to the level
             minFrequency(float): the minimum frequency of the properties to select in percent
         '''
-        self.propertyMap={}
+        self.propertyMap: typing.Dict[str, dict] = dict()
         self.headerMap={}
         self.propertyList=[]
         self.total=total
@@ -61,20 +65,32 @@ class PropertySelection():
                 level=pareto.level
         return level
 
-    def getInfoHeaderColumn(self,col):
+    def getInfoHeaderColumn(self, col: str) -> str:
         href=f"https://wiki.bitplan.com/index.php/Truly_Tabular_RDF/Info#{col}"
         info=f"{col}<br><a href='{href}'style='color:white' target='_blank'>ⓘ</a>"
         return info
     
-    def hasMinFrequency(self,record):
-        ok = float(record.get("%",0)) >= self.minFrequency
+    def hasMinFrequency(self, record: dict) -> bool:
+        """
+        Check if the frequency of the given property record is greater than the minimal frequency
+
+        Returns:
+            True if property frequency is greater or equal than the minFrequency. Otherwise False
+        """
+        ok = float(record.get("%", 0)) >= self.minFrequency
         return ok
     
-    def select(self):
+    def select(self) -> typing.List[typing.Tuple[str, dict]]:
+        """
+        select all properties that fulfill hasMinFrequency
+
+        Returns:
+            list of all selected properties as tuple list consisting of property id and record
+        """
         selected=[]
-        for propertyId,propRecord in self.propertyMap.items():
+        for propertyId, propRecord in self.propertyMap.items():
             if self.hasMinFrequency(propRecord):
-                selected.append((propertyId,propRecord))
+                selected.append((propertyId, propRecord))
         return selected
 
     def prepare(self):
@@ -385,7 +401,14 @@ class WikiDataBrowser(App):
             QueryDisplay: the created QueryDisplay
         '''
         filenameprefix=f"{wdItem.qid}{name}"
-        qd=QueryDisplay(app=self,name=name,a=a,filenameprefix=filenameprefix,text=wdItem.asText(),sparql=self.tt.sparql,endpointConf=self.endpointConf)
+        qd=QueryDisplay(
+                app=self,
+                name=name,
+                a=a,
+                filenameprefix=filenameprefix,
+                text=wdItem.asText(),
+                sparql=self.tt.sparql,
+                endpointConf=self.endpointConf)
         return qd
 
     def createTrulyTabular(self,itemQid,propertyIds=[]):
@@ -397,7 +420,12 @@ class WikiDataBrowser(App):
             itemQid(str): e.g. Q5 human
             propertyIds(list): list of property Ids (if any) such as P17 country
         '''
-        tt=TrulyTabular(itemQid=itemQid,propertyIds=propertyIds,subclassPredicate=self.subclassPredicate,endpointConf=self.endpointConf,debug=self.debug)
+        tt = TrulyTabular(
+                itemQid=itemQid,
+                propertyIds=propertyIds,
+                subclassPredicate=self.subclassPredicate,
+                endpointConf=self.endpointConf,
+                debug=self.debug)
         return tt
 
     def generateQuery(self):
@@ -471,48 +499,55 @@ class WikiDataBrowser(App):
             return None
 
     async def trulyTabularAnalysis(self,tt):
-        '''
+        """
         perform the truly tabular analysis
 
         Args:
             tt(TrulyTabular): the truly tabular entry
-        '''
-        if self.propertySelection is None:
+        """
+        if getattr(self, "propertySelection", None) is None:
             self.showFeedback("no property Selection available for truly tabular analysis")
             await self.wp.update()
             return
-        try:
-            selectedItems = self.propertySelection.select()
-            propertyCount = len(selectedItems)
-            # start property tabular analysis
-            analysisTasks = []
-            completedTasks = 0
-            executor = concurrent.futures.ThreadPoolExecutor(5)
-            for _i, (propertyId,propRecord) in enumerate(selectedItems):
-                prop = propRecord.get("property")
-                future = executor.submit(self.wikiTrulyTabularPropertyStatsAndUpdateTable, tt, propertyId)
-                analysisTasks.append((future, propertyId, prop))
-            while len(analysisTasks) > 0:
-                done = [(future, propertyId, prop) for future, propertyId, prop in analysisTasks if future.done()]
-                _pending = [(future, propertyId, prop) for future, propertyId, prop in analysisTasks if not future.done()]
-                analysisTasks = _pending
-                if self.debug:
-                    print("Completed:", len(done), "Pending:", len(_pending))
-                completedTasks += len(done)
-                props = ",".join([prop for _, prop, _ in done])
-                self.showFeedback(f"{completedTasks }/{propertyCount}: querying statistics - (completed statistics for {props})...")
-                self.progressBar.updateProgress(int((completedTasks) * 100 / propertyCount))
-                await self.wp.update()
-                await asyncio.sleep(2.0)
-            self.showFeedback("")
-            self.progressBar.updateProgress(0)
-            if self.generateQueryButton is None:
-                self.generateQueryButton=jp.Button(text="Generate SPARQL query",classes="btn btn-primary",a=self.colD1,click=self.onGenerateQueryButtonClick,disabled=True)
-            if self.paretoSelect is None:
-                self.paretoSelect=self.createParetoSelect(a=self.colE1,ai=self.colE2)
-            self.generateQueryButton.disabled=False
-        except (BaseException,HTTPError) as ex:
-            self.handleException(ex)
+        selectedItems = self.propertySelection.select()
+        propertyCount = len(selectedItems)
+        # start property tabular analysis
+        analysisTasks = []
+        completedTasks = 0
+        executor = concurrent.futures.ThreadPoolExecutor(5)
+        for _i, (propertyId,propRecord) in enumerate(selectedItems):
+            prop = propRecord.get("property")
+            future = executor.submit(self.wikiTrulyTabularPropertyStatsAndUpdateTable, tt, propertyId)
+            analysisTasks.append((future, propertyId, prop))
+        while len(analysisTasks) > 0:
+            done = []
+            _pending = []
+            for future, propertyId, prop in analysisTasks:
+                if future.done():
+                    done.append((future, propertyId, prop))
+                else:
+                    _pending.append((future, propertyId, prop))
+            analysisTasks = _pending
+            if self.debug:
+                print("Completed:", len(done), "Pending:", len(_pending))
+            completedTasks += len(done)
+            props = ",".join([prop for _, prop, _ in done])
+            self.showFeedback(f"{completedTasks }/{propertyCount}: querying statistics - (completed statistics for {props})...")
+            self.progressBar.updateProgress(int(completedTasks * 100 / propertyCount))
+            await self.wp.update()
+            await asyncio.sleep(2.0)
+        self.showFeedback("")
+        self.progressBar.updateProgress(0)
+        if self.generateQueryButton is None:
+            self.generateQueryButton = jp.Button(
+                    text="Generate SPARQL query",
+                    classes="btn btn-primary",
+                    a=self.colD1,
+                    click=self.onGenerateQueryButtonClick,
+                    disabled=True)
+        if self.paretoSelect is None:
+            self.paretoSelect=self.createParetoSelect(a=self.colE1,ai=self.colE2)
+        self.generateQueryButton.disabled=False
 
     def wikiTrulyTabularPropertyStatsAndUpdateTable(self, tt, propertyId):
         """
@@ -543,25 +578,24 @@ class WikiDataBrowser(App):
 #  'queryfTryIt': "<a href='https://query.wikidata.org//#%23%20This%20query%20was%20generated%20by%20Truly%20Tabular%0ASELECT%20%3Fcount%20%28COUNT%28%3Fcount%29%20AS%20%3Ffrequency%29%20WHERE%20%7B%7B%0A%0A%23%20Count%20all%20country%20%28Q6256%29%E2%98%9Edistinct%20territorial%20body%20or%20political%20entity%E2%86%92%20https%3A//www.wikidata.org/wiki/Q6256%20items%0A%23%20with%20the%20given%20instance%20of%28P31%29%20https%3A//www.wikidata.org/wiki/Property%3AP31%20%0ASELECT%20%3Fitem%20%3FitemLabel%20%28COUNT%20%28%3Fvalue%29%20AS%20%3Fcount%29%0AWHERE%0A%7B%0A%20%20%23%20instance%20of%20country%0A%20%20%3Fitem%20wdt%3AP31%20wd%3AQ6256.%0A%20%20%3Fitem%20rdfs%3Alabel%20%3FitemLabel.%0A%20%20filter%20%28lang%28%3FitemLabel%29%20%3D%20%22en%22%29.%0A%20%20%23%20instance%20of%0A%20%20%3Fitem%20wdt%3AP31%20%3Fvalue.%0A%7D%20GROUP%20by%20%3Fitem%20%3FitemLabel%0A%0A%7D%7D%0AGROUP%20BY%20%3Fcount%0AORDER%20BY%20DESC%20%28%3Ffrequency%29 title='try out with wikidata query service''>try it!</a>",
 #  'queryexTryIt': "<a href='https://query.wikidata.org//#%23%20This%20query%20was%20generated%20by%20Truly%20Tabular%0A%0A%23%20Count%20all%20country%20%28Q6256%29%E2%98%9Edistinct%20territorial%20body%20or%20political%20entity%E2%86%92%20https%3A//www.wikidata.org/wiki/Q6256%20items%0A%23%20with%20the%20given%20instance%20of%28P31%29%20https%3A//www.wikidata.org/wiki/Property%3AP31%20%0ASELECT%20%3Fitem%20%3FitemLabel%20%28COUNT%20%28%3Fvalue%29%20AS%20%3Fcount%29%0AWHERE%0A%7B%0A%20%20%23%20instance%20of%20country%0A%20%20%3Fitem%20wdt%3AP31%20wd%3AQ6256.%0A%20%20%3Fitem%20rdfs%3Alabel%20%3FitemLabel.%0A%20%20filter%20%28lang%28%3FitemLabel%29%20%3D%20%22en%22%29.%0A%20%20%23%20instance%20of%0A%20%20%3Fitem%20wdt%3AP31%20%3Fvalue.%0A%7D%20GROUP%20by%20%3Fitem%20%3FitemLabel%0A%0AHAVING%20%28COUNT%20%28%3Fvalue%29%20%3E%201%29%0AORDER%20BY%20DESC%28%3Fcount%29 title='try out with wikidata query service''>try it!</a>"
 #}
-    async def getMostFrequentlyUsedProperties(self,tt):
+    async def getMostFrequentlyUsedProperties(self, tt: TrulyTabular):
         '''
         get the most frequently used properties for the given truly tabular
 
         Args:
             tt(TrulyTabular): the truly tabular Wikidata Item Analysis
         '''
-        try:
-            total=self.ttcount
-            pareto=self.paretoLevels[self.paretoLevel]
-
-            minCount=round(total/pareto.oneOutOf)
-            self.ttquery=tt.mostFrequentPropertiesQuery(minCount=minCount)
-            if self.propertyQueryDisplay is None:
-                self.propertyQueryDisplay=self.createQueryDisplay("property Query",a=self.colA4,wdItem=tt.item)
-            self.propertyQueryDisplay.showSyntaxHighlightedQuery(self.ttquery)
-            await self.wp.update()
-        except (BaseException,HTTPError) as ex:
-            self.handleException(ex)
+        total=self.ttcount
+        pareto=self.paretoLevels[self.paretoLevel]
+        if total is not None:
+            minCount = round(total/pareto.oneOutOf)
+        else:
+            minCount = 0
+        self.ttquery=tt.mostFrequentPropertiesQuery(minCount=minCount)
+        if self.propertyQueryDisplay is None:
+            self.propertyQueryDisplay=self.createQueryDisplay("property Query",a=self.colA4,wdItem=tt.item)
+        self.propertyQueryDisplay.showSyntaxHighlightedQuery(self.ttquery)
+        await self.wp.update()
 
     async def noAction(self,_msg):
         '''
@@ -587,62 +621,102 @@ class WikiDataBrowser(App):
             checkbox=jp.Input(type='checkbox',a=cell,checked=checked,input=onInput)
             cell.setControl(checkbox)
 
-    async def getCountQuery(self,tt):
-        try:
-            self.showFeedback(f"running count query for {str(self.tt)} ...")
-            await self.wp.update()
-            self.ttcount,countQuery=tt.count()
-            self.countDiv.text=f"{self.ttcount} instances found"
-            if self.countQueryDisplay is None:
-                self.countQueryDisplay=self.createQueryDisplay("count Query",a=self.colA4,wdItem=tt.item)
-            countSparqlQuery=Query(name="count Query",query=countQuery)
-            self.countQueryDisplay.showSyntaxHighlightedQuery(countSparqlQuery)
-            await self.wp.update()
-        except (BaseException,HTTPError) as ex:
-            self.handleException(ex)
+    async def getCountQuery(self, tt: TrulyTabular):
+        """
+        Run property count query and display progress and result
+        Args:
+            tt: the truly tabular entry
+        """
+        self.showFeedback(f"running count query for {str(self.tt)} ...")
+        await self.wp.update()
+        self.ttcount,countQuery=tt.count()
+        # is ttcount mission critical? then activate the error check (if I can not count it how can I query for all used properties)
+        # if tt.error is not None and self.isTimeoutException(tt.error):
+        #     if self.debug:
+        #         print("Query timeout: Could not successfully execute the count query")
+        #     raise Exception("Query timeout of the count query - Try using a different endpoint")
+        self.countDiv.text=f"{self.ttcount} instances found"
+        if self.countQueryDisplay is None:
+            self.countQueryDisplay=self.createQueryDisplay("count Query",a=self.colA4,wdItem=tt.item)
+        countSparqlQuery=Query(name="count Query",query=countQuery)
+        self.countQueryDisplay.showSyntaxHighlightedQuery(countSparqlQuery)
+        await self.wp.update()
 
+    @staticmethod
+    def isTimeoutException(ex: EndPointInternalError):
+        """
+        Checks if the given exception is a query timeout exception
 
-    async def getPropertiesTable(self,tt,ttquery):
+        Returns:
+            True if the given exception is caused by a query timeout
+        """
+        check_for = "java.util.concurrent.TimeoutException"
+        msg = ex.args[0]
+        res = False
+        if isinstance(msg, str):
+            if check_for in msg:
+                res = True
+        return res
+
+    async def getPropertiesTable(self, tt: TrulyTabular, ttquery: Query):
         '''
         get the properties table
+        Args:
+            tt: the truly tabular entry
+            ttquery:
         '''
+        self.showFeedback(f"running query for most frequently used properties of {str(self.tt)} ...")
+        await self.wp.update()
+        if self.debug:
+            logging.info(ttquery.query)
         try:
-            self.showFeedback(f"running query for most frequently used properties of {str(self.tt)} ...")
-            await self.wp.update()
-            if self.debug:
-                logging.info(ttquery.query)
             self.propertyList=tt.sparql.queryAsListOfDicts(ttquery.query)
-            self.propertySelection=PropertySelection(self.propertyList,total=self.ttcount,paretoLevels=self.paretoLevels,minFrequency=self.minPropertyFrequency)
-            self.propertySelection.prepare()
-            self.ttTable=Table(a=self.colF1,
-                               lod=self.propertySelection.propertyList,
-                               headerMap=self.propertySelection.headerMap,
-                               primaryKey='propertyId',
-                               allowInput=False)
-            for aggregate in PropertySelection.aggregates:
-                checked=False #aggregate in ["sample","count","list"]
-                self.addSelectionColumn(self.ttTable, aggregate, lambda _record:checked)
-            self.addSelectionColumn(self.ttTable,"ignore",lambda record:self.propertySelection.hasMinFrequency(record),self.onIgnoreSelect)
-            self.addSelectionColumn(self.ttTable,"label",lambda record:record["type"]=="WikibaseItem" and self.propertySelection.hasMinFrequency(record))
-            self.addSelectionColumn(self.ttTable,"select",lambda record:self.propertySelection.hasMinFrequency(record) and record["propertyId"]!="P31")
-            self.showFeedback(f"table for propertySelection of {str(self.tt)} created ...")
-            await self.wp.update()
-        except (BaseException,HTTPError) as ex:
-            self.handleException(ex)
+        except EndPointInternalError as ex:
+            if self.isTimeoutException(ex):
+                raise Exception("Query timeout of the property table query")
+        self.propertySelection = PropertySelection(
+                self.propertyList,
+                total=self.ttcount,
+                paretoLevels=self.paretoLevels,
+                minFrequency=self.minPropertyFrequency)
+        self.propertySelection.prepare()
+        self.ttTable=Table(a=self.colF1,
+                           lod=self.propertySelection.propertyList,
+                           headerMap=self.propertySelection.headerMap,
+                           primaryKey='propertyId',
+                           allowInput=False)
+        for aggregate in PropertySelection.aggregates:
+            checked=False #aggregate in ["sample","count","list"]
+            self.addSelectionColumn(self.ttTable, aggregate, lambda _record: checked)
+        self.addSelectionColumn(
+                self.ttTable,
+                "ignore",
+                lambda record: self.propertySelection.hasMinFrequency(record),
+                self.onIgnoreSelect)
+        self.addSelectionColumn(
+                self.ttTable,
+                "label",
+                lambda record: record["type"] == "WikibaseItem" and self.propertySelection.hasMinFrequency(record))
+        self.addSelectionColumn(
+                self.ttTable,
+                "select",
+                lambda record: self.propertySelection.hasMinFrequency(record) and record["propertyId"] != "P31")
+        self.showFeedback(f"table for propertySelection of {str(self.tt)} created ...")
+        await self.wp.update()
 
     async def selectProperty(self,propertySelection):
         '''
         select a wikidata Property for analysis
         '''
         
-    async def selectItem(self,itemId):
-        '''
+    async def selectItem(self, itemId: typing.Union[str, None]):
+        """
         select a Wikidata Item for analysis
 
         Args:
-            itemId(str): the Wikidata Q - ID of the selected item
-        '''
-        if not itemId:
+            itemId(str|None): the Wikidata Q - ID of the selected item
+        """
+        if itemId is None or not itemId:
             return
         try:
             self.clearErrors()
@@ -664,10 +738,10 @@ class WikiDataBrowser(App):
             self.showFeedback(f"trulytabular {str(self.tt)} initiated")
             self.wdItemSearch.updateItemLink(self.tt.item)
             await self.wp.update()
-            await self.getCountQuery(self.tt),
-            await self.getMostFrequentlyUsedProperties(self.tt),
-            await self.getPropertiesTable(self.tt,self.ttquery),
-            await self.trulyTabularAnalysis(self.tt)
+            await self.getCountQuery(self.tt),  #defines: ttcount
+            await self.getMostFrequentlyUsedProperties(self.tt),  #uses: ttcount, |defines: ttquery,propertyQueryDisplay
+            await self.getPropertiesTable(self.tt, self.ttquery), #uses: ttquery  | defines: propertyList, propertySelection, ttTable
+            await self.trulyTabularAnalysis(self.tt) #uses: propertySelection
         except BaseException as ex:
             self.handleException(ex)
 
@@ -745,10 +819,17 @@ class WikiDataBrowser(App):
         Returns:
             jp.Select
         '''
-        pselect=self.createSelect("Pareto",str(self.paretoLevel),change=self.onParetoSelect,a=a)
+        pselect = self.createSelect("Pareto",str(self.paretoLevel),change=self.onParetoSelect,a=a)
         for pareto in self.paretoLevels.values():
-            pselect.add(jp.Option(value=pareto.level,text=pareto.asText(long=True)))
-        self.minPropertyFrequencyInput=self.createInput("min%", placeholder="e.g. 90", value=str(self.minPropertyFrequency),change=self.onMinPropertyFrequencyChange, a=ai, size=10)
+            option = jp.Option(value=pareto.level, text=pareto.asText(long=True))
+            pselect.add(option)
+        self.minPropertyFrequencyInput = self.createInput(
+                labelText="min%",
+                placeholder="e.g. 90",
+                value=str(self.minPropertyFrequency),
+                change=self.onMinPropertyFrequencyChange,
+                a=ai,
+                size=10)
         return pselect
 
     def setupRowsAndCols(self):
@@ -829,25 +910,35 @@ class WikiDataBrowser(App):
         self.endpointSelect=self.createSelect("Endpoint", self.endpointName, a=self.colC1,change=self.onChangeEndpoint)
         for endpointName in self.endpoints:
             self.endpointSelect.add(jp.Option(value=endpointName, text=endpointName))
-        self.listSeparatorSelect=self.createSelect("List separator",self.listSeparator,a=self.colC1,change=self.onChangeListSeparator)
-        for value,text in [("|","|"),(",",","),(";",";"),(":",":"),(chr(28),"FS - ASCII(28)"),(chr(29),"GS - ASCII(29)"),(chr(30),"RS - ASCII(30)"),(chr(31),"US - ASCII(31)")]:
-            self.listSeparatorSelect.add(jp.Option(value=value,text=text))
+        self.listSeparatorSelect = self.createSelect(
+                labelText="List separator",
+                value=self.listSeparator,
+                a=self.colC1,
+                change=self.onChangeListSeparator)
+        separatorOptions = [("|", "|"), (",", ","), (";", ";"), (":", ":"), (chr(28), "FS - ASCII(28)"),
+                            (chr(29), "GS - ASCII(29)"), (chr(30), "RS - ASCII(30)"), (chr(31), "US - ASCII(31)")]
+        for value, text in separatorOptions:
+            self.listSeparatorSelect.add(jp.Option(value=value, text=text))
         # pareto selection
         self.paretoSelect=self.createParetoSelect(a=self.colE1,ai=self.colE2)
         return self.wp
 
-    async def ttcontent(self,request):
-        '''
+    async def ttcontent(self,request) -> jp.WebPage:
+        """
         RESTful access
-        '''
-        if "qid" in request.path_params:
-            qid=request.path_params["qid"]
-        content=await self.content()
+        Args:
+            request:
+
+        Returns:
+            TrulyTabular Webpage
+        """
+        qid = request.path_params.get("qid", None)
+        content = await self.content()
         await self.wp.update()
         await self.selectItem(qid)
         return content
 
-    async def content(self):
+    async def content(self) -> jp.WebPage:
         '''
         provide the justpy content by adding to the webpage provide by the App
         '''
