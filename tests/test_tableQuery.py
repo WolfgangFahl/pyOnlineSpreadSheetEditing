@@ -234,8 +234,15 @@ LIMIT 7
         tests the handling of RESTful queries in TableQuery
         """
         tq=TableQuery()
-        tq.addRESTfulQuery(name="WEBIST",url="https://conferencecorpus.bitplan.com/eventseries/WEBIST")
-        tq.fetchQueryResults()
+        url="https://conferencecorpus.bitplan.com/eventseries/WEBIST"
+        tq.addRESTfulQuery(name="WEBIST",url=url)
+        try:
+            tq.fetchQueryResults()
+        except Exception as ex:
+            if "503 Service Unavailable" in str(ex):
+                print(f"Couldn't test {url} due to a 503 Service Unavailable status")
+                return
+            pass
         self.assertTrue("WEBIST_confref" in tq.tableEditing.lods)
         self.assertTrue(len(tq.tableEditing.lods["WEBIST_confref"])>15)
 
