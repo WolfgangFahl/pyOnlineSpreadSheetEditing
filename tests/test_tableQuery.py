@@ -242,6 +242,8 @@ LIMIT 7
             if "503 Service Unavailable" in str(ex):
                 print(f"Couldn't test {url} due to a 503 Service Unavailable status")
                 return
+            else:
+                raise ex
             pass
         self.assertTrue("WEBIST_confref" in tq.tableEditing.lods)
         self.assertTrue(len(tq.tableEditing.lods["WEBIST_confref"])>15)
