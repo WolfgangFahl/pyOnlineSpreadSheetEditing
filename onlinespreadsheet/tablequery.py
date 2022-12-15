@@ -80,6 +80,7 @@ class TableQuery(object):
         self.wikiAccessMap={}
         self.queries={}
         self.tableEditing=TableEditing()
+        self.errors=[]
         
     def addQuery(self,query:Query):
         '''
@@ -110,7 +111,10 @@ class TableQuery(object):
                 qres=query.endpoint.queryAsListOfDicts(query.query)
             elif query.lang.lower() == "restful":
                 response = requests.request("GET", query.query)
-                qres=response.json()
+                if response.status_code==200:
+                    qres=response.json()
+                else:
+                    self.errors.append(f"{query.query} failed with status {response.status_code}")
             if qres is not None:
                 if isinstance(qres, list):
                     self.tableEditing.addLoD(query.name, qres)

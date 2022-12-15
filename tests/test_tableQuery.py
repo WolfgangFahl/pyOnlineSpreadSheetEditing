@@ -236,15 +236,13 @@ LIMIT 7
         tq=TableQuery()
         url="https://conferencecorpus.bitplan.com/eventseries/WEBIST"
         tq.addRESTfulQuery(name="WEBIST",url=url)
-        try:
-            tq.fetchQueryResults()
-        except Exception as ex:
-            if "503 Service Unavailable" in str(ex):
+        tq.fetchQueryResults()
+        if len(tq.errors)>0:
+            error=tq.errors[0]
+            if "503" in error:
                 print(f"Couldn't test {url} due to a 503 Service Unavailable status")
                 return
-            else:
-                raise ex
-            pass
+        self.assertEquals(0, len(tq.errors))
         self.assertTrue("WEBIST_confref" in tq.tableEditing.lods)
         self.assertTrue(len(tq.tableEditing.lods["WEBIST_confref"])>15)
 
