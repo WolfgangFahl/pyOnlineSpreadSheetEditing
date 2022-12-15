@@ -6,7 +6,7 @@ Created on 2021-12-31
 from pathlib import Path
 import io
 import os
-from ruamel import yaml
+from ruamel.yaml import YAML,YAMLObject
 from onlinespreadsheet.tablequery import TableQuery, QueryType
 
 
@@ -51,7 +51,7 @@ class EditConfig(object):
                 raise Exception(f"unimplemented query type {queryType}")
         return tq
 
-class EditConfigManager(yaml.YAMLObject):
+class EditConfigManager(YAMLObject):
     '''
     manager for edit configurations
     '''
@@ -91,7 +91,8 @@ class EditConfigManager(yaml.YAMLObject):
             yamlFile=self.yamlFile
         if os.path.isfile(yamlFile):    
             with open(yamlFile, 'r') as stream:
-                configs = yaml.safe_load(stream)
+                yaml=YAML(typ='safe',pure=True)
+                configs = yaml.load(stream)
             for config in configs.values():
                 name=config['name']
                 ec=EditConfig(name)
@@ -113,6 +114,7 @@ class EditConfigManager(yaml.YAMLObject):
         for editConfig in self.editConfigs.values():
             configs[editConfig.name]=editConfig.__dict__
         with io.open(self.yamlFile, 'w', encoding='utf-8') as stream:
+            yaml=YAML(typ='safe',pure=True)
             yaml.dump(configs, stream)
         pass
 
