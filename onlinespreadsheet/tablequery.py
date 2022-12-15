@@ -8,9 +8,9 @@ import requests
 from typing import Optional
 from enum import Enum, auto
 from lodstorage.query import Query
-from wikibot.wikiuser import WikiUser
-from wikibot.wikiclient import WikiClient
-from wikibot.smw import SMWClient
+from wikibot3rd.wikiuser import WikiUser
+from wikibot3rd.wikiclient import WikiClient
+from wikibot3rd.smw import SMWClient
 #from wikibot.wikipush import WikiPush
 from spreadsheet.tableediting import TableEditing
 from mwclient.errors import APIError

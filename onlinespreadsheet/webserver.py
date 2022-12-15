@@ -23,7 +23,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SelectField, SubmitField, TextAreaField, FieldList, FormField
 
 # user handling
-from wikibot.wikiuser import WikiUser
+from wikibot3rd.wikiuser import WikiUser
 
 # online spreadsheet
 from onlinespreadsheet.loginBlueprint import LoginBluePrint

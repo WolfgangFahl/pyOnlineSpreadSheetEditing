@@ -7,7 +7,7 @@ import unittest
 from tests.basetest import BaseTest
 from onlinespreadsheet.tablequery import TableQuery, QueryType
 from spreadsheet.tableediting import SpreadSheetType
-from wikibot.wikiuser import WikiUser
+from wikibot3rd.wikiuser import WikiUser
 import os
 import getpass
 from lodstorage.query import Query
