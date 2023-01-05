@@ -399,8 +399,11 @@ class WikiDataBrowser(App):
         await self.wp.update()
         
     async def onSubclassChange(self,msg):
+        """
+        sub class handling
+        """
         self.withSubclasses=msg["checked"]
-        self.subclassPredicate="wdt:P279*/wdt:P31*" if self.withSubclasses else "wdt:P31"
+        self.subclassPredicate="wdt:P279*/wdt:P31+" if self.withSubclasses else "wdt:P31"
 
     def wikiTrulyTabularPropertyStats(self,itemId:str,propertyId:str):
         '''
