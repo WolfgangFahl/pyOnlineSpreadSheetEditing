@@ -403,7 +403,7 @@ class WikiDataBrowser(App):
         sub class handling
         """
         self.withSubclasses=msg["checked"]
-        self.subclassPredicate="wdt:P31+/wdt:P279*" if self.withSubclasses else "wdt:P31"
+        self.subclassPredicate="wdt:P31/wdt:P279*" if self.withSubclasses else "wdt:P31"
 
     def wikiTrulyTabularPropertyStats(self,itemId:str,propertyId:str):
         '''
