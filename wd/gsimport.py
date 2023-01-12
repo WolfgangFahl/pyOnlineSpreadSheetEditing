@@ -6,7 +6,7 @@ import onlinespreadsheet.version as version
 from jpwidgets.widgets import QPasswordDialog
 from jpwidgets.bt5widgets import App, IconButton, Switch
 from spreadsheet.wbquery import WikibaseQuery
-from wd.wdgrid import WikidataGrid,GridSync
+from wd.wdgrid import WikidataGrid, GridSync
 
 class GoogleSheetWikidataImport(App):
     '''
@@ -137,6 +137,7 @@ class GoogleSheetWikidataImport(App):
         self.url=msg.value
         self.gsheetUrl.href=self.url
         self.gsheetUrl.text=self.url
+        self.urlInput.value = ""
         try:
             self.reload()
         except Exception as ex:
@@ -221,15 +222,17 @@ class GoogleSheetWikidataImport(App):
         #jp.Br(a=self.header)
         # url
         urlLabelText="Google Spreadsheet Url"
-        self.gsheetUrl=jp.A(a=self.header,href=self.url,target="_blank",title=urlLabelText)
-        self.linkIcon=jp.QIcon(a=self.gsheetUrl,name="link",size="md")
-        self.urlInput=jp.Input(a=self.header,placeholder=urlLabelText,size=80,value=self.url,change=self.onChangeUrl)
+        self.url_div = jp.Div(a=self.header, classes="m-2 p-2 gap-4 flex flex-row")
+        self.gsheetUrl=jp.A(a=self.url_div,href=self.url, text=self.url,target="_blank",title=urlLabelText)
+        self.linkIcon=jp.QIcon(a=self.url_div,name="link",size="md")
+        self.urlInput=jp.Input(a=self.url_div,placeholder=f"Enter new {urlLabelText}",size=80,change=self.onChangeUrl)
         # refactor to wdgrid and set defaults properly
-        self.dryRunButton=Switch(a=self.header,labelText="dry run",checked=True,disable=True)
-        self.ignoreErrorsButton=Switch(a=self.header,labelText="ignore errors",checked=False)
+        self.controls_div = jp.Div(a=self.header, classes="flex flex-row gap-4 m-2 p-2")
+        self.dryRunButton=Switch(a=self.controls_div,labelText="dry run",checked=True,disable=True)
+        self.ignoreErrorsButton=Switch(a=self.controls_div,labelText="ignore errors",checked=False)
        
         # link to the wikidata item currently imported
-        selectorClasses='w-32 m-4 p-2 bg-white'
+        selectorClasses='w-32 m-2 p-2 bg-white'
         # select for sheets
         self.sheetSelect = jp.Select(classes=selectorClasses, a=self.header, value=self.sheetName,
             change=self.onChangeSheet)
