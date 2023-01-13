@@ -6,8 +6,13 @@ Created on 2023-01-11
 import asyncio
 import copy
 import datetime
+import json
 import pprint
 import re
+import typing
+from typing import Callable
+
+from justpy import Button, Div, Span
 from markupsafe import Markup
 from lodstorage.lod import LOD
 from spreadsheet.wbquery import WikibaseQuery
@@ -19,37 +24,64 @@ class WikidataGrid():
     '''
     a grid with tabular data from wikidata to work with
     '''
-    def __init__(self,app:App,entityName:str,wbQuery:WikibaseQuery,debug:bool=False):
+    def __init__(self,
+                 app:App,
+                 entityName:str,
+                 entityPluralName: str,
+                 source: str,
+                 getLod: Callable,
+                 additional_reload_callback: typing.Union[Callable, None] = None,
+                 row_selected_callback: typing.Callable = None,
+                 debug:bool=False):
         '''
         constructor
         
         app(App): the application context of this grid
         entityName(str): the name of the entity that this grid is for
-        wbQuery(WikibaseQuery): the WikibaseQuery
+        entityPluralNam(str): the plural name of the entity type of items displayed in this grid
+        source(str): the name of my source (where the data for this grid comes from)
+        getLod(Callable): the function to get my list of dicts
+        additional_reload_callback: Function to be called after fetching the new data and before updating aggrid
         debug(bool): if True show debug information
         '''
         self.app=app
         self.agGrid=None
         self.entityName=entityName
-        self.wbQuery=wbQuery
+        self.entityPluralName = entityPluralName if entityPluralName is not None else entityName
+        self.getLod = getLod
+        self.additional_reload_callback = additional_reload_callback
+        self.row_selected_callback = row_selected_callback
+        self.source = source
         self.debug=debug
         self.dryRun=True
         self.ignoreErrors=False
-        self.app.dryRunButton.on("input",self.onChangeDryRun)
-        self.app.ignoreErrorsButton.on("input",self.onChangeIgnoreErrors)
-        # @TODO make configurable
-        self.wd=Wikidata("https://www.wikidata.org",debug=True)
+        self.wd = Wikidata("https://www.wikidata.org", debug=True)
+
+    def setup(self, a):
+        """
+        setup the grid justpy components
+        """
+        if getattr(self, "container", None) is not None:
+            self.container.delete_components()
+        self.container = Div(a=a)
+        self.controls_div = Div(a=self.container, classes="flex flex-row items-center m-2 p-2 gap-2")
+        self.alert_div = Div(a=self.container)
+        self.dryRunButton = Switch(a=self.controls_div, labelText="dry run", checked=True, disable=True, on_input=self.onChangeDryRun)
+        self.ignoreErrorsButton = Switch(a=self.controls_div, labelText="ignore errors", checked=False, on_input=self.onChangeIgnoreErrors)
+        self.addFitSizeButton()
+        self.assureAgGrid()
+
  
-    def assureAgGrid(self,a):
+    def assureAgGrid(self):
         """
         assure there is an AgGrid instantiated
         """
         # is there already an agrid?
         if self.agGrid is None:
-            self.agGrid = LodGrid(a=a)
+            self.agGrid = LodGrid(a=self.container)
             self.agGrid.theme="ag-theme-material"
             self.setDefaultColDef(self.agGrid)
-        
+
     def setLodFromDataFrame(self,df):
         '''
         set my List of Dicts from the given data frame
@@ -76,12 +108,13 @@ class WikidataGrid():
             row["lodRowIndex"]=index
         self.viewLod=copy.deepcopy(self.lod)
         
-    def reloadAgGrid(self,viewLod:list,showLimit=10):
+    def reloadAgGrid(self, viewLod: list, showLimit: int = 10):
         '''
         reload the agGrid with the given list of Dicts
         
         Args:
             viewLod(list): the list of dicts for the current view
+            showLimit: number of rows to print when debugging
         '''
         if self.agGrid is None:
             return
@@ -93,6 +126,8 @@ class WikidataGrid():
     def setDefaultColDef(self, agGrid):
         """
         set the default column definitions
+        Args:
+            agGrid: agGrid to set the column definitions for
         """
         defaultColDef=agGrid.options.defaultColDef
         defaultColDef.resizable=True
@@ -108,40 +143,6 @@ class WikidataGrid():
         '''
         self.agGrid.on('rowSelected', self.onRowSelected)
         self.agGrid.options.columnDefs[0].checkboxSelection = True
-        # set html columns according to types that have links
-        self.agGrid.html_columns = self.getHtmlColums()
-        
-    def getColumnTypeAndVarname(self,propName:str):
-        '''
-        slightly modified getter to account for "item" special case
-        
-        Args:
-            propName(str): the name of the property
-        '''
-        wbQuery=self.wbQuery
-        if propName=="item":
-            column="item"
-            propType=""
-            varName="item"
-        else:
-            column,propType,varName=wbQuery.getColumnTypeAndVarname(propName)
-        return wbQuery,column,propType,varName
-    
-    def getHtmlColums(self):
-        '''
-        get the columns that have html content(links) 
-        '''
-        htmlColumns=[0]
-        # loop over columns of dataframe
-        wbQuery=self.wbQuery
-        for columnIndex,column in enumerate(self.columns):
-            # check whether there is metadata for the column
-            if column in wbQuery.propertiesByColumn:
-                propRow=wbQuery.propertiesByColumn[column]
-                propType=propRow["Type"]
-                if not propType or propType=="extid" or propType=="url":
-                    htmlColumns.append(columnIndex)
-        return htmlColumns    
     
     def createLink(self,url,text):
         '''
@@ -169,17 +170,54 @@ class WikidataGrid():
                     itemLink=self.createLink(f"https://www.wikidata.org/wiki/{item}", item)
                     row[itemColumn]=itemLink
                     
-    def addFitSizeButton(self,a):
-        self.onSizeColumnsToFitButton=Switch(
-            a=a,
-            labelText="fit",
-            checked=False
+    def addFitSizeButton(self):
+        """
+        add button to resize (fit) the column size to the content to the given just py component
+        Args:
+            a: justpy component to add the button to
+        """
+        self.onSizeColumnsToFitButton=Button(
+            a=self.controls_div,
+            text="fit columns",
             #iconName='format-columns',
-            #classes="btn btn-primary btn-sm col-1"
+            classes="hover:bg-blue-500 text-blue-700 hover:text-white border border-blue-500 hover:border-transparent rounded mx-2 px-2 py-1",
+            on_click=self.onSizeColumnsToFit
         )
-        self.onSizeColumnsToFitButton.on("input",self.onSizeColumnsToFit)
-        
-    async def onSizeColumnsToFit(self,_msg:dict):   
+
+    async def reload(self, _msg=None, clearErrors=True):
+        '''
+        reload the table content via my getLod function
+
+        Args:
+            clearErrors(bool): if True clear Errors before reloading
+        '''
+        try:
+            if clearErrors:
+                self.app.clearErrors()
+            msg = f"reload called ... fetching {self.entityPluralName} from {self.source}"
+            if self.debug:
+                print(msg)
+            _alert = Alert(a=self.alert_div, text=msg)
+            await self.app.wp.update()
+            items = self.getLod()
+            self.setLod(items)
+            _alert.delete_alert(None)
+            msg = f"found {len(items)} {self.entityPluralName}"
+            _alert = Alert(a=self.alert_div, text=msg)
+            await self.app.wp.update()
+            if self.debug:
+                print(json.dumps(self.viewLod, indent=2, default=str))
+            if callable(self.additional_reload_callback):
+                self.additional_reload_callback()
+            self.reloadAgGrid(self.viewLod)
+            await self.app.wp.update()
+            await asyncio.sleep(0.2)
+            await self.agGrid.run_api('sizeColumnsToFit()', self.app.wp)
+        except Exception as ex:
+            _error = Span(a=_alert, text=f"Error: {str(ex)}", style="color:red")
+            self.app.handleException(ex)
+
+    async def onSizeColumnsToFit(self,_msg:dict):
         try:
             await asyncio.sleep(0.2)
             if self.agGrid:
@@ -208,7 +246,6 @@ class WikidataGrid():
     def onRowSelected(self, msg):
         '''
         row selection event handler
-        
         Args:
             msg(dict): row selection information
         '''
@@ -220,48 +257,40 @@ class WikidataGrid():
             write=not self.dryRun
             label=msg.data["label"]
             try:
-                mapDict=self.wbQuery.propertiesById
-                rowData=msg.data
-                # remove index
-                rowData.pop("lodRowIndex")
-                qid,errors=self.wd.addDict(msg.data, mapDict,write=write,ignoreErrors=self.ignoreErrors)
-                if qid is not None:
-                    # set item link
-                    link=self.createLink(f"https://www.wikidata.org/wiki/{qid}", f"{label}")
-                    self.wdgrid.viewLod[msg.rowIndex]["item"]=link
-                    self.agGrid.load_lod(self.wdgrid.viewLod)
-                    self.refreshGridSettings()
-                if len(errors)>0:
-                    self.app.errors.text=errors
-                    print(errors)
-                if self.dryRun:
-                    prettyData=pprint.pformat(msg.data)
-                    html=Markup(f"<pre>{prettyData}</pre>")
-                    # create an alert
-                    alert=Alert(text="",a=self.app.rowA)
-                    alert.contentDiv.inner_html=html
-                    
+                if callable(self.row_selected_callback):
+                    self.row_selected_callback(
+                            record=msg.data,
+                            row_index=self.rowSelected, #
+                            write=not self.dryRun,
+                            ignore_errors=self.ignoreErrors
+                    )
             except Exception as ex:
                 self.app.handleException(ex)
-                    
+
+
 class GridSync():
     '''
     allow syncing the grid with data from wikibase
     '''
-    def __init__(self,wdgrid,sheetName,pk,debug:bool=False):
+
+    def __init__(self, wdgrid: WikidataGrid, sheetName: str, pk: str, wbQuery, debug: bool = False):
         """
         constructor
         
         Args:
             wdgrid(WikiDataGrid): the wikidata grid to use
+            sheetName: name of the sheet
+            pk: primary key
+            wbQuery:
             debug(bool): if True show debug information
         """
         self.wdgrid=wdgrid
         self.sheetName=sheetName
         self.pk=pk
+        self.wbQuery = wbQuery
         self.debug=debug
         self.itemRows=wdgrid.lod
-        self.wbQuery,self.pkColumn,self.pkType,self.pkProp=wdgrid.getColumnTypeAndVarname(pk)
+        self.pkColumn,self.pkType,self.pkProp=self.getColumnTypeAndVarname(pk)
         self.itemsByPk,_dup=LOD.getLookup(self.itemRows,self.pkColumn)
         if self.debug:
             print(self.itemsByPk.keys())
@@ -359,4 +388,64 @@ class GridSync():
                             propLabel=wbRow[f"{propVarname}Label"]
                             value=propLabel
                         if column in lodRow:
-                            self.checkCell(viewLodRow,column,value,propVarname,propType,propLabel,propUrl)   
+                            self.checkCell(viewLodRow,column,value,propVarname,propType,propLabel,propUrl)
+
+    def getColumnTypeAndVarname(self, propName: str):
+        """
+        slightly modified getter to account for "item" special case
+
+        Args:
+            propName(str): the name of the property
+        """
+        if propName == "item":
+            column = "item"
+            propType = ""
+            varName = "item"
+        else:
+            column, propType, varName = self.wbQuery.getColumnTypeAndVarname(propName)
+        return column, propType, varName
+
+    def getHtmlColumns(self):
+        """
+        get the columns that have html content(links)
+        """
+        htmlColumns = [0]
+        # loop over columns of dataframe
+        wbQuery = self.wbQuery
+        for columnIndex, column in enumerate(self.wdgrid.columns):
+            # check whether there is metadata for the column
+            if column in wbQuery.propertiesByColumn:
+                propRow = wbQuery.propertiesByColumn[column]
+                propType = propRow["Type"]
+                if not propType or propType == "extid" or propType == "url":
+                    htmlColumns.append(columnIndex)
+        return htmlColumns
+
+    def handle_row_selected_add_record_to_wikidata(
+            self,
+            record: dict,
+            row_index: int,
+            write: bool = False,
+            ignore_errors: bool = False
+    ):
+        label = record["label"]
+        mapDict = self.wbQuery.propertiesById
+        rowData = record
+        # remove index
+        rowData.pop("lodRowIndex")
+        qid, errors = self.wdgrid.wd.addDict(rowData, mapDict, write=write, ignoreErrors=ignore_errors)
+        if qid is not None:
+            # set item link
+            link = self.wdgrid.createLink(f"https://www.wikidata.org/wiki/{qid}", f"{label}")
+            self.wdgrid.viewLod[row_index]["item"] = link
+            self.wdgrid.agGrid.load_lod(self.wdgrid.viewLod)
+            self.wdgrid.refreshGridSettings()
+        if len(errors) > 0:
+            self.wdgrid.app.errors.text = errors
+            print(errors)
+        if not write:
+            prettyData = pprint.pformat(rowData)
+            html = Markup(f"<pre>{prettyData}</pre>")
+            # create an alert
+            alert = Alert(text="", a=self.wdgrid.app.rowA)
+            alert.contentDiv.inner_html = html
