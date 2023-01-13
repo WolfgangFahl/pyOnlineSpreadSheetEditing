@@ -204,6 +204,7 @@ class GoogleSheetWikidataImport(App):
                 additional_reload_callback=self.setup_aggrid_post_reload,
                 row_selected_callback=self.handle_row_selected
         )
+
     def handle_row_selected(self, **kawrgs):
         """
         Row selected callback to add selected row to wikidata

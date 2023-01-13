@@ -260,7 +260,7 @@ class WikidataGrid():
                 if callable(self.row_selected_callback):
                     self.row_selected_callback(
                             record=msg.data,
-                            row_index=self.rowSelected, #
+                            row_index=self.rowSelected,
                             write=not self.dryRun,
                             ignore_errors=self.ignoreErrors
                     )
