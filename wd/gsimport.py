@@ -70,6 +70,12 @@ class GoogleSheetWikidataImport(App):
         await self.wdgrid.reload()
 
     def get_wbQuery_of_selected_sheet(self) -> typing.Union[None, WikibaseQuery]:
+        """
+        get the wikibase Query for the currently selected sheet
+        
+        Returns:
+            WikibaseQuery: could be none if the current sheetName is not valid
+        """
         return self.wbQueries.get(self.sheetName, None)
 
     def onCheckWikidata(self, msg=None):

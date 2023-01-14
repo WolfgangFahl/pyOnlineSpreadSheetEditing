@@ -436,6 +436,15 @@ class GridSync():
             write: bool = False,
             ignore_errors: bool = False
     ):
+        """
+        add a record to wikidata when the row has been selected
+        
+        Args:
+            record(dict): the data to be added to wikidata
+            row_index(int): the row index 
+            write(bool): if True actually write data
+            ignore_errors(bool): if True ignore errors that might occur
+        """
         label = record["label"]
         mapDict = self.wbQuery.propertiesById
         rowData = record
