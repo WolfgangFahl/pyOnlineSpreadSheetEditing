@@ -256,10 +256,11 @@ class WikidataGrid():
             self.rowSelected = msg.rowIndex
             write=not self.dryRun
             label=msg.data["label"]
+            record = self.lod[self.rowSelected]
             try:
                 if callable(self.row_selected_callback):
                     self.row_selected_callback(
-                            record=msg.data,
+                            record=record,
                             row_index=self.rowSelected,
                             write=not self.dryRun,
                             ignore_errors=self.ignoreErrors
@@ -366,7 +367,14 @@ class GridSync():
                 itemLink=self.wdgrid.createLink(wbRow["item"],wbRow["itemLabel"])
                 viewLodRow["item"]=itemLink
                 itemDescription=wbRow.get("itemDescription","")
-                self.checkCell(viewLodRow,"description",itemDescription,propVarname="itemDescription",propType="string",propLabel="")
+                self.checkCell(
+                        viewLodRow,
+                        "description",
+                        itemDescription,
+                        propVarname="itemDescription",
+                        propType="string",
+                        propLabel=""
+                )
                 # loop over the result items
                 for propVarname,value in wbRow.items():
                     # remap the property variable name to the original property description
