@@ -38,7 +38,7 @@ class WikidataGrid():
         
         app(App): the application context of this grid
         entityName(str): the name of the entity that this grid is for
-        entityPluralNam(str): the plural name of the entity type of items displayed in this grid
+        entityPluralName(str): the plural name of the entity type of items displayed in this grid
         source(str): the name of my source (where the data for this grid comes from)
         getLod(Callable): the function to get my list of dicts
         additional_reload_callback: Function to be called after fetching the new data and before updating aggrid
@@ -46,8 +46,7 @@ class WikidataGrid():
         '''
         self.app=app
         self.agGrid=None
-        self.entityName=entityName
-        self.entityPluralName = entityPluralName if entityPluralName is not None else entityName
+        self.setEntityName(entityName, entityPluralName)
         self.getLod = getLod
         self.additional_reload_callback = additional_reload_callback
         self.row_selected_callback = row_selected_callback
@@ -55,11 +54,16 @@ class WikidataGrid():
         self.debug=debug
         self.dryRun=True
         self.ignoreErrors=False
+        # @TODO make endpoint configurable
         self.wd = Wikidata("https://www.wikidata.org", debug=True)
 
+    def setEntityName(self,entityName:str,entityPluralName:str=None):
+        self.entityName=entityName
+        self.entityPluralName = entityPluralName if entityPluralName is not None else entityName
+        
     def setup(self, a):
         """
-        setup the grid justpy components
+        setup the grid Wikidata grid justpy components
         """
         if getattr(self, "container", None) is not None:
             self.container.delete_components()
@@ -70,7 +74,6 @@ class WikidataGrid():
         self.ignoreErrorsButton = Switch(a=self.controls_div, labelText="ignore errors", checked=False, on_input=self.onChangeIgnoreErrors)
         self.addFitSizeButton()
         self.assureAgGrid()
-
  
     def assureAgGrid(self):
         """
@@ -262,12 +265,11 @@ class WikidataGrid():
                     self.row_selected_callback(
                             record=record,
                             row_index=self.rowSelected,
-                            write=not self.dryRun,
+                            write=write,
                             ignore_errors=self.ignoreErrors
                     )
             except Exception as ex:
                 self.app.handleException(ex)
-
 
 class GridSync():
     '''
@@ -294,7 +296,8 @@ class GridSync():
         self.pkColumn,self.pkType,self.pkProp=self.getColumnTypeAndVarname(pk)
         self.itemsByPk,_dup=LOD.getLookup(self.itemRows,self.pkColumn)
         if self.debug:
-            print(self.itemsByPk.keys())
+            print(f"{self.sheetName} by {self.pkColumn}:{list(self.itemsByPk.keys())}")
+            pass
             
     def query(self,sparql):
         '''
@@ -335,7 +338,7 @@ class GridSync():
             # create links for item  properties
             if not propType:
                 value=self.wdgrid.createLink(value, propLabel)
-            elif propType=="extid":
+            elif propType=="extid" or propType=="url":
                 value=self.wdgrid.createLink(propUrl,value)
             if valueType==str:
                 pass    
@@ -347,11 +350,13 @@ class GridSync():
             if doadd:                         
                 viewLodRow[column]=value
             
-    def markViewLod(self,viewLod):
+    def addHtmlMarkupToViewLod(self,viewLod:list):
         '''
+            add HtmlMarkup to the view list of dicts
             viewLod(list): a list of dict for the mark result
         '''
-        # now check the rows
+        # now check the wikibase rows retrieved in comparison
+        # to the current view List of Dicts Markup
         for wbRow in self.wbRows:
             # get the primary key value
             pkValue=wbRow[self.pkProp]
@@ -359,7 +364,7 @@ class GridSync():
             # if we have the primary key then we mark the whole row
             if pkValue in self.itemsByPk:
                 if self.debug:
-                    print(pkValue)
+                    print(f"adding html markup for {pkValue}")
                 # https://stackoverflow.com/questions/14538885/how-to-get-the-index-with-the-key-in-a-dictionary
                 lodRow=self.itemsByPk[pkValue]
                 rowIndex=lodRow["lodRowIndex"]
@@ -388,6 +393,8 @@ class GridSync():
                             propLabel=""
                         if propType=="extid":
                             propUrl=wbRow[f"{propVarname}Url"]
+                        elif propType=="url":
+                            propUrl=wbRow[f"{propVarname}"]
                         else:
                             propUrl=""
                         # Linked Or
@@ -407,7 +414,7 @@ class GridSync():
         """
         if propName == "item":
             column = "item"
-            propType = ""
+            propType = "item"
             varName = "item"
         else:
             column, propType, varName = self.wbQuery.getColumnTypeAndVarname(propName)
@@ -418,7 +425,7 @@ class GridSync():
         get the columns that have html content(links)
         """
         htmlColumns = [0]
-        # loop over columns of dataframe
+        # loop over columns of list of dicts
         wbQuery = self.wbQuery
         for columnIndex, column in enumerate(self.wdgrid.columns):
             # check whether there is metadata for the column
@@ -447,9 +454,10 @@ class GridSync():
         """
         label = record["label"]
         mapDict = self.wbQuery.propertiesById
-        rowData = record
+        rowData = record.copy()
         # remove index
-        rowData.pop("lodRowIndex")
+        if "lodRowIndex" in rowData:
+            rowData.pop("lodRowIndex")
         qid, errors = self.wdgrid.wd.addDict(rowData, mapDict, write=write, ignoreErrors=ignore_errors)
         if qid is not None:
             # set item link

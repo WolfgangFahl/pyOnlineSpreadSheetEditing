@@ -6,7 +6,7 @@ from lodstorage.sparql import SPARQL
 import sys
 import onlinespreadsheet.version as version
 from jpwidgets.widgets import QPasswordDialog
-from jpwidgets.bt5widgets import App, IconButton, Switch
+from jpwidgets.bt5widgets import App, IconButton
 from spreadsheet.wbquery import WikibaseQuery
 from wd.wdgrid import WikidataGrid, GridSync
 
@@ -28,9 +28,6 @@ class GoogleSheetWikidataImport(App):
             debug(bool): if True show debug information
         '''
         App.__init__(self, version,title="Google Spreadsheet Wikidata Import")
-        # url,sheetNames:list,pk:str,endpoint:str,lang:str="en",debug:bool=False
-        # @TODO make configurable
-        self.metaDataSheetName="WikidataMetadata"
         self.wdgrid: WikidataGrid = None
         self.addMenuLink(text='Home',icon='home', href="/")
         self.addMenuLink(text="docs",icon="file-document",href='https://wiki.bitplan.com/index.php/PyOnlineSpreadSheetEditing')
@@ -43,13 +40,18 @@ class GoogleSheetWikidataImport(App):
         Returns:
             List of dicts containing the sheet content
         """
-        self.wbQueries = WikibaseQuery.ofGoogleSheet(self.url, self.metaDataSheetName, debug=self.debug)
+        self.wbQueries = WikibaseQuery.ofGoogleSheet(self.url, self.mappingSheetName, debug=self.debug)
+        if len(self.wbQueries)==0:
+            print(f"Warning Wikidata mapping sheet {self.mappingSheetName} not defined!" )
         self.gs = GoogleSheet(self.url)
         self.gs.open([self.sheetName])
         items = self.gs.asListOfDicts(self.sheetName)
         return items
 
     def setup_aggrid_post_reload(self):
+        """
+        setup the aggrid
+        """
         viewLod = self.wdgrid.viewLod
         gridSync = self.get_GridSync()
         self.wdgrid.agGrid.html_columns = gridSync.getHtmlColumns()
@@ -62,12 +64,11 @@ class GoogleSheetWikidataImport(App):
             if columnName:
                 self.pkSelect.add(jp.Option(value=propertyName, text=columnName))
 
-
     async def reload(self,_msg=None,clearErrors=True):
         '''
         reload the table content from my url and sheet name
         '''
-        await self.wdgrid.reload()
+        await self.wdgrid.reload(clearErrors=clearErrors)
 
     def get_wbQuery_of_selected_sheet(self) -> typing.Union[None, WikibaseQuery]:
         """
@@ -95,13 +96,19 @@ class GoogleSheetWikidataImport(App):
             gridSync.query(self.sparql)
             # get the view copy to insert result as html statements
             viewLod = self.wdgrid.viewLod
-            gridSync.markViewLod(viewLod)
+            gridSync.addHtmlMarkupToViewLod(viewLod)
             # reload the AG Grid with the html enriched content
             self.wdgrid.reloadAgGrid(viewLod)
         except Exception as ex:
             self.handleException(ex)
 
     def get_GridSync(self) -> GridSync:
+        """
+        get my GridSync
+        
+        Returns:
+            GridSync
+        """
         wbQuery = self.get_wbQuery_of_selected_sheet()
         return GridSync(self.wdgrid, self.sheetName, self.pk, wbQuery=wbQuery, debug=self.debug)
 
@@ -116,6 +123,7 @@ class GoogleSheetWikidataImport(App):
             print(msg)
         # get the sheetName, entity Name
         self.sheetName=msg.value
+        self.wdgrid.setEntityName(self.sheetName)
         await self.reload()
      
     async def onChangePk(self, msg:dict):
@@ -151,7 +159,13 @@ class GoogleSheetWikidataImport(App):
         except Exception as ex:
             self.handleException(ex)
             
-    def loginUser(self,user):
+    def loginUser(self,user:str):
+        """
+        login the given user
+        
+        Args:
+            user(str): the name of the user to login
+        """
         self.loginButton.text=f"{user}"
         self.loginButton.iconName="logout"
         self.wdgrid.dryRunButton.disable=False
@@ -194,17 +208,23 @@ class GoogleSheetWikidataImport(App):
                 self.handleException(ex)
 
     def setup(self):
+        """
+        setup 
+        """
         self.url=self.args.url
         self.sheetNames=self.args.sheets
+        if len(self.sheetNames)<1:
+            raise Exception("need at least one sheetName in sheets argument")
         self.sheetName=self.sheetNames[0]
+        self.mappingSheetName=self.args.mappingSheet
         self.pk=self.args.pk
         self.endpoint=self.args.endpoint
         self.sparql=SPARQL(self.endpoint)
-        self.lang="en" # @TODO Make configurable self.args.lang
+        self.lang=self.args.lang
         self.wdgrid = WikidataGrid(
                 app=self,
                 entityName=self.sheetName,
-                entityPluralName=None,
+                entityPluralName=None, # make configurable
                 source=self.url,
                 getLod=self.load_items_from_selected_sheet,
                 additional_reload_callback=self.setup_aggrid_post_reload,
@@ -272,7 +292,9 @@ class GoogleSheetWikidataImport(App):
         #parser.add_argument('--dryrun', action="store_true", dest='dryrun', help="dry run only")
         parser.add_argument('--url')
         parser.add_argument('--sheets',nargs="+",required=True)
+        parser.add_argument('--mappingSheet',default="WikidataMapping")
         parser.add_argument('--pk')
+        parser.add_argument('-l','--lang','--language',default="en",help="language to use")
         return parser
      
 DEBUG = 1
