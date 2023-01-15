@@ -15,10 +15,12 @@ from typing import Callable
 from justpy import Button, Div, Span
 from markupsafe import Markup
 from lodstorage.lod import LOD
+from lodstorage.sparql import SPARQL
 from spreadsheet.wbquery import WikibaseQuery
-from jpwidgets.bt5widgets import Alert, App, Switch
+from jpwidgets.bt5widgets import Alert, App, Switch, IconButton
 from jpwidgets.widgets import LodGrid
 from spreadsheet.wikidata import Wikidata
+from jpwidgets.widgets import QPasswordDialog
 
 class WikidataGrid():
     '''
@@ -276,28 +278,157 @@ class GridSync():
     allow syncing the grid with data from wikibase
     '''
 
-    def __init__(self, wdgrid: WikidataGrid, sheetName: str, pk: str, wbQuery, debug: bool = False):
+    def __init__(self, wdgrid: WikidataGrid, entityName: str, pk: str, sparql:SPARQL,debug: bool = False):
         """
         constructor
         
         Args:
             wdgrid(WikiDataGrid): the wikidata grid to use
-            sheetName: name of the sheet
+            entityName: name of the sheet
             pk: primary key
-            wbQuery:
+            sparql(SPARQL): the sparql endpoint access to use
             debug(bool): if True show debug information
         """
         self.wdgrid=wdgrid
-        self.sheetName=sheetName
+        self.app=wdgrid.app
+        self.entityName=entityName
         self.pk=pk
-        self.wbQuery = wbQuery
+        self.sparql=sparql
         self.debug=debug
-        self.itemRows=wdgrid.lod
-        self.pkColumn,self.pkType,self.pkProp=self.getColumnTypeAndVarname(pk)
+        self.wdgrid.additional_reload_callback=self.setup_aggrid_post_reload
+        self.wdgrid.row_selected_callback=self.handle_row_selected_add_record_to_wikidata
+        self.wbQuery=None
+        
+    def loadItems(self):
+        # we assume the grid has already been loaded here
+        self.itemRows=self.wdgrid.lod
+        self.pkColumn,self.pkType,self.pkProp=self.getColumnTypeAndVarname(self.pk) 
         self.itemsByPk,_dup=LOD.getLookup(self.itemRows,self.pkColumn)
         if self.debug:
-            print(f"{self.sheetName} by {self.pkColumn}:{list(self.itemsByPk.keys())}")
+            print(f"{self.entityName} by {self.pkColumn}:{list(self.itemsByPk.keys())}")
             pass
+        
+    def setup(self,a,header):
+        """
+        initialize my components
+        
+        Args:
+            a(HtmlComponent): the parent component
+            header(HtmlComponent): the header for the primary key selector
+ 
+        """
+        selectorClasses='w-32 m-2 p-2 bg-white'
+        self.toolbar=self.app.jp.QToolbar(a=a, classes="flex flex-row gap-2")
+        # for icons see  https://quasar.dev/vue-components/icon
+        # see justpy/templates/local/materialdesignicons/iconfont/codepoints for available icons    
+        self.reloadButton=IconButton(a=self.toolbar,text='',title="reload",iconName="refresh-circle",click=self.wdgrid.reload,classes="btn btn-primary btn-sm col-1")
+        self.checkButton=IconButton(a=self.toolbar,text='',title="check",iconName='check',click=self.onCheckWikidata,classes="btn btn-primary btn-sm col-1")
+        self.loginButton=IconButton(a=self.toolbar,title="login",iconName='login',text="",click=self.onLogin,classes="btn btn-primary btn-sm col-1")
+        self.passwordDialog=QPasswordDialog(a=self.app.wp)
+        # selector for column/property
+        self.pkSelect=self.app.jp.Select(classes=selectorClasses,a=header,value=self.pk,
+            change=self.onChangePk)
+        
+    def setup_aggrid_post_reload(self):
+        """
+        setup the aggrid
+        """
+        viewLod = self.wdgrid.viewLod
+        self.wdgrid.agGrid.html_columns = self.getHtmlColumns()
+        self.wdgrid.linkWikidataItems(viewLod)
+        self.pkSelect.delete_components()
+        self.pkSelect.add(self.app.jp.Option(value="item", text="item"))
+        if self.wbQuery is not None:
+            for propertyName, row in self.wbQuery.propertiesByName.items():
+                columnName = row["Column"]
+                if columnName:
+                    self.pkSelect.add(self.app.jp.Option(value=propertyName, text=columnName))
+        
+    async def onChangePk(self, msg:dict):
+        '''
+        handle selection of a different primary key
+        
+        Args:
+            msg(dict): the justpy message
+        '''
+        self.pk=msg.value
+        if self.debug:
+            print(f"changed primary key of {self.entityName} to {self.pk}")
+        try:
+            await self.wdgrid.reload()
+        except Exception as ex:
+            self.app.handleException(ex)
+            
+    def onCheckWikidata(self, msg=None):
+        '''
+        check clicked - check the wikidata content
+
+        Args:
+            msg(dict): the justpy message
+        '''
+        if self.debug:
+            print(msg)
+        try:
+            self.app.clearErrors()
+            self.loadItems()
+            # prepare syncing the table results with the wikibase query result
+            # query based on table content
+            self.query(self.sparql)
+            # get the view copy to insert result as html statements
+            viewLod = self.wdgrid.viewLod
+            self.addHtmlMarkupToViewLod(viewLod)
+            # reload the AG Grid with the html enriched content
+            self.wdgrid.reloadAgGrid(viewLod)
+        except Exception as ex:
+            self.app.handleException(ex)
+            
+    def loginUser(self,user:str):
+        """
+        login the given user
+        
+        Args:
+            user(str): the name of the user to login
+        """
+        self.loginButton.text=f"{user}"
+        self.loginButton.iconName="logout"
+        self.wdgrid.dryRunButton.disable=False
+        
+    def onloginViaDialog(self,_msg):
+        '''
+        handle login via dialog
+        '''
+        user=self.passwordDialog.userInput.value
+        password=self.passwordDialog.passwordInput.value
+        self.wd.loginWithCredentials(user, password)
+        if self.wd.user is not None:
+            self.loginUser(self.wd.user)
+        
+    def onLogin(self,msg:dict):
+        '''
+        handle Login
+        Args:
+            msg(dict): the justpy message
+        '''
+        if self.debug:
+            print(msg)
+        try:    
+            self.app.clearErrors()
+            wd=self.wdgrid.wd
+            if wd.user is None:
+                wd.loginWithCredentials()
+                if wd.user is None:
+                    self.passwordDialog.loginButton.on("click",self.onloginViaDialog)
+                    self.passwordDialog.value=True
+                else:
+                    self.loginUser(wd.user)
+            else:
+                wd.logout()
+                self.wdgrid.dryRunButton.value=True
+                self.wdgrid.dryRunButton.disable=True
+                self.loginButton.text="login"
+                self.loginButton.iconName="chevron_right"
+        except Exception as ex:
+                self.app.handleException(ex)
             
     def query(self,sparql):
         '''
@@ -427,13 +558,14 @@ class GridSync():
         htmlColumns = [0]
         # loop over columns of list of dicts
         wbQuery = self.wbQuery
-        for columnIndex, column in enumerate(self.wdgrid.columns):
-            # check whether there is metadata for the column
-            if column in wbQuery.propertiesByColumn:
-                propRow = wbQuery.propertiesByColumn[column]
-                propType = propRow["Type"]
-                if not propType or propType == "extid" or propType == "url":
-                    htmlColumns.append(columnIndex)
+        if wbQuery is not None:
+            for columnIndex, column in enumerate(self.wdgrid.columns):
+                # check whether there is metadata for the column
+                if column in wbQuery.propertiesByColumn:
+                    propRow = wbQuery.propertiesByColumn[column]
+                    propType = propRow["Type"]
+                    if not propType or propType == "extid" or propType == "url":
+                        htmlColumns.append(columnIndex)
         return htmlColumns
 
     def handle_row_selected_add_record_to_wikidata(
