@@ -9,9 +9,9 @@ class Version(object):
     Version handling for pyOnlineSpreadsheetEditing
     '''
     name="pyOnlineSpreadsheetEditing"
-    version='0.1.0'
+    version='0.1.1'
     date = '2021-12-11'
-    updated = '2023-01-15'
+    updated = '2023-01-16'
     description='python Online SpreadSheet Editing tool with configurable enhancer/importer and check phase'
     authors='Wolfgang Fahl/Tim Holzheim'
     license=f'''Copyright 2021-2023 contributors. All rights reserved.

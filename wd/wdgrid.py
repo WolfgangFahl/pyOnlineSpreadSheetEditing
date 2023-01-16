@@ -109,9 +109,33 @@ class WikidataGrid():
             msg=f"Empty List of dicts is not valid for {self.entityName}"
             raise Exception(msg)
         self.columns=self.lod[0].keys()
-        for index,row in enumerate(self.lod):
+        self.setViewLod(lod)
+            
+    def setViewLod(self,lod:list,nonValue:str="-"):
+        """
+        add lodRowIndex column to list of dicts and 
+        use a copy of the given list of dicts for the view
+        modify datetime columns to avoid problems with justpy
+        
+        Args:
+            lod(list): the list of dicts
+            nonValue(str): the string to use for "None" values
+        """
+        for index,row in enumerate(lod):
             row["lodRowIndex"]=index
-        self.viewLod=copy.deepcopy(self.lod)
+        self.viewLod=copy.deepcopy(lod)
+        # fix non values
+        for record in self.viewLod:
+            for key in list(record):
+                value=record[key]
+                if value is None:
+                    record[key]=nonValue
+                vtype=type(value)
+                # fix datetime entries
+                if vtype is datetime.datetime:
+                    value=str(value)
+                    record[key]=value
+        pass
         
     def reloadAgGrid(self, viewLod: list, showLimit: int = 10):
         '''
