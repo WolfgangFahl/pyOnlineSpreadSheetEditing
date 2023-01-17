@@ -284,7 +284,6 @@ class WikidataGrid():
         if msg.selected:
             self.rowSelected = msg.rowIndex
             write=not self.dryRun
-            label=msg.data["label"]
             record = self.lod[self.rowSelected]
             try:
                 if callable(self.row_selected_callback):
@@ -608,6 +607,8 @@ class GridSync():
             write(bool): if True actually write data
             ignore_errors(bool): if True ignore errors that might occur
         """
+        if not "label" in record:
+            raise Exception(f"label missing in {record}" )
         label = record["label"]
         mapDict = self.wbQuery.propertiesById
         rowData = record.copy()
