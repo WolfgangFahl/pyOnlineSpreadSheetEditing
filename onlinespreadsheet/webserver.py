@@ -77,7 +77,7 @@ class WebServer(AppWrap):
         
         #  server specific initializations
         link=Link("http://www.bitplan.com/Wolfgang_Fahl",title="Wolfgang Fahl")
-        self.copyRight=Copyright(period="2021-2022",link=link)
+        self.copyRight=Copyright(period="2021-2023",link=link)
         
         self.wikiUsers=WikiUser.getWikiUsers()
 
