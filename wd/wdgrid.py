@@ -34,6 +34,7 @@ class WikidataGrid():
                  getLod: Callable,
                  additional_reload_callback: typing.Union[Callable, None] = None,
                  row_selected_callback: typing.Callable = None,
+                 lodRowIndex:str="lodRowIndex",
                  debug:bool=False):
         '''
         constructor
@@ -44,6 +45,7 @@ class WikidataGrid():
         source(str): the name of my source (where the data for this grid comes from)
         getLod(Callable): the function to get my list of dicts
         additional_reload_callback: Function to be called after fetching the new data and before updating aggrid
+        lodRowIndex(str): the column/attribute to use for tracking the index in the lod
         debug(bool): if True show debug information
         '''
         self.app=app
@@ -53,6 +55,7 @@ class WikidataGrid():
         self.additional_reload_callback = additional_reload_callback
         self.row_selected_callback = row_selected_callback
         self.source = source
+        self.lodRowIndex=lodRowIndex
         self.debug=debug
         self.dryRun=True
         self.ignoreErrors=False
@@ -275,6 +278,7 @@ class WikidataGrid():
     def onRowSelected(self, msg):
         '''
         row selection event handler
+        
         Args:
             msg(dict): row selection information
         '''
@@ -283,13 +287,20 @@ class WikidataGrid():
         self.app.clearErrors()
         if msg.selected:
             self.rowSelected = msg.rowIndex
+            # check whether a lodeRowIndex Index is available
+            lodByRowIndex,_dup=LOD.getLookup(self.lod,self.lodRowIndex)
+            if len(lodByRowIndex)==len(self.lod):
+                lodRowIndex=msg.data[self.lodRowIndex]
+            else:
+                lodRowIndex=self.rowSelected
+            record = self.lod[lodRowIndex]
             write=not self.dryRun
-            record = self.lod[self.rowSelected]
+            
             try:
                 if callable(self.row_selected_callback):
                     self.row_selected_callback(
                             record=record,
-                            row_index=self.rowSelected,
+                            row_index=lodRowIndex,
                             write=write,
                             ignore_errors=self.ignoreErrors
                     )
@@ -521,7 +532,7 @@ class GridSync():
                     print(f"adding html markup for {pkValue}")
                 # https://stackoverflow.com/questions/14538885/how-to-get-the-index-with-the-key-in-a-dictionary
                 lodRow=self.itemsByPk[pkValue]
-                rowIndex=lodRow["lodRowIndex"]
+                rowIndex=lodRow[self.wdgrid.lodRowIndex]
                 viewLodRow=viewLod[rowIndex]
                 itemLink=self.wdgrid.createLink(wbRow["item"],wbRow["itemLabel"])
                 viewLodRow["item"]=itemLink
@@ -613,8 +624,8 @@ class GridSync():
         mapDict = self.wbQuery.propertiesById
         rowData = record.copy()
         # remove index
-        if "lodRowIndex" in rowData:
-            rowData.pop("lodRowIndex")
+        if self.lodRowIndex in rowData:
+            rowData.pop(self.lodRowIndex)
         qid, errors = self.wdgrid.wd.addDict(rowData, mapDict, write=write, ignoreErrors=ignore_errors)
         if qid is not None:
             # set item link
