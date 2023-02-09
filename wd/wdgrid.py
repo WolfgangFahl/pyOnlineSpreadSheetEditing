@@ -10,44 +10,50 @@ import json
 import pprint
 import re
 import typing
+from dataclasses import dataclass
 from typing import Callable
 
-from justpy import Button, Div, Span
+from justpy import Button, Div, Span, Link
 from markupsafe import Markup
 from lodstorage.lod import LOD
 from lodstorage.sparql import SPARQL
 from spreadsheet.wbquery import WikibaseQuery
 from jpwidgets.bt5widgets import Alert, App, Switch, IconButton
 from jpwidgets.widgets import LodGrid
-from spreadsheet.wikidata import Wikidata
+from spreadsheet.wikidata import PropertyMapping, Wikidata, WikidataItem
 from jpwidgets.widgets import QPasswordDialog
 
+from wd.RecordSync import ComparisonRecord, SyncAction, SyncDialog, SyncDialogRow, SyncRequest
+
+
 class WikidataGrid():
-    '''
+    """
     a grid with tabular data from wikidata to work with
-    '''
-    def __init__(self,
-                 app:App,
-                 entityName:str,
-                 entityPluralName: str,
-                 source: str,
-                 getLod: Callable,
-                 additional_reload_callback: typing.Union[Callable, None] = None,
-                 row_selected_callback: typing.Callable = None,
-                 lodRowIndex_column:str="lodRowIndex",
-                 debug:bool=False):
-        '''
+    """
+
+    def __init__(
+            self,
+            app: App,
+            entityName: str,
+            entityPluralName: str,
+            source: str,
+            getLod: Callable,
+            additional_reload_callback: typing.Union[Callable, None] = None,
+            row_selected_callback: typing.Callable = None,
+            lodRowIndex_column:str="lodRowIndex",
+            debug:bool=False):
+        """
         constructor
-        
-        app(App): the application context of this grid
-        entityName(str): the name of the entity that this grid is for
-        entityPluralName(str): the plural name of the entity type of items displayed in this grid
-        source(str): the name of my source (where the data for this grid comes from)
-        getLod(Callable): the function to get my list of dicts
-        additional_reload_callback: Function to be called after fetching the new data and before updating aggrid
-        lodRowIndex_column(str): the column/attribute to use for tracking the index in the lod
-        debug(bool): if True show debug information
-        '''
+        Args:
+            app(App): the application context of this grid
+            entityName(str): the name of the entity that this grid is for
+            entityPluralName(str): the plural name of the entity type of items displayed in this grid
+            source(str): the name of my source (where the data for this grid comes from)
+            getLod(Callable): the function to get my list of dicts
+            additional_reload_callback: Function to be called after fetching the new data and before updating aggrid
+            lodRowIndex_column(str): the column/attribute to use for tracking the index in the lod
+            debug(bool): if True show debug information
+        """
         self.app=app
         self.agGrid=None
         self.setEntityName(entityName, entityPluralName)
@@ -79,6 +85,7 @@ class WikidataGrid():
         self.ignoreErrorsButton = Switch(a=self.controls_div, labelText="ignore errors", checked=False, on_input=self.onChangeIgnoreErrors)
         self.addFitSizeButton()
         self.assureAgGrid()
+        self.sync_dialog_div = Div(a=self.alert_div, classes="container")
  
     def assureAgGrid(self):
         """
@@ -294,8 +301,7 @@ class WikidataGrid():
             else:
                 lodRowIndex=self.rowSelected
             record = self.lod[lodRowIndex]
-            write=not self.dryRun
-            
+            write = not self.dryRun
             try:
                 if callable(self.row_selected_callback):
                     self.row_selected_callback(
@@ -306,6 +312,8 @@ class WikidataGrid():
                     )
             except Exception as ex:
                 self.app.handleException(ex)
+
+
 
 class GridSync():
     '''
@@ -330,7 +338,7 @@ class GridSync():
         self.sparql=sparql
         self.debug=debug
         self.wdgrid.additional_reload_callback=self.setup_aggrid_post_reload
-        self.wdgrid.row_selected_callback=self.handle_row_selected_add_record_to_wikidata
+        self.wdgrid.row_selected_callback=self.handle_row_selected
         self.wbQuery=None
         
     def loadItems(self):
@@ -602,7 +610,7 @@ class GridSync():
                         htmlColumns.append(columnIndex)
         return htmlColumns
 
-    def handle_row_selected_add_record_to_wikidata(
+    def add_record_to_wikidata(
             self,
             record: dict,
             row_index: int,
@@ -644,3 +652,96 @@ class GridSync():
             # create an alert
             alert = Alert(text="", a=self.wdgrid.app.rowA)
             alert.contentDiv.inner_html = html
+
+    def handle_row_selected(
+            self,
+            record: dict,
+            row_index: int,
+            write: bool = False,
+            ignore_errors: bool = False
+    ):
+        record = record.copy()
+        # sanitize record
+        item_id = record.get("item", None)
+        for key in ["item", "lodRowIndex"]:
+            record.pop(key)
+        record = {k:v if v != "" else None for k,v in record.items()}
+        prop_map_records = self.wbQuery.propertiesById
+        prop_maps = PropertyMapping.from_records(prop_map_records)
+        # limit record to properties that are synced with wikidata
+        prop_by_col = [pm.column for pm in prop_maps]
+        prop_by_col.extend(["label", "description"])
+        record = {k:v for k,v in record.items() if k in prop_by_col}
+        # fetch record from wikidata
+        wd_record = dict()
+        if item_id is not None and item_id != "":
+            qres = self.wdgrid.wd.get_record(item_id, prop_maps)
+            for p_id, value in qres.items():
+                p_map = prop_map_records.get(p_id, None)
+                if p_map is not None:
+                    p_id = p_map.get("Column")
+                if p_id not in [None, ""]:
+                    wd_record[p_id] = value
+        # normalize records
+        record = self.wdgrid.wd.normalize_records(record, prop_maps)
+        wd_record = self.wdgrid.wd.normalize_records(wd_record, prop_maps)
+        # show SyncDialog
+        cr = ComparisonRecord("google sheet", record, "wikidata", wd_record)
+        cr.lodRowIndex = row_index
+        cr.qid = item_id
+        self.wdgrid.sync_dialog_div.delete_components()
+        sync_dialog = SyncDialog(
+                cr,
+                sync_callback=self._sync_callback,
+                value_enhancement_callback=self.enhance_value_display,
+                a=self.wdgrid.sync_dialog_div
+        )
+
+    def _sync_callback(self, sync_request: SyncRequest):
+        """
+        Handle the given sync request
+        """
+        write = not self.wdgrid.dryRun
+        lodRowIndex = getattr(sync_request.data, "lodRowIndex", None)
+        update_sources = []
+        if sync_request.action in [SyncAction.SYNC, SyncAction.RIGHT_SYNC]:
+            update_sources.append(sync_request.data.right_source_name)
+        if sync_request.action in [SyncAction.SYNC, SyncAction.LEFT_SYNC]:
+            update_sources.append(sync_request.data.left_source_name)
+        for source in update_sources:
+            record = sync_request.data.get_update_record_of(source)
+            for key, value in record.items():
+                if isinstance(value, WikidataItem):
+                    record[key] = value.qid
+            for key in ["label", "desc"]:
+                if key not in record and sync_request.data.comparison_data.get(key, None):
+                   record[key] = sync_request.data.comparison_data.get(key).left_value
+            record["item"] = getattr(sync_request.data, "qid")
+            if source == "wikidata":
+                try:
+                    self.add_record_to_wikidata(
+                            record=record,
+                            row_index=lodRowIndex,
+                            write=write,
+                            ignore_errors=self.wdgrid.ignoreErrors
+                    )
+                    self.wdgrid.sync_dialog_div.delete_components()
+                except Exception as ex:
+                    self.app.handleException(ex)
+            else:
+                self.app.handleException(Exception(f"Updating of source {source} is not supported"))
+
+    def enhance_value_display(self, row: SyncDialogRow):
+        """
+        Enhances the displayed value
+        """
+        value_div_pairs = [(row.comparison_data.left_value, row.left_value_div), (row.comparison_data.right_value, row.right_value_div)]
+        for value, div in value_div_pairs:
+            if isinstance(value, WikidataItem):
+                div.text = ""
+                Link(a=div, href=value.get_url(), text=value.label)
+            elif isinstance(value, str) and value.startswith("http"):
+                div.text = ""
+                Link(a=div, href=value, text=value)
+
+
