@@ -664,7 +664,8 @@ class GridSync():
         # sanitize record
         item_id = record.get("item", None)
         for key in ["item", "lodRowIndex"]:
-            record.pop(key)
+            if key in record:
+                record.pop(key)
         record = {k:v if v != "" else None for k,v in record.items()}
         prop_map_records = self.wbQuery.propertiesById
         prop_maps = PropertyMapping.from_records(prop_map_records)
