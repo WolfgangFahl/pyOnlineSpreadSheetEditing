@@ -71,7 +71,7 @@ class TestSyncDialog(BaseTest):
         SyncDialog(comparison_record=cr, a=div)
         return wp
 
-    # @unittest.skip("For manual debugging")
+    @unittest.skip("For manual debugging")
     def test_interface(self):
         import justpy as jp
         jp.justpy(self.sync_dialog_page, host="localhost", port=8442)
