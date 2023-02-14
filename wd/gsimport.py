@@ -29,7 +29,7 @@ class GoogleSheetWikidataImport(App):
         App.__init__(self, version,title="Google Spreadsheet Wikidata Import")
         self.jp=jp
         self.wdgrid: WikidataGrid = None
-        self.gridSync: GridSync= None
+        self.gridSync: GridSync = None
         
         self.addMenuLink(text='Home',icon='home', href="/")
         self.addMenuLink(text="docs",icon="file-document",href='https://wiki.bitplan.com/index.php/PyOnlineSpreadSheetEditing')
@@ -114,10 +114,10 @@ class GoogleSheetWikidataImport(App):
                 app=self,
                 entityName=self.sheetName,
                 entityPluralName=None, # make configurable
-                source=self.url,
+                source="Google Spreadsheet",
                 getLod=self.load_items_from_selected_sheet,
         )
-        self.gridSync=GridSync(wdgrid=self.wdgrid, entityName=self.sheetName, pk=self.args.pk,sparql=self.sparql,debug=self.debug)
+        self.gridSync=GridSync(wdgrid=self.wdgrid, entityName=self.sheetName, pk=self.args.pk, sparql=self.sparql, debug=self.debug)
 
     async def content(self):
         '''

@@ -35,7 +35,7 @@ class WikidataGrid():
             self,
             app: App,
             entityName: str,
-            entityPluralName: str,
+            entityPluralName: typing.Optional[str],
             source: str,
             getLod: Callable,
             additional_reload_callback: typing.Union[Callable, None] = None,
@@ -314,13 +314,12 @@ class WikidataGrid():
                 self.app.handleException(ex)
 
 
-
 class GridSync():
     '''
     allow syncing the grid with data from wikibase
     '''
 
-    def __init__(self, wdgrid: WikidataGrid, entityName: str, pk: str, sparql:SPARQL,debug: bool = False):
+    def __init__(self, wdgrid: WikidataGrid, entityName: str, pk: str, sparql: SPARQL, debug: bool = False):
         """
         constructor
         
@@ -687,7 +686,7 @@ class GridSync():
         record = self.wdgrid.wd.normalize_records(record, prop_maps)
         wd_record = self.wdgrid.wd.normalize_records(wd_record, prop_maps)
         # show SyncDialog
-        cr = ComparisonRecord("google sheet", record, "wikidata", wd_record)
+        cr = ComparisonRecord(self.wdgrid.source, record, "wikidata", wd_record)
         cr.lodRowIndex = row_index
         cr.qid = item_id
         self.wdgrid.sync_dialog_div.delete_components()
