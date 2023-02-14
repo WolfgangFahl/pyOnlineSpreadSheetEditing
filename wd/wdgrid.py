@@ -13,12 +13,12 @@ import typing
 from dataclasses import dataclass
 from typing import Callable
 
-from justpy import Button, Div, Span, Link
+from justpy import Button, Div, Span, Link, Br, WebPage
 from markupsafe import Markup
 from lodstorage.lod import LOD
 from lodstorage.sparql import SPARQL
 from spreadsheet.wbquery import WikibaseQuery
-from jpwidgets.bt5widgets import Alert, App, Switch, IconButton
+from jpwidgets.bt5widgets import Alert, App, Spinner, Switch, IconButton
 from jpwidgets.widgets import LodGrid
 from spreadsheet.wikidata import PropertyMapping, Wikidata, WikidataItem
 from jpwidgets.widgets import QPasswordDialog
@@ -282,7 +282,7 @@ class WikidataGrid():
         '''
         self.ignoreErrors=msg.value    
             
-    def onRowSelected(self, msg):
+    async def onRowSelected(self, msg):
         '''
         row selection event handler
         
@@ -302,6 +302,11 @@ class WikidataGrid():
                 lodRowIndex=self.rowSelected
             record = self.lod[lodRowIndex]
             write = not self.dryRun
+            # show spinner
+            webpage: WebPage = msg.page
+            self.sync_dialog_div.delete_components()
+            Spinner(a=self.sync_dialog_div, classes="container")
+            await webpage.update()
             try:
                 if callable(self.row_selected_callback):
                     self.row_selected_callback(
@@ -311,6 +316,7 @@ class WikidataGrid():
                             ignore_errors=self.ignoreErrors
                     )
             except Exception as ex:
+                self.sync_dialog_div.delete_components()
                 self.app.handleException(ex)
 
 
@@ -660,35 +666,32 @@ class GridSync():
             ignore_errors: bool = False
     ):
         record = record.copy()
+        record = {k:v if v != "" else None for k,v in record.items()}
+        prop_maps = self.get_property_mappings()
+        item_prop = PropertyMapping.get_item_mapping(prop_maps)
+        item_id = record.get(item_prop.column, None)
         # sanitize record
-        item_id = record.get("item", None)
-        for key in ["item", "lodRowIndex"]:
+        for key in [item_prop.column, "lodRowIndex"]:
             if key in record:
                 record.pop(key)
-        record = {k:v if v != "" else None for k,v in record.items()}
-        prop_map_records = self.wbQuery.propertiesById
-        prop_maps = PropertyMapping.from_records(prop_map_records)
         # limit record to properties that are synced with wikidata
-        prop_by_col = [pm.column for pm in prop_maps]
+        prop_by_col = [pm.column for pm in prop_maps if not pm.is_item_itself()]
         prop_by_col.extend(["label", "description"])
-        record = {k:v for k,v in record.items() if k in prop_by_col}
+        record = {k: v for k, v in record.items() if k in prop_by_col}
         # fetch record from wikidata
         wd_record = dict()
         if item_id is not None and item_id != "":
-            qres = self.wdgrid.wd.get_record(item_id, prop_maps)
-            for p_id, value in qres.items():
-                p_map = prop_map_records.get(p_id, None)
-                if p_map is not None:
-                    p_id = p_map.get("Column")
-                if p_id not in [None, ""]:
-                    wd_record[p_id] = value
+            wd_record = self.wdgrid.wd.get_record(item_id, prop_maps)
+            wd_record = {k: v for k, v in wd_record.items() if k in prop_by_col}
         # normalize records
         record = self.wdgrid.wd.normalize_records(record, prop_maps)
         wd_record = self.wdgrid.wd.normalize_records(wd_record, prop_maps)
-        # show SyncDialog
+
         cr = ComparisonRecord(self.wdgrid.source, record, "wikidata", wd_record)
+        # save item specific attrs
         cr.lodRowIndex = row_index
         cr.qid = item_id
+        # show SyncDialog
         self.wdgrid.sync_dialog_div.delete_components()
         sync_dialog = SyncDialog(
                 cr,
@@ -716,7 +719,9 @@ class GridSync():
             for key in ["label", "desc"]:
                 if key not in record and sync_request.data.comparison_data.get(key, None):
                    record[key] = sync_request.data.comparison_data.get(key).left_value
-            record["item"] = getattr(sync_request.data, "qid")
+            prop_maps = self.get_property_mappings()
+            item_pm = PropertyMapping.get_item_mapping(prop_maps)
+            record[item_pm.column] = getattr(sync_request.data, "qid")
             if source == "wikidata":
                 try:
                     self.add_record_to_wikidata(
@@ -736,12 +741,22 @@ class GridSync():
         Enhances the displayed value
         """
         value_div_pairs = [(row.comparison_data.left_value, row.left_value_div), (row.comparison_data.right_value, row.right_value_div)]
-        for value, div in value_div_pairs:
-            if isinstance(value, WikidataItem):
-                div.text = ""
-                Link(a=div, href=value.get_url(), text=value.label)
-            elif isinstance(value, str) and value.startswith("http"):
-                div.text = ""
-                Link(a=div, href=value, text=value)
+        for value_raw, div in value_div_pairs:
+            values = value_raw if isinstance(value_raw, list) else [value_raw]
+            for i, value in enumerate(values):
+                if i > 0:
+                    Br(a=div)
+                if isinstance(value, WikidataItem):
+                    div.text = ""
+                    Link(a=div, href=value.get_url(), text=value.label)
+                elif isinstance(value, str) and value.startswith("http"):
+                    div.text = ""
+                    Link(a=div, href=value, text=value)
 
-
+    def get_property_mappings(self) -> typing.List[PropertyMapping]:
+        """
+        get property mappings of wbquery
+        """
+        prop_map_records = self.wbQuery.propertiesById
+        prop_maps = PropertyMapping.from_records(prop_map_records)
+        return prop_maps

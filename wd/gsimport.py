@@ -153,7 +153,7 @@ class GoogleSheetWikidataImport(App):
         '''
         get the argument parser
         '''
-        parser=App.getParser(self)
+        parser = App.getParser(self)
         parser.add_argument('--endpoint',help="the endpoint to use [default: %(default)s]",default="https://query.wikidata.org/sparql")
         #parser.add_argument('--dryrun', action="store_true", dest='dryrun', help="dry run only")
         parser.add_argument('--url')
