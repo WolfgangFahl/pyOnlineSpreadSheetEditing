@@ -1,6 +1,7 @@
 import typing
 from dataclasses import dataclass
 from enum import Enum
+
 import justpy as jp
 
 
@@ -8,6 +9,7 @@ class SyncStatus(Enum):
     """
     synchronization status
     """
+
     IN_SYNC = "✓"
     SYNC_POSSIBLE = ""
     OUT_SYNC = "❌"
@@ -17,6 +19,7 @@ class SyncAction(Enum):
     """
     synchronization action
     """
+
     LEFT_SYNC = "←"
     RIGHT_SYNC = "→"
     NOTHING = ""
@@ -25,11 +28,13 @@ class SyncAction(Enum):
     def __missing__(self, key):
         return self.NOTHING
 
+
 @dataclass
 class ComparisonData:
     """
     Stores the property name and the values to compare
     """
+
     property_name: str
     left_value: typing.Any
     right_value: typing.Any
@@ -81,11 +86,11 @@ class ComparisonRecord:
     """
 
     def __init__(
-            self,
-            left_source_name: str,
-            left_record: dict,
-            right_source_name: str,
-            right_record: dict
+        self,
+        left_source_name: str,
+        left_record: dict,
+        right_source_name: str,
+        right_record: dict,
     ):
         """
         constructor
@@ -106,9 +111,9 @@ class ComparisonRecord:
                 property_names.append(p)
         for property_name in property_names:
             cd = ComparisonData(
-                    property_name=property_name,
-                    left_value=left_record.get(property_name, None),
-                    right_value=right_record.get(property_name, None)
+                property_name=property_name,
+                left_value=left_record.get(property_name, None),
+                right_value=right_record.get(property_name, None),
             )
             self.comparison_data[property_name] = cd
 
@@ -148,6 +153,7 @@ class ComparisonRecord:
             update_record = update_rec_right
         return update_record
 
+
 @dataclass
 class SyncRequest:
     """
@@ -164,11 +170,12 @@ class SyncDialog(jp.Div):
     """
 
     def __init__(
-            self,
-            comparison_record: ComparisonRecord,
-            sync_callback: typing.Callable[[SyncRequest], None] = None,
-            value_enhancement_callback: typing.Callable[['SyncDialogRow'], None] = None,
-            **kwargs):
+        self,
+        comparison_record: ComparisonRecord,
+        sync_callback: typing.Callable[[SyncRequest], None] = None,
+        value_enhancement_callback: typing.Callable[["SyncDialogRow"], None] = None,
+        **kwargs,
+    ):
         """
         constructor
         """
@@ -178,7 +185,9 @@ class SyncDialog(jp.Div):
         if sync_callback is None:
             sync_callback = self.__fallback_sync_callback
         self.sync_callback = sync_callback
-        self.content_div = jp.Table(a=div, classes="table-auto w-full border-x border-b")
+        self.content_div = jp.Table(
+            a=div, classes="table-auto w-full border-x border-b"
+        )
         self.header = jp.Tr(a=jp.Thead(a=self.content_div), classes="")
         self.setup_header()
         self.rows = []
@@ -191,7 +200,6 @@ class SyncDialog(jp.Div):
         self.value_enhancement_callback = value_enhancement_callback
         self.enhance_row_values()
 
-
     def setup_header(self):
         """
         setup header column
@@ -201,11 +209,11 @@ class SyncDialog(jp.Div):
         action_header = jp.Th(a=self.header, style="width:60px")
         color = "grey"
         selector = EnumSelector(
-                enum=SyncAction,
-                exclude=[SyncAction.NOTHING],
-                a=action_header,
-                value=SyncAction.SYNC.name,
-                on_change=self.handle_sync_action_change
+            enum=SyncAction,
+            exclude=[SyncAction.NOTHING],
+            a=action_header,
+            value=SyncAction.SYNC.name,
+            on_change=self.handle_sync_action_change,
         )
         jp.Th(a=self.header, text=self.comparison_record.right_source_name)
 
@@ -213,22 +221,19 @@ class SyncDialog(jp.Div):
         div = jp.Div(a=self.controls_div, classes="flex flex-row gap-2 ")
         classes = "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
         btn_sync_left = jp.Button(
-                a=div,
-                text=f"update {self.comparison_record.left_source_name}",
-                on_click=self.handle_sync_left_click,
-                classes=classes
+            a=div,
+            text=f"update {self.comparison_record.left_source_name}",
+            on_click=self.handle_sync_left_click,
+            classes=classes,
         )
         btn_sync_left = jp.Button(
-                a=div,
-                text=f"update both",
-                on_click=self.handle_sync_click,
-                classes=classes
+            a=div, text=f"update both", on_click=self.handle_sync_click, classes=classes
         )
         btn_sync_left = jp.Button(
-                a=div,
-                text=f"update {self.comparison_record.right_source_name}",
-                on_click=self.handle_sync_right_click,
-                classes=classes
+            a=div,
+            text=f"update {self.comparison_record.right_source_name}",
+            on_click=self.handle_sync_right_click,
+            classes=classes,
         )
 
     def handle_sync_action_change(self, msg):
@@ -244,7 +249,7 @@ class SyncDialog(jp.Div):
             elif global_action is SyncAction.SYNC:
                 new_action = row.comparison_data.suggested_sync_action()
             row.comparison_data.chosen_sync_option = new_action
-            row.sync_action_selector.value=new_action.name
+            row.sync_action_selector.value = new_action.name
 
     def handle_sync_left_click(self, _msg):
         self.handover_sync_callback(SyncAction.LEFT_SYNC)
@@ -296,24 +301,15 @@ class SyncDialogRow(jp.Tr):
         row_color = self.get_row_color()
         cell_classes = f"border border-green-600 mx-2 my-1 p-2 {row_color}"
         self.property_name_div = jp.Td(
-                a=self,
-                text=self.comparison_data.property_name,
-                classes=cell_classes
+            a=self, text=self.comparison_data.property_name, classes=cell_classes
         )
         self.left_value_div = jp.Td(
-                a=self,
-                text=self.comparison_data.left_value,
-                classes=cell_classes
+            a=self, text=self.comparison_data.left_value, classes=cell_classes
         )
-        self.sync_status_div = jp.Td(
-                a=self,
-                classes=cell_classes
-        )
+        self.sync_status_div = jp.Td(a=self, classes=cell_classes)
         self.sync_action_selector = self.setup_sync_action_selector()
         self.right_value_div = jp.Td(
-                a=self,
-                text=self.comparison_data.right_value,
-                classes=cell_classes
+            a=self, text=self.comparison_data.right_value, classes=cell_classes
         )
         self.enhance_value_display()
 
@@ -339,11 +335,11 @@ class SyncDialogRow(jp.Tr):
         status_div = jp.Div(a=div, text=self.comparison_data.get_sync_status().value)
         color = "grey"
         selector = EnumSelector(
-                enum=SyncAction,
-                exclude=[SyncAction.SYNC],
-                a=div,
-                value=self.comparison_data.get_chosen_sync_option().name,
-                on_change=self.change_sync_action
+            enum=SyncAction,
+            exclude=[SyncAction.SYNC],
+            a=div,
+            value=self.comparison_data.get_chosen_sync_option().name,
+            on_change=self.change_sync_action,
         )
         return selector
 
@@ -352,7 +348,9 @@ class SyncDialogRow(jp.Tr):
         handle change in sync action
         """
         new_action = SyncAction[self.sync_action_selector.value]
-        print(f"Changing sync action from {self.comparison_data.chosen_sync_option} to {new_action}")
+        print(
+            f"Changing sync action from {self.comparison_data.chosen_sync_option} to {new_action}"
+        )
         self.comparison_data.chosen_sync_option = new_action
 
     def enhance_value_display(self):
@@ -361,10 +359,14 @@ class SyncDialogRow(jp.Tr):
         """
         if self.comparison_data.left_value is None:
             self.left_value_div.text = ""
-            jp.Div(a=self.left_value_div, classes="text-sm text-gray-500", text="<None>")
+            jp.Div(
+                a=self.left_value_div, classes="text-sm text-gray-500", text="<None>"
+            )
         if self.comparison_data.right_value is None:
             self.right_value_div.text = ""
-            jp.Div(a=self.right_value_div, classes="text-sm text-gray-500", text="<None>")
+            jp.Div(
+                a=self.right_value_div, classes="text-sm text-gray-500", text="<None>"
+            )
 
 
 class EnumSelector(jp.Select):
@@ -388,6 +390,7 @@ class EnumSelector(jp.Select):
         for action in self.enum:
             if action in exclude:
                 continue
-            option = jp.Option(value=action.name, text=action.value, classes=f'bg-{color}-600')
+            option = jp.Option(
+                value=action.name, text=action.value, classes=f"bg-{color}-600"
+            )
             self.add(option)
-
