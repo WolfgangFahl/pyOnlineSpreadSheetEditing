@@ -24,7 +24,7 @@ dependencies = [
   # https://pypi.org/project/pyGenericSpreadSheet/
   "pyGenericSpreadSheet>=0.3.0",
   # https://pypi.org/project/ngwidgets/
-  "nicegui_widgets>=0.14.1"
+  "ngwidgets>=0.14.1"
 ]
 
 
