@@ -2,8 +2,6 @@ import typing
 from dataclasses import dataclass
 from enum import Enum
 
-import justpy as jp
-
 
 class SyncStatus(Enum):
     """
@@ -25,7 +23,7 @@ class SyncAction(Enum):
     NOTHING = ""
     SYNC = "⇆"
 
-    def __missing__(self, key):
+    def __missing__(self, _key):
         return self.NOTHING
 
 

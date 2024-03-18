@@ -13,16 +13,20 @@ import typing
 from dataclasses import dataclass
 from typing import Callable
 
-from jpwidgets.bt5widgets import Alert, App, IconButton, Spinner, Switch
-from jpwidgets.widgets import LodGrid, QPasswordDialog
-from justpy import Br, Button, Div, Link, Span, WebPage
+from ez_wikidata.wbquery import WikibaseQuery
+from ez_wikidata.wdproperty import PropertyMapping
+from ez_wikidata.wikidata import Wikidata, WikidataItem
+
+# from jpwidgets.bt5widgets import Alert, App, IconButton, Spinner, Switch
+# from jpwidgets.widgets import LodGrid, QPasswordDialog
+# from justpy import Br, Button, Div, Link, Span, WebPage
 from lodstorage.lod import LOD
 from lodstorage.sparql import SPARQL
 from markupsafe import Markup
-from spreadsheet.wbquery import WikibaseQuery
-from spreadsheet.wikidata import PropertyMapping, Wikidata, WikidataItem
+from ngwidgets.lod_grid import ListOfDictsGrid
+from ngwidgets.webserver import WebSolution
 
-from wd.RecordSync import (
+from onlinespreadsheet.record_sync import (
     ComparisonRecord,
     SyncAction,
     SyncDialog,
@@ -38,7 +42,7 @@ class WikidataGrid:
 
     def __init__(
         self,
-        app: App,
+        solution: WebSolution,
         entityName: str,
         entityPluralName: typing.Optional[str],
         source: str,
@@ -51,7 +55,7 @@ class WikidataGrid:
         """
         constructor
         Args:
-            app(App): the application context of this grid
+            solution(Websolution): the web solution context of this grid
             entityName(str): the name of the entity that this grid is for
             entityPluralName(str): the plural name of the entity type of items displayed in this grid
             source(str): the name of my source (where the data for this grid comes from)
@@ -60,7 +64,7 @@ class WikidataGrid:
             lodRowIndex_column(str): the column/attribute to use for tracking the index in the lod
             debug(bool): if True show debug information
         """
-        self.app = app
+        self.solution = solution
         self.agGrid = None
         self.setEntityName(entityName, entityPluralName)
         self.lodRowIndex_column = lodRowIndex_column

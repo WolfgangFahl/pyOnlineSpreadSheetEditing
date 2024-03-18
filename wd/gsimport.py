@@ -183,31 +183,3 @@ class GoogleSheetWikidataImport(App):
         self.gridSync.setup(a=self.rowB, header=self.header)
         self.wdgrid.setup(a=self.rowC)
         return self.wp
-
-    def getParser(self):
-        """
-        get the argument parser
-        """
-        parser = App.getParser(self)
-        parser.add_argument(
-            "--endpoint",
-            help="the endpoint to use [default: %(default)s]",
-            default="https://query.wikidata.org/sparql",
-        )
-        # parser.add_argument('--dryrun', action="store_true", dest='dryrun', help="dry run only")
-        parser.add_argument("--url")
-        parser.add_argument("--sheets", nargs="+", required=True)
-        parser.add_argument("--mappingSheet", default="WikidataMapping")
-        parser.add_argument("--pk")
-        parser.add_argument(
-            "-l", "--lang", "--language", default="en", help="language to use"
-        )
-        return parser
-
-
-DEBUG = 1
-if __name__ == "__main__":
-    if DEBUG:
-        sys.argv.append("-d")
-    gsimport = GoogleSheetWikidataImport(version.Version)
-    sys.exit(gsimport.mainInstance())
