@@ -1,10 +1,9 @@
-import unittest
 from ngwidgets.basetest import Basetest
-from tests.basetest import BaseTest
-from onlinespreadsheet.record_sync import ComparisonData, ComparisonRecord, SyncDialog, SyncStatus
+from onlinespreadsheet.record_sync import (
+    ComparisonData, ComparisonRecord, SyncStatus, SyncAction
+)
 
-
-class TestComparisonData(BaseTest):
+class TestRecordSync(Basetest):
     """
     tests RecordSync
     """
@@ -25,12 +24,32 @@ class TestComparisonData(BaseTest):
                 expected, left_value, right_value = test_param
                 cd = ComparisonData("label", left_value, right_value)
                 self.assertEqual(expected, cd.get_sync_status())
+    
+    def test_comparison_record_sync(self):
+        """
+        Test to verify the correct suggestion of synchronization actions for differing records and
+        ensure the update records reflect the suggested actions accurately.
+        """
 
+        left_record = {"name": "Alice", "email": "alice@example.com"}
+        right_record = {"name": "Alice", "email": None}
 
-class TestComparisonRecord(BaseTest):
-    """
-    tests ComparisonRecord
-    """
+        comparison_record = ComparisonRecord(
+            left_source_name="Left",
+            left_record=left_record,
+            right_source_name="Right",
+            right_record=right_record
+        )
+
+        # Test sync suggestion
+        for comp_data in comparison_record.comparison_data.values():
+            if comp_data.property_name == "email":
+                self.assertEqual(SyncAction.RIGHT_SYNC, comp_data.suggested_sync_action())
+
+        # Test update records
+        update_left, update_right = comparison_record.get_update_records()
+        self.assertEqual({"email": "alice@example.com"}, update_right)
+
 
     def tests_get_update_records(self):
         """
@@ -59,35 +78,3 @@ class TestComparisonRecord(BaseTest):
                 update_left, update_right = comparison_record.get_update_records()
                 self.assertDictEqual(expected_update_left, update_left)
                 self.assertDictEqual(expected_update_right, update_right)
-
-
-class TestSyncDialog(BaseTest):
-    """
-    tests SyncDialog
-    """
-
-    @staticmethod
-    def sync_dialog_page():
-        """
-        Returns SyncDialog as webpage
-        """
-        import justpy as jp
-
-        wp = (
-            jp.WebPage()
-        )  # head_html='<script src="https://cdn.tailwindcss.com"></script>')
-        div = jp.Div(a=wp, classes="container mx-auto")
-        cr = ComparisonRecord(
-            left_source_name="dblp",
-            left_record={"A": "1", "C": "3", "D": "Test value for long entries"},
-            right_source_name="wikidata",
-            right_record={"B": "2", "D": "4", "C": 5},
-        )
-        SyncDialog(comparison_record=cr, a=div)
-        return wp
-
-    @unittest.skip("For manual debugging")
-    def test_interface(self):
-        import justpy as jp
-
-        jp.justpy(self.sync_dialog_page, host="localhost", port=8442)
