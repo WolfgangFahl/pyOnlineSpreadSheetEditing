@@ -1,7 +1,7 @@
 import unittest
-
+from ngwidgets.basetest import Basetest
 from tests.basetest import BaseTest
-from wd.RecordSync import ComparisonData, ComparisonRecord, SyncDialog, SyncStatus
+from onlinespreadsheet.record_sync import ComparisonData, ComparisonRecord, SyncDialog, SyncStatus
 
 
 class TestComparisonData(BaseTest):

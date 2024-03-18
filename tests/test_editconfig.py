@@ -6,17 +6,16 @@ Created on 2021-12-31
 import unittest
 
 from onlinespreadsheet.editconfig import EditConfig, EditConfigManager
-from tests.basetest import BaseTest
+from ngwidgets.basetest import Basetest
 
 
-class TestEditConfig(BaseTest):
+class TestEditConfig(Basetest):
     """
     test handling edit configurations
     """
 
-    def setUp(self):
-        BaseTest.setUp(self)
-        pass
+    def setUp(self, debug=False, profile=True):
+        Basetest.setUp(self, debug=debug, profile=profile)
 
     def testLoadEditConfiguration(self):
         """

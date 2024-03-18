@@ -6,7 +6,6 @@ Created on 09.12.2021
 import copy
 import getpass
 import os
-import unittest
 
 from lodstorage.lod import LOD
 from lodstorage.query import Query
@@ -15,10 +14,10 @@ from spreadsheet.tableediting import SpreadSheetType
 from wikibot3rd.wikiuser import WikiUser
 
 from onlinespreadsheet.tablequery import QueryType, TableQuery
-from tests.basetest import BaseTest
+from ngwidgets.basetest import Basetest
 
 
-class TestTableQuery(BaseTest):
+class TestTableQuery(Basetest):
     """
     test table query handling
     """
@@ -28,9 +27,9 @@ class TestTableQuery(BaseTest):
         super(TestTableQuery, cls).setUpClass()
         cls.user = getpass.getuser()
 
-    def setUp(self):
-        BaseTest.setUp(self)
-        pass
+    def setUp(self, debug=False, profile=True):
+        Basetest.setUp(self, debug=debug, profile=profile)
+        
 
     @classmethod
     def getSMW_WikiUser(cls, wikiId="smw"):
@@ -81,7 +80,7 @@ class TestTableQuery(BaseTest):
                 raise Exception(f"{iniFile} missing for wikiId {wikiId}")
             else:
                 wikiUser = WikiUser.ofDict(wikiDict, lenient=True)
-                if BaseTest.inPublicCI():
+                if Basetest.inPublicCI():
                     wikiUser.save()
         else:
             wikiUser = WikiUser.ofWikiId(wikiId, lenient=True)
@@ -326,8 +325,3 @@ LIMIT 10""",
             if guessedType != expectedType:
                 print(f"query {i} not guessed correctly: {query}")
             self.assertEqual(expectedType, guessedType)
-
-
-if __name__ == "__main__":
-    # import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
