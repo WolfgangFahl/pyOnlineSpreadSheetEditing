@@ -29,8 +29,6 @@ from ngwidgets.webserver import WebSolution
 from onlinespreadsheet.record_sync import (
     ComparisonRecord,
     SyncAction,
-    SyncDialog,
-    SyncDialogRow,
     SyncRequest,
 )
 
@@ -65,7 +63,7 @@ class WikidataGrid:
             debug(bool): if True show debug information
         """
         self.solution = solution
-        self.agGrid = None
+        self.lod_grid=None
         self.setEntityName(entityName, entityPluralName)
         self.lodRowIndex_column = lodRowIndex_column
         self.getLod = getLod
@@ -112,39 +110,6 @@ class WikidataGrid:
         self.assureAgGrid()
         self.sync_dialog_div = Div(a=self.alert_div, classes="container")
 
-    def assureAgGrid(self):
-        """
-        assure there is an AgGrid instantiated
-        """
-        # is there already an agrid?
-        if self.agGrid is None:
-            self.agGrid = LodGrid(a=self.container)
-            self.agGrid.theme = "ag-theme-material"
-            self.setDefaultColDef(self.agGrid)
-
-    def setLodFromDataFrame(self, df):
-        """
-        set my List of Dicts from the given data frame
-
-        Args:
-            df(Dataframe): the dataframe to set my list of dicts from
-        """
-        lod = df.to_dict("records")
-        self.setLod(lod)
-
-    def setLod(self, lod: list):
-        """
-        set my list of dicts
-
-        Args:
-            lod(list): a list of dicts to work with
-        """
-        self.lod = lod
-        if len(lod) < 1:
-            msg = f"Empty List of dicts is not valid for {self.entityName}"
-            raise Exception(msg)
-        self.columns = self.lod[0].keys()
-        self.setViewLod(lod)
 
     def setViewLod(self, lod: list, nonValue: str = "-"):
         """
@@ -236,21 +201,7 @@ class WikidataGrid:
                     )
                     row[itemColumn] = itemLink
 
-    def addFitSizeButton(self):
-        """
-        add button to resize (fit) the column size to the content to the given just py component
-        Args:
-            a: justpy component to add the button to
-        """
-        self.onSizeColumnsToFitButton = Button(
-            a=self.controls_div,
-            text="fit columns",
-            # iconName='format-columns',
-            classes="hover:bg-blue-500 text-blue-700 hover:text-white border border-blue-500 hover:border-transparent rounded mx-2 px-2 py-1",
-            on_click=self.onSizeColumnsToFit,
-        )
-
-    async def reload(self, _msg=None, clearErrors=True):
+     async def reload(self, _msg=None, clearErrors=True):
         """
         reload the table content via my getLod function
 
@@ -284,14 +235,7 @@ class WikidataGrid:
         except Exception as ex:
             _error = Span(a=_alert, text=f"Error: {str(ex)}", style="color:red")
             self.app.handleException(ex)
-
-    async def onSizeColumnsToFit(self, _msg: dict):
-        try:
-            await asyncio.sleep(0.2)
-            if self.agGrid:
-                await self.agGrid.run_api("sizeColumnsToFit()", self.app.wp)
-        except Exception as ex:
-            self.app.handleException(ex)
+  
 
     def onChangeDryRun(self, msg: dict):
         """
@@ -855,10 +799,3 @@ class GridSync:
                     div.text = ""
                     Link(a=div, href=value, text=value)
 
-    def get_property_mappings(self) -> typing.List[PropertyMapping]:
-        """
-        get property mappings of wbquery
-        """
-        prop_map_records = self.wbQuery.propertiesById
-        prop_maps = PropertyMapping.from_records(prop_map_records)
-        return prop_maps

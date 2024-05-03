@@ -6,15 +6,16 @@ Created on 2024-03-18
 from ngwidgets.input_webserver import InputWebserver, InputWebSolution
 from ngwidgets.webserver import WebserverConfig
 from nicegui.client import Client
-
+from ez_wikidata.wdproperty import WikidataPropertyManager
 from onlinespreadsheet.version import Version
+from onlinespreadsheet.spreadsheet_view import SpreadSheetView
 
 # from onlinespreadsheet.wdgrid import WikidataGrid, GridSync
 
 
 class GsImportWebserver(InputWebserver):
     """
-    scholary knowledge graph browser
+    Google Spreadsheet Import and Wikidata Sync
     """
 
     @classmethod
@@ -23,7 +24,7 @@ class GsImportWebserver(InputWebserver):
         config = WebserverConfig(
             copy_right=copy_right,
             version=Version(),
-            default_port=8765,
+            default_port=9854,
             short_name="gsimport",
         )
         server_config = WebserverConfig.get(config)
@@ -33,6 +34,9 @@ class GsImportWebserver(InputWebserver):
     def __init__(self):
         """Constructs all the necessary attributes for the WebServer object."""
         config = GsImportWebserver.get_config()
+        print("initializing Property Manager")
+        wpm=WikidataPropertyManager.get_instance()
+        print("Properties prepared ...")
         InputWebserver.__init__(self, config=config)
 
 
@@ -58,6 +62,8 @@ class GsImportSolution(InputWebSolution):
         """
         show my user interface
         """
+        ssv=SpreadSheetView(self)
+        
 
     async def home(
         self,
