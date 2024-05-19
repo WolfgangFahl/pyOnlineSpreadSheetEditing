@@ -35,7 +35,7 @@ class GsImportWebserver(InputWebserver):
         """Constructs all the necessary attributes for the WebServer object."""
         config = GsImportWebserver.get_config()
         print("initializing Property Manager")
-        wpm=WikidataPropertyManager.get_instance()
+        self.wpm=WikidataPropertyManager.get_instance()
         print("Properties prepared ...")
         InputWebserver.__init__(self, config=config)
 
@@ -62,7 +62,7 @@ class GsImportSolution(InputWebSolution):
         """
         show my user interface
         """
-        ssv=SpreadSheetView(self)
+        self.ssv=SpreadSheetView(self)
         
 
     async def home(
