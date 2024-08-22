@@ -3,6 +3,7 @@ Created on 2023-01-11
 
 @author: wf
 """
+
 import asyncio
 import copy
 import datetime
@@ -26,11 +27,7 @@ from markupsafe import Markup
 from ngwidgets.lod_grid import ListOfDictsGrid
 from ngwidgets.webserver import WebSolution
 
-from onlinespreadsheet.record_sync import (
-    ComparisonRecord,
-    SyncAction,
-    SyncRequest,
-)
+from onlinespreadsheet.record_sync import ComparisonRecord, SyncAction, SyncRequest
 
 
 class WikidataGrid:
@@ -63,7 +60,7 @@ class WikidataGrid:
             debug(bool): if True show debug information
         """
         self.solution = solution
-        self.lod_grid=None
+        self.lod_grid = None
         self.setEntityName(entityName, entityPluralName)
         self.lodRowIndex_column = lodRowIndex_column
         self.getLod = getLod
@@ -84,7 +81,7 @@ class WikidataGrid:
 
     def setup(self, a):
         """
-        setup the grid Wikidata grid justpy components
+        setup the Wikidata grid nicegui components
         """
         if getattr(self, "container", None) is not None:
             self.container.delete_components()
@@ -109,7 +106,6 @@ class WikidataGrid:
         self.addFitSizeButton()
         self.assureAgGrid()
         self.sync_dialog_div = Div(a=self.alert_div, classes="container")
-
 
     def setViewLod(self, lod: list, nonValue: str = "-"):
         """
@@ -173,17 +169,6 @@ class WikidataGrid:
         self.agGrid.on("rowSelected", self.onRowSelected)
         self.agGrid.options.columnDefs[0].checkboxSelection = True
 
-    def createLink(self, url, text):
-        """
-        create a link from the given url and text
-
-        Args:
-            url(str): the url to create a link for
-            text(str): the text to add for the link
-        """
-        link = f"<a href='{url}' style='color:blue'>{text}</a>"
-        return link
-
     def linkWikidataItems(self, viewLod, itemColumn: str = "item"):
         """
         link the wikidata entries in the given item column if containing Q values
@@ -201,7 +186,7 @@ class WikidataGrid:
                     )
                     row[itemColumn] = itemLink
 
-     async def reload(self, _msg=None, clearErrors=True):
+    async def reload(self, _msg=None, clearErrors=True):
         """
         reload the table content via my getLod function
 
@@ -235,7 +220,6 @@ class WikidataGrid:
         except Exception as ex:
             _error = Span(a=_alert, text=f"Error: {str(ex)}", style="color:red")
             self.app.handleException(ex)
-  
 
     def onChangeDryRun(self, msg: dict):
         """
@@ -430,54 +414,6 @@ class GridSync:
             self.addHtmlMarkupToViewLod(viewLod)
             # reload the AG Grid with the html enriched content
             self.wdgrid.reloadAgGrid(viewLod)
-        except Exception as ex:
-            self.app.handleException(ex)
-
-    def loginUser(self, user: str):
-        """
-        login the given user
-
-        Args:
-            user(str): the name of the user to login
-        """
-        self.loginButton.text = f"{user}"
-        self.loginButton.iconName = "logout"
-        self.wdgrid.dryRunButton.disable = False
-
-    def onloginViaDialog(self, _msg):
-        """
-        handle login via dialog
-        """
-        user = self.passwordDialog.userInput.value
-        password = self.passwordDialog.passwordInput.value
-        self.wd.loginWithCredentials(user, password)
-        if self.wd.user is not None:
-            self.loginUser(self.wd.user)
-
-    def onLogin(self, msg: dict):
-        """
-        handle Login
-        Args:
-            msg(dict): the justpy message
-        """
-        if self.debug:
-            print(msg)
-        try:
-            self.app.clearErrors()
-            wd = self.wdgrid.wd
-            if wd.user is None:
-                wd.loginWithCredentials()
-                if wd.user is None:
-                    self.passwordDialog.loginButton.on("click", self.onloginViaDialog)
-                    self.passwordDialog.value = True
-                else:
-                    self.loginUser(wd.user)
-            else:
-                wd.logout()
-                self.wdgrid.dryRunButton.value = True
-                self.wdgrid.dryRunButton.disable = True
-                self.loginButton.text = "login"
-                self.loginButton.iconName = "chevron_right"
         except Exception as ex:
             self.app.handleException(ex)
 
@@ -798,4 +734,3 @@ class GridSync:
                 elif isinstance(value, str) and value.startswith("http"):
                     div.text = ""
                     Link(a=div, href=value, text=value)
-

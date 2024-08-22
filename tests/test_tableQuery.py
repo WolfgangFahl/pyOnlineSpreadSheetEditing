@@ -3,6 +3,7 @@ Created on 09.12.2021
 
 @author: wf
 """
+
 import copy
 import getpass
 import os
@@ -10,11 +11,11 @@ import os
 from lodstorage.lod import LOD
 from lodstorage.query import Query
 from lodstorage.sparql import SPARQL
+from ngwidgets.basetest import Basetest
 from spreadsheet.tableediting import SpreadSheetType
 from wikibot3rd.wikiuser import WikiUser
 
 from onlinespreadsheet.tablequery import QueryType, TableQuery
-from ngwidgets.basetest import Basetest
 
 
 class TestTableQuery(Basetest):
@@ -29,7 +30,6 @@ class TestTableQuery(Basetest):
 
     def setUp(self, debug=False, profile=True):
         Basetest.setUp(self, debug=debug, profile=profile)
-        
 
     @classmethod
     def getSMW_WikiUser(cls, wikiId="smw"):

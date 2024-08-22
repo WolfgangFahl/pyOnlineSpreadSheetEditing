@@ -1,5 +1,4 @@
 #!/bin/bash
-# WF 2021-06-12
 # install and test
 # command to install dependencies
 scripts/install

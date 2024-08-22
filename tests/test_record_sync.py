@@ -1,7 +1,12 @@
 from ngwidgets.basetest import Basetest
+
 from onlinespreadsheet.record_sync import (
-    ComparisonData, ComparisonRecord, SyncStatus, SyncAction
+    ComparisonData,
+    ComparisonRecord,
+    SyncAction,
+    SyncStatus,
 )
+
 
 class TestRecordSync(Basetest):
     """
@@ -24,7 +29,7 @@ class TestRecordSync(Basetest):
                 expected, left_value, right_value = test_param
                 cd = ComparisonData("label", left_value, right_value)
                 self.assertEqual(expected, cd.get_sync_status())
-    
+
     def test_comparison_record_sync(self):
         """
         Test to verify the correct suggestion of synchronization actions for differing records and
@@ -38,18 +43,19 @@ class TestRecordSync(Basetest):
             left_source_name="Left",
             left_record=left_record,
             right_source_name="Right",
-            right_record=right_record
+            right_record=right_record,
         )
 
         # Test sync suggestion
         for comp_data in comparison_record.comparison_data.values():
             if comp_data.property_name == "email":
-                self.assertEqual(SyncAction.RIGHT_SYNC, comp_data.suggested_sync_action())
+                self.assertEqual(
+                    SyncAction.RIGHT_SYNC, comp_data.suggested_sync_action()
+                )
 
         # Test update records
         update_left, update_right = comparison_record.get_update_records()
         self.assertEqual({"email": "alice@example.com"}, update_right)
-
 
     def tests_get_update_records(self):
         """

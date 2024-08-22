@@ -1,3 +1,4 @@
 #!/bin/bash
-# WF 2023-11-06
-pip install .
+# WF 2020-03-25
+# workaround ugly 
+pip install . -U

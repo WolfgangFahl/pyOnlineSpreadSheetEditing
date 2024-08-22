@@ -3,15 +3,18 @@ Created on 2024-03-18
 
 @author: wf
 """
-from onlinespreadsheet.record_sync import SyncAction, SyncStatus, ComparisonRecord
-class SyncDialog():
+
+from onlinespreadsheet.record_sync import ComparisonRecord, SyncAction, SyncStatus
+
+
+class SyncDialog:
     """
     dialog widget to synchronize two data records
     """
 
     def __init__(
         self,
-        solution:InputWebSolution,
+        solution: InputWebSolution,
         comparison_record: ComparisonRecord,
         sync_callback: typing.Callable[[SyncRequest], None] = None,
         value_enhancement_callback: typing.Callable[["SyncDialogRow"], None] = None,
@@ -19,7 +22,7 @@ class SyncDialog():
         """
         constructor
         """
-        self.solution=solution,
+        self.solution = (solution,)
         self.comparison_record = comparison_record
         if sync_callback is None:
             sync_callback = self.__fallback_sync_callback
@@ -32,12 +35,10 @@ class SyncDialog():
         self.enhance_row_values()
 
     def setup_ui(self):
-        """
-        """
+        """ """
         self.setup_header()
         self.setup_controls()
 
-        
     def setup_header(self):
         """
         setup header column
@@ -58,15 +59,19 @@ class SyncDialog():
 
     def setup_controls(self):
         with ui.row() as self.button_row:
-            btn_sync_left = ui.button(f'update {self.comparison_record.left_source_name}',
-                                      on_click=self.handle_sync_left_click).style('btn-primary')
-    
-            btn_sync_both = ui.button('update both',
-                                      on_click=self.handle_sync_click).style('btn-primary')
-    
-            btn_sync_right = ui.button(f'update {self.comparison_record.right_source_name}',
-                                       on_click=self.handle_sync_right_click).style('btn-primary')
+            btn_sync_left = ui.button(
+                f"update {self.comparison_record.left_source_name}",
+                on_click=self.handle_sync_left_click,
+            ).style("btn-primary")
 
+            btn_sync_both = ui.button(
+                "update both", on_click=self.handle_sync_click
+            ).style("btn-primary")
+
+            btn_sync_right = ui.button(
+                f"update {self.comparison_record.right_source_name}",
+                on_click=self.handle_sync_right_click,
+            ).style("btn-primary")
 
     def handle_sync_action_change(self, msg):
         """
@@ -117,7 +122,7 @@ class SyncDialog():
                 self.value_enhancement_callback(row)
 
 
-class SyncDialogRow():
+class SyncDialogRow:
     """
     row in the SyncDialog
     """
@@ -161,17 +166,17 @@ class SyncDialogRow():
         """
         setup sync action selector and choose default action based on the data
         """
-        #div = jp.Div(a=self.sync_status_div, classes="flex justify-end")
-        #status_div = jp.Div(a=div, text=self.comparison_data.get_sync_status().value)
-        #color = "grey"
-        #selector = EnumSelector(
+        # div = jp.Div(a=self.sync_status_div, classes="flex justify-end")
+        # status_div = jp.Div(a=div, text=self.comparison_data.get_sync_status().value)
+        # color = "grey"
+        # selector = EnumSelector(
         #    enum=SyncAction,
         #    exclude=[SyncAction.SYNC],
         #    a=div,
         #    value=self.comparison_data.get_chosen_sync_option().name,
         #    on_change=self.change_sync_action,
-        #)
-        selector=None
+        # )
+        selector = None
         return selector
 
     def change_sync_action(self, _msg):

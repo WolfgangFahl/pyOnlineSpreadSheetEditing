@@ -2,9 +2,10 @@ import json
 import os
 from urllib.error import HTTPError
 
-import justpy as jp
+# import justpy as jp
 import spreadsheet
-from jpwidgets.bt5widgets import Alert, Collapsible, IconButton
+
+# from jpwidgets.bt5widgets import Alert, Collapsible, IconButton
 from lodstorage.query import Endpoint, Query, QuerySyntaxHighlight
 from spreadsheet.spreadsheet import SpreadSheet, SpreadSheetType
 from tabulate import tabulate
@@ -16,24 +17,25 @@ class QueryDisplay:
     """
 
     def __init__(
-        self, app, name: str, a, filenameprefix, text, sparql, endpointConf: Endpoint
+        self, solution, name: str, filenameprefix, text, sparql, endpointConf: Endpoint
     ):
         """
         Args:
             name(str): the name of the display and query
-            a(jp.Component): an ancestor component
             filenameprefix(str): the filename prefix to use
             text(str)=the text to display
             endpointConf(Endpoint): SPARQL endpoint configuration to use
 
         """
-        self.app = app
+        self.solution = solution
         self.name = name
         self.filenameprefix = filenameprefix
         self.text = text
-        self.a = a
         self.sparql = sparql
         self.endpointConf = endpointConf
+        self.setup_ui()
+
+    def setup_ui(self):
         self.queryHideShow = Collapsible(name, a=a)
         self.queryHideShow.btn.classes += "btn-sm col-3"
         self.queryDiv = jp.Div(a=self.queryHideShow.body)

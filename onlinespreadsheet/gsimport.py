@@ -3,12 +3,14 @@ Created on 2024-03-18
 
 @author: wf
 """
+
+from ez_wikidata.wdproperty import WikidataPropertyManager
 from ngwidgets.input_webserver import InputWebserver, InputWebSolution
 from ngwidgets.webserver import WebserverConfig
 from nicegui.client import Client
-from ez_wikidata.wdproperty import WikidataPropertyManager
-from onlinespreadsheet.version import Version
+
 from onlinespreadsheet.spreadsheet_view import SpreadSheetView
+from onlinespreadsheet.version import Version
 
 # from onlinespreadsheet.wdgrid import WikidataGrid, GridSync
 
@@ -35,7 +37,7 @@ class GsImportWebserver(InputWebserver):
         """Constructs all the necessary attributes for the WebServer object."""
         config = GsImportWebserver.get_config()
         print("initializing Property Manager")
-        self.wpm=WikidataPropertyManager.get_instance()
+        self.wpm = WikidataPropertyManager.get_instance()
         print("Properties prepared ...")
         InputWebserver.__init__(self, config=config)
 
@@ -62,8 +64,7 @@ class GsImportSolution(InputWebSolution):
         """
         show my user interface
         """
-        self.ssv=SpreadSheetView(self)
-        
+        self.ssv = SpreadSheetView(self)
 
     async def home(
         self,

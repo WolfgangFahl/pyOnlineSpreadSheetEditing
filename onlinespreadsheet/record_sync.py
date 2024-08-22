@@ -9,13 +9,16 @@ import typing
 from dataclasses import dataclass
 from enum import Enum
 
+
 class SyncStatus(Enum):
     """
     synchronization status
     """
+
     IN_SYNC = "✓"
     SYNC_POSSIBLE = ""
     OUT_SYNC = "❌"
+
 
 class SyncAction(Enum):
     """
@@ -29,6 +32,7 @@ class SyncAction(Enum):
 
     def __missing__(self, _key):
         return self.NOTHING
+
 
 @dataclass
 class ComparisonData:
@@ -79,6 +83,7 @@ class ComparisonData:
         else:
             action = SyncAction.NOTHING
         return action
+
 
 class ComparisonRecord:
     """
@@ -153,11 +158,12 @@ class ComparisonRecord:
             update_record = update_rec_right
         return update_record
 
+
 @dataclass
 class SyncRequest:
     """
     Synchronization request containing the sync action to apply and the corresponding data
     """
+
     action: SyncAction
     data: ComparisonRecord
-

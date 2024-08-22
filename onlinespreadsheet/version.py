@@ -3,6 +3,7 @@ Created on 2022-03-06
 
 @author: wf
 """
+
 from dataclasses import dataclass
 
 import onlinespreadsheet
@@ -17,7 +18,7 @@ class Version:
     name = "pyOnlineSpreadsheetEditing"
     version = onlinespreadsheet.__version__
     date = "2021-12-11"
-    updated = "2024-05-19"
+    updated = "2024-08-22"
     description = "python Online SpreadSheet Editing tool with configurable enhancer/importer and check phase"
     authors = "Wolfgang Fahl/Tim Holzheim"
     doc_url = "https://wiki.bitplan.com/index.php/PyOnlineSpreadSheetEditing"

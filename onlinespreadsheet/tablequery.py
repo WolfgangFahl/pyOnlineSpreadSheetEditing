@@ -3,6 +3,7 @@ Created on 2021-12-09
 
 @author: wf
 """
+
 import re
 from enum import Enum, auto
 from typing import Optional

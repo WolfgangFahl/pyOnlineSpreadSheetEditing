@@ -1,9 +1,6 @@
 #!/bin/bash
-# WF 2024-01-10
-packages="onlinespreadsheet wd"
-isort tests/*.py
-black tests/*.py
-for package in $packages
+# WF 2024-08-22
+for package in tests wd onlinespreadsheet
 do
   isort $package/*.py
   black $package/*.py

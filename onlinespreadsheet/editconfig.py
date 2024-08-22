@@ -3,12 +3,16 @@ Created on 2021-12-31
 
 @author: wf
 """
+
 import os
-from pathlib import Path
 from dataclasses import field
+from pathlib import Path
+from typing import Dict, Optional
+
 from lodstorage.yamlable import lod_storable
-from typing import Dict,Optional
+
 from onlinespreadsheet.tablequery import QueryType, TableQuery
+
 
 @lod_storable
 class EditConfig:
@@ -22,12 +26,12 @@ class EditConfig:
         queries (Dict[str, str]): The queries dictionary.
         format (Optional[str]): The format of the output.
     """
-    name:str
+
+    name: str
     sourceWikiId: Optional[str] = None
     targetWikiId: Optional[str] = None
     queries: Dict[str, str] = field(default_factory=dict)
     format: Optional[str] = None
-
 
     def addQuery(self, name: str, query: str):
         self.queries[name] = query
@@ -61,6 +65,7 @@ class EditConfigs:
     """
     manager for edit configurations
     """
+
     editConfigs: Dict[str, EditConfig] = field(default_factory=dict)
 
     @classmethod
@@ -77,16 +82,15 @@ class EditConfigs:
         """
         self.editConfigs[editConfig.name] = editConfig
 
-    def save(self,yaml_path:str=None):
+    def save(self, yaml_path: str = None):
         if yaml_path is None:
-            yaml_path=EditConfigs.get_yaml_path()
+            yaml_path = EditConfigs.get_yaml_path()
         os.makedirs(os.path.dirname(yaml_path), exist_ok=True)
         self.save_to_yaml_file(yaml_path)
-        
+
     @classmethod
-    def load(cls,yaml_path:str=None):
+    def load(cls, yaml_path: str = None):
         if yaml_path is None:
-            yaml_path=EditConfigs.get_yaml_path()
-        edit_configs=cls.load_from_yaml_file(yaml_path)
+            yaml_path = EditConfigs.get_yaml_path()
+        edit_configs = cls.load_from_yaml_file(yaml_path)
         return edit_configs
-        

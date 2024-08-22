@@ -1,8 +1,8 @@
 import sys
 import typing
 
-import justpy as jp
-from jpwidgets.bt5widgets import App
+# import justpy as jp
+# from jpwidgets.bt5widgets import App
 from lodstorage.sparql import SPARQL
 from spreadsheet.googlesheet import GoogleSheet
 from spreadsheet.wbquery import WikibaseQuery
