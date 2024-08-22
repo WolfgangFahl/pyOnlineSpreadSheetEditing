@@ -301,7 +301,7 @@ class GridSync:
             debug(bool): if True show debug information
         """
         self.wdgrid = wdgrid
-        self.app = wdgrid.app
+        self.solution = wdgrid.solution
         self.entityName = entityName
         self.pk = pk
         self.sparql = sparql
