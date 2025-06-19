@@ -9,7 +9,7 @@ from dataclasses import field
 from pathlib import Path
 from typing import Dict, Optional
 
-from lodstorage.yamlable import lod_storable
+from basemkit.yamlable import lod_storable
 
 from onlinespreadsheet.tablequery import QueryType, TableQuery
 

@@ -14,7 +14,6 @@ class SyncStatus(Enum):
     """
     synchronization status
     """
-
     IN_SYNC = "✓"
     SYNC_POSSIBLE = ""
     OUT_SYNC = "❌"
@@ -24,7 +23,6 @@ class SyncAction(Enum):
     """
     synchronization action
     """
-
     LEFT_SYNC = "←"
     RIGHT_SYNC = "→"
     NOTHING = ""
@@ -39,7 +37,6 @@ class ComparisonData:
     """
     Stores the property name and the values to compare
     """
-
     property_name: str
     left_value: typing.Any
     right_value: typing.Any
@@ -164,6 +161,5 @@ class SyncRequest:
     """
     Synchronization request containing the sync action to apply and the corresponding data
     """
-
     action: SyncAction
     data: ComparisonRecord
