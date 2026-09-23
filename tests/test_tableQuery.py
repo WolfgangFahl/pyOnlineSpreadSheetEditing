@@ -269,7 +269,7 @@ LIMIT 7
             if "503" in error:
                 print(f"Couldn't test {url} due to a 503 Service Unavailable status")
                 return
-        self.assertEquals(0, len(tq.errors))
+        self.assertEqual(0, len(tq.errors))
         self.assertTrue("WEBIST_confref" in tq.tableEditing.lods)
         self.assertTrue(len(tq.tableEditing.lods["WEBIST_confref"]) > 15)
 
