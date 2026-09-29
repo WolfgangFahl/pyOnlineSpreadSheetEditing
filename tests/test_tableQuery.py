@@ -179,7 +179,7 @@ class TestTableQuery(Basetest):
 SELECT DISTINCT ?city ?cityLabel ?population ?country ?countryLabel 
 WHERE {
   VALUES ?cityClass { wd:Q1637706}.
-  ?city wdt:P31 ?cityClass .
+  ?city wdt:P31/wdt:P279* ?cityClass .
   ?city wdt:P1082 ?population .
   ?city wdt:P17 ?country .
   SERVICE wikibase:label {
